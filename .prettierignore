@@ -6,6 +6,5 @@ coverage/
 out/
 
 .git/
-.github/
 
 *.lock
