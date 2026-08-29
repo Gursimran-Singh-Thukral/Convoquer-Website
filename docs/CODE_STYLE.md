@@ -11,7 +11,7 @@
 **Editor Configuration:** EditorConfig  
 **Automation:** Git Hooks + GitHub Actions  
 **Document Version:** 1.0  
-**Status:** Approved Development Baseline  
+**Status:** Approved Development Baseline
 
 ---
 
@@ -56,13 +56,13 @@ The project lead's existing coding style is the primary reference for the projec
 
 The reference code demonstrates:
 
-* Explicit logical sections.
-* Descriptive variable names.
-* Generous separation between logical blocks.
-* Section comments.
-* Straightforward control flow.
-* Explicit error handling.
-* Explicit response construction.
+- Explicit logical sections.
+- Descriptive variable names.
+- Generous separation between logical blocks.
+- Section comments.
+- Straightforward control flow.
+- Explicit error handling.
+- Explicit response construction.
 
 For example, the reference controller separates request extraction, user identification, validation and database processing into visually distinct sections.
 
@@ -176,21 +176,13 @@ Preferred:
 
 ```ts
 const createMatch = async () => {
-
     try {
-
         const match = await matchService.create();
 
         return match;
-
-    }
-
-    catch(error) {
-
+    } catch (error) {
         throw error;
-
     }
-
 };
 ```
 
@@ -211,10 +203,8 @@ const { title, description } = createMatchDto;
 
 const createdBy = req.user.id;
 
-if(!title || !description) {
-
+if (!title || !description) {
     throw new BadRequestException();
-
 }
 
 const match = await this.matchService.create();
@@ -266,14 +256,14 @@ Blank lines should be used to communicate structure.
 
 Use blank lines between:
 
-* Imports and code.
-* Variable groups.
-* Logical operations.
-* Validation sections.
-* Database operations.
-* Error handling.
-* Return statements.
-* Major class methods.
+- Imports and code.
+- Variable groups.
+- Logical operations.
+- Validation sections.
+- Database operations.
+- Error handling.
+- Return statements.
+- Major class methods.
 
 Do not add random blank lines without a structural reason.
 
@@ -287,14 +277,12 @@ Bad:
 
 ```ts
 async function processEverything() {
-
     // Authentication
     // Database
     // Score calculation
     // Email
     // Audit
     // Notification
-
 }
 ```
 
@@ -329,24 +317,24 @@ Functions should use descriptive verbs.
 Preferred:
 
 ```ts
-createMatch()
-getMatch()
-updateMatch()
-deleteMatch()
-approveResult()
-calculateStandings()
-assignVolunteer()
-publishResult()
+createMatch();
+getMatch();
+updateMatch();
+deleteMatch();
+approveResult();
+calculateStandings();
+assignVolunteer();
+publishResult();
 ```
 
 Avoid:
 
 ```ts
-doThing()
-process()
-handle()
-run()
-execute()
+doThing();
+process();
+handle();
+run();
+execute();
 ```
 
 unless the meaning is obvious from context.
@@ -360,23 +348,23 @@ Variables should describe what they contain.
 Preferred:
 
 ```ts
-matchId
-createdBy
-updatedMatch
-participantCount
-currentScore
-sportCoordinator
+matchId;
+createdBy;
+updatedMatch;
+participantCount;
+currentScore;
+sportCoordinator;
 ```
 
 Avoid:
 
 ```ts
-x
-data1
-obj
-temp
-thing
-result2
+x;
+data1;
+obj;
+temp;
+thing;
+result2;
 ```
 
 ---
@@ -388,20 +376,20 @@ Boolean variables should communicate a condition.
 Preferred:
 
 ```ts
-isActive
-isPublished
-isApproved
-hasPermission
-canEdit
-isAuthenticated
+isActive;
+isPublished;
+isApproved;
+hasPermission;
+canEdit;
+isAuthenticated;
 ```
 
 Avoid:
 
 ```ts
-active
-permission
-edit
+active;
+permission;
+edit;
 ```
 
 when the meaning is ambiguous.
@@ -451,7 +439,7 @@ Repeated important strings should be centralized when appropriate.
 Avoid scattering:
 
 ```ts
-"RESULT_APPROVED"
+"RESULT_APPROVED";
 ```
 
 throughout dozens of files.
@@ -575,11 +563,11 @@ Recommended order:
 Example:
 
 ```ts
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "@/database/prisma.service";
 
-import { ScoreService } from './score.service';
-import { UpdateScoreDto } from './dto/update-score.dto';
+import { ScoreService } from "./score.service";
+import { UpdateScoreDto } from "./dto/update-score.dto";
 ```
 
 The final ESLint configuration should enforce import consistency where practical.
@@ -593,7 +581,7 @@ Unused imports must not remain in the codebase.
 The uploaded reference file contains an apparently unused import:
 
 ```js
-const { get } = require('../routes/userRoutes');
+const { get } = require("../routes/userRoutes");
 ```
 
 The new project should use ESLint/TypeScript checks to catch such issues automatically.
@@ -621,7 +609,7 @@ The project should use one quote style consistently.
 Recommended:
 
 ```ts
-const message = 'Match updated successfully';
+const message = "Match updated successfully";
 ```
 
 Prettier will enforce the final configuration.
@@ -708,10 +696,7 @@ interface MatchScore {
 and:
 
 ```ts
-type MatchStatus =
-    | 'SCHEDULED'
-    | 'LIVE'
-    | 'COMPLETED';
+type MatchStatus = "SCHEDULED" | "LIVE" | "COMPLETED";
 ```
 
 The project's final conventions for interfaces vs type aliases should remain consistent.
@@ -745,10 +730,8 @@ Do not assume that database values always exist.
 Example:
 
 ```ts
-if(!match) {
-
-    throw new NotFoundException('Match not found');
-
+if (!match) {
+    throw new NotFoundException("Match not found");
 }
 ```
 
@@ -997,10 +980,10 @@ Custom hooks should use the `use` prefix.
 Examples:
 
 ```ts
-useCurrentUser()
-useMatch()
-useLiveScore()
-usePermissions()
+useCurrentUser();
+useMatch();
+useLiveScore();
+usePermissions();
 ```
 
 ---
@@ -1056,7 +1039,9 @@ const canEditScore = ...
 then:
 
 ```tsx
-{canEditScore && <ScoreEditor />}
+{
+    canEditScore && <ScoreEditor />;
+}
 ```
 
 ---
@@ -1263,9 +1248,7 @@ Logs should contain useful context.
 Preferred:
 
 ```ts
-this.logger.error(
-    `[DB Match Update Error] ${error.message}`
-);
+this.logger.error(`[DB Match Update Error] ${error.message}`);
 ```
 
 The existing coding style uses identifiable log prefixes such as:
@@ -1338,7 +1321,7 @@ Use optional chaining where it improves readability.
 Example:
 
 ```ts
-user?.profile?.name
+user?.profile?.name;
 ```
 
 Do not use it blindly when missing data should instead produce an explicit error.
@@ -1352,16 +1335,12 @@ Early returns are encouraged when they simplify logic.
 Example:
 
 ```ts
-if(!match) {
-
-    throw new NotFoundException('Match not found');
-
+if (!match) {
+    throw new NotFoundException("Match not found");
 }
 
-if(match.status === MatchStatus.COMPLETED) {
-
-    throw new BadRequestException('Match is already completed');
-
+if (match.status === MatchStatus.COMPLETED) {
+    throw new BadRequestException("Match is already completed");
 }
 ```
 
@@ -1376,22 +1355,14 @@ Avoid excessive nesting.
 Bad:
 
 ```ts
-if(user) {
-
-    if(match) {
-
-        if(match.status) {
-
-            if(permission) {
-
+if (user) {
+    if (match) {
+        if (match.status) {
+            if (permission) {
                 // ...
-
             }
-
         }
-
     }
-
 }
 ```
 
@@ -1406,8 +1377,7 @@ Use switch statements when they make domain logic clearer.
 For example:
 
 ```ts
-switch(match.status) {
-
+switch (match.status) {
     case MatchStatus.SCHEDULED:
         break;
 
@@ -1416,7 +1386,6 @@ switch(match.status) {
 
     case MatchStatus.COMPLETED:
         break;
-
 }
 ```
 
@@ -1471,10 +1440,10 @@ The exact guard/pipeline order must follow the backend architecture.
 Do not trust:
 
 ```ts
-req.body.role
-req.body.userId
-req.body.permissions
-req.body.score
+req.body.role;
+req.body.userId;
+req.body.permissions;
+req.body.score;
 ```
 
 without server-side validation and authorization.
@@ -1951,7 +1920,7 @@ The exact output will ultimately be determined by Prettier and the framework con
 The developer should be able to write:
 
 ```ts
-const match=await service.getMatch(id)
+const match = await service.getMatch(id);
 ```
 
 and let the tooling turn it into the project's agreed formatting.
@@ -2102,39 +2071,39 @@ CODE_STYLE.md
 
 Confirmed:
 
-* TypeScript-first development.
-* 4-space indentation baseline.
-* Spaces instead of tabs.
-* Generous logical whitespace.
-* Explicit readable code.
-* Descriptive naming.
-* Section comments.
-* Focused functions.
-* Thin controllers.
-* Business logic in services.
-* DTO-based validation.
-* Explicit authorization.
-* Prettier.
-* ESLint.
-* EditorConfig.
-* Git hooks.
-* GitHub Actions.
-* Automated formatting.
-* Automated linting.
-* Automated type checking.
-* Automated testing.
-* Human code review for architecture/security.
+- TypeScript-first development.
+- 4-space indentation baseline.
+- Spaces instead of tabs.
+- Generous logical whitespace.
+- Explicit readable code.
+- Descriptive naming.
+- Section comments.
+- Focused functions.
+- Thin controllers.
+- Business logic in services.
+- DTO-based validation.
+- Explicit authorization.
+- Prettier.
+- ESLint.
+- EditorConfig.
+- Git hooks.
+- GitHub Actions.
+- Automated formatting.
+- Automated linting.
+- Automated type checking.
+- Automated testing.
+- Human code review for architecture/security.
 
 TBD:
 
-* Final Prettier configuration.
-* Final ESLint configuration.
-* Final EditorConfig values if framework tooling requires changes.
-* Exact Git hook implementation.
-* Exact GitHub Actions workflow.
-* Final CSS/styling conventions.
-* Final import-order configuration.
-* Final TypeScript strictness settings.
+- Final Prettier configuration.
+- Final ESLint configuration.
+- Final EditorConfig values if framework tooling requires changes.
+- Exact Git hook implementation.
+- Exact GitHub Actions workflow.
+- Final CSS/styling conventions.
+- Final import-order configuration.
+- Final TypeScript strictness settings.
 
 ---
 

@@ -6,7 +6,7 @@
 **Event Dates:** 1–4 October 2026  
 **Architecture Version:** 1.0  
 **Status:** Approved Baseline Architecture  
-**Repository:** `convoquer26`  
+**Repository:** `convoquer26`
 
 ---
 
@@ -20,22 +20,22 @@ This document defines **how the system is structured to provide it**.
 
 The architecture is designed around the following requirements:
 
-* Professional public-facing website.
-* Centralized competition management.
-* Live scoring.
-* Direct result entry.
-* Tournament and fixture management.
-* Granular organizer permissions.
-* IIT Jammu Google authentication.
-* Secure server-side sessions.
-* Strong object-level authorization.
-* Auditability of critical operations.
-* Mobile-first operational interfaces.
-* Maintainability by a team of beginner developers.
-* Deployment on an IIT Jammu-provided VM.
-* Cloudflare protection.
-* Automated code quality checks.
-* Phased development with a September 2026 feature-freeze deadline.
+- Professional public-facing website.
+- Centralized competition management.
+- Live scoring.
+- Direct result entry.
+- Tournament and fixture management.
+- Granular organizer permissions.
+- IIT Jammu Google authentication.
+- Secure server-side sessions.
+- Strong object-level authorization.
+- Auditability of critical operations.
+- Mobile-first operational interfaces.
+- Maintainability by a team of beginner developers.
+- Deployment on an IIT Jammu-provided VM.
+- Cloudflare protection.
+- Automated code quality checks.
+- Phased development with a September 2026 feature-freeze deadline.
 
 ---
 
@@ -82,13 +82,13 @@ All authoritative information must be maintained by the backend.
 
 Examples:
 
-* Match state
-* Scores
-* Results
-* Standings
-* User permissions
-* Tournament configuration
-* Official schedules
+- Match state
+- Scores
+- Results
+- Standings
+- User permissions
+- Tournament configuration
+- Official schedules
 
 The frontend is a presentation and interaction layer.
 
@@ -259,22 +259,22 @@ The initial project intentionally does not use a complex shared-package monorepo
 
 The client will use:
 
-* Next.js
-* TypeScript
-* Tailwind CSS
+- Next.js
+- TypeScript
+- Tailwind CSS
 
 The client is responsible for:
 
-* Public website
-* Organizer dashboards
-* Forms
-* User interactions
-* Data presentation
-* Responsive layouts
-* Live score display
-* Live scoring interface
-* Client-side validation where useful
-* WebSocket connection management
+- Public website
+- Organizer dashboards
+- Forms
+- User interactions
+- Data presentation
+- Responsive layouts
+- Live score display
+- Live scoring interface
+- Client-side validation where useful
+- WebSocket connection management
 
 The client is **not responsible for enforcing authorization**.
 
@@ -334,11 +334,11 @@ This structure may be refined during implementation.
 
 The backend will use:
 
-* Node.js
-* TypeScript
-* NestJS
-* Prisma
-* PostgreSQL
+- Node.js
+- TypeScript
+- NestJS
+- Prisma
+- PostgreSQL
 
 The backend contains all authoritative application logic.
 
@@ -517,14 +517,14 @@ Protected endpoints require authentication and appropriate authorization.
 
 APIs should:
 
-* Use consistent naming.
-* Return predictable response structures.
-* Validate inputs.
-* Never expose internal database structures unnecessarily.
-* Never trust client-supplied authorization claims.
-* Use UUIDs for persistent resource identifiers.
-* Return appropriate HTTP status codes.
-* Avoid leaking sensitive implementation details in errors.
+- Use consistent naming.
+- Return predictable response structures.
+- Validate inputs.
+- Never expose internal database structures unnecessarily.
+- Never trust client-supplied authorization claims.
+- Use UUIDs for persistent resource identifiers.
+- Return appropriate HTTP status codes.
+- Avoid leaking sensitive implementation details in errors.
 
 API versioning strategy is TBD.
 
@@ -664,12 +664,12 @@ The application should not rely on a long-lived self-contained JWT as the sole a
 
 A database-backed session provides:
 
-* Immediate revocation.
-* Centralized session visibility.
-* Session auditing.
-* Server-side expiration.
-* Ability to terminate individual sessions.
-* Better control over suspicious session activity.
+- Immediate revocation.
+- Centralized session visibility.
+- Session auditing.
+- Server-side expiration.
+- Ability to terminate individual sessions.
+- Better control over suspicious session activity.
 
 ---
 
@@ -701,13 +701,13 @@ The exact schema will be defined in `DATABASE.md`.
 
 Sessions should use:
 
-* Secure cookies.
-* HttpOnly cookies.
-* Appropriate SameSite policy.
-* Server-side expiry.
-* Revocation.
-* Rotation where appropriate.
-* Secure random session identifiers.
+- Secure cookies.
+- HttpOnly cookies.
+- Appropriate SameSite policy.
+- Server-side expiry.
+- Revocation.
+- Rotation where appropriate.
+- Secure random session identifiers.
 
 The application must not expose session secrets through APIs.
 
@@ -719,12 +719,12 @@ The system should be designed so that obtaining a session credential alone does 
 
 Additional signals may include:
 
-* IP address.
-* User agent.
-* Session metadata.
-* Session age.
-* Activity anomalies.
-* Explicit revocation.
+- IP address.
+- User agent.
+- Session metadata.
+- Session age.
+- Activity anomalies.
+- Explicit revocation.
 
 However, IP address should be treated as a **security signal**, not an immutable identity.
 
@@ -988,14 +988,14 @@ Multi-edition support beyond the foundational model is future scope.
 
 A Sport represents a discipline such as:
 
-* Football
-* Cricket
-* Basketball
-* Volleyball
-* Badminton
-* Table Tennis
-* Athletics
-* Chess
+- Football
+- Cricket
+- Basketball
+- Volleyball
+- Badminton
+- Table Tennis
+- Athletics
+- Chess
 
 Additional sports should be configurable.
 
@@ -1023,14 +1023,14 @@ The final set of formats is TBD.
 
 A tournament may contain:
 
-* Format
-* Participants
-* Seeding
-* Number of rounds
-* Qualification rules
-* Points system
-* Tiebreakers
-* Match rules
+- Format
+- Participants
+- Seeding
+- Number of rounds
+- Qualification rules
+- Points system
+- Tiebreakers
+- Match rules
 
 Tournament configuration must be validated server-side.
 
@@ -1082,14 +1082,14 @@ A fixture represents a scheduled competition encounter.
 
 It contains or references:
 
-* Match
-* Round
-* Participants
-* Venue
-* Date
-* Time
-* Officials
-* Status
+- Match
+- Round
+- Participants
+- Venue
+- Date
+- Time
+- Officials
+- Status
 
 ---
 
@@ -1229,10 +1229,10 @@ Match
 
 This can provide:
 
-* Better auditability.
-* Match history.
-* Event reconstruction.
-* More reliable statistics.
+- Better auditability.
+- Match history.
+- Event reconstruction.
+- More reliable statistics.
 
 The exact event model varies by sport.
 
@@ -1325,13 +1325,13 @@ A result must not be directly modified through arbitrary client-side requests.
 
 The backend must validate:
 
-* User permission.
-* Match state.
-* Sport-specific result rules.
-* Participant validity.
-* Result completeness.
-* Tournament rules.
-* Previous result state.
+- User permission.
+- Match state.
+- Sport-specific result rules.
+- Participant validity.
+- Result completeness.
+- Tournament rules.
+- Previous result state.
 
 ---
 
@@ -1431,13 +1431,13 @@ Errors should be presented before final import.
 
 Potential issues:
 
-* Missing required fields.
-* Invalid formats.
-* Duplicate participants.
-* Invalid institute.
-* Invalid sport.
-* Invalid team.
-* Unknown values.
+- Missing required fields.
+- Invalid formats.
+- Duplicate participants.
+- Invalid institute.
+- Invalid sport.
+- Invalid team.
+- Unknown values.
 
 ---
 
@@ -1465,11 +1465,11 @@ Hospitality Dashboard
 
 Potential outputs:
 
-* Expected participants per institute.
-* Expected participants per sport.
-* Participants expected at venues.
-* Match-based participant movement.
-* Refreshment planning estimates.
+- Expected participants per institute.
+- Expected participants per sport.
+- Participants expected at venues.
+- Match-based participant movement.
+- Refreshment planning estimates.
 
 These calculations are operational estimates, not authoritative attendance records unless explicitly defined.
 
@@ -1489,15 +1489,15 @@ User
 
 An assignment may include:
 
-* User
-* Department
-* Venue
-* Date
-* Start time
-* End time
-* Task type
-* Description
-* Status
+- User
+- Department
+- Venue
+- Date
+- Start time
+- End time
+- Task type
+- Description
+- Status
 
 Proposed states:
 
@@ -1529,12 +1529,12 @@ data.
 
 Examples of internal data:
 
-* Audit logs.
-* Sessions.
-* Internal assignments.
-* Sensitive participant information.
-* Internal organizer communications.
-* Private sponsorship information.
+- Audit logs.
+- Sessions.
+- Internal assignments.
+- Sensitive participant information.
+- Internal organizer communications.
+- Private sponsorship information.
 
 These must never be exposed through public API responses.
 
@@ -1576,11 +1576,11 @@ Application
 
 Storage choice will depend on:
 
-* VM storage capacity.
-* Network bandwidth.
-* Expected gallery size.
-* Video requirements.
-* Backup strategy.
+- VM storage capacity.
+- Network bandwidth.
+- Expected gallery size.
+- Video requirements.
+- Backup strategy.
 
 ---
 
@@ -1683,19 +1683,19 @@ PostgreSQL is the primary database.
 
 The database will be relational because the domain contains strong relationships between:
 
-* Users.
-* Roles.
-* Permissions.
-* Institutes.
-* Teams.
-* Players.
-* Sports.
-* Tournaments.
-* Matches.
-* Results.
-* Venues.
-* Assignments.
-* Audit records.
+- Users.
+- Roles.
+- Permissions.
+- Institutes.
+- Teams.
+- Players.
+- Sports.
+- Tournaments.
+- Matches.
+- Results.
+- Venues.
+- Assignments.
+- Audit records.
 
 ---
 
@@ -1705,12 +1705,12 @@ Prisma will be used as the ORM/database access layer.
 
 Responsibilities include:
 
-* Schema representation.
-* Database migrations.
-* Type-safe queries.
-* Relationships.
-* Transactions.
-* Development tooling.
+- Schema representation.
+- Database migrations.
+- Type-safe queries.
+- Relationships.
+- Transactions.
+- Development tooling.
 
 Raw SQL may be used where genuinely necessary and should be documented.
 
@@ -1828,14 +1828,14 @@ Database-level constraints should be used wherever possible to protect data inte
 
 Potential constraints include:
 
-* Unique institutional email.
-* Unique role names.
-* Unique sport names within an event.
-* Valid foreign keys.
-* Required relationships.
-* Valid state values.
-* Unique session identifiers.
-* Unique import identifiers.
+- Unique institutional email.
+- Unique role names.
+- Unique sport names within an event.
+- Valid foreign keys.
+- Required relationships.
+- Valid state values.
+- Unique session identifiers.
+- Unique import identifiers.
 
 Application validation and database constraints should complement one another.
 
@@ -1990,22 +1990,22 @@ Cloudflare will sit in front of the production application.
 
 Expected responsibilities:
 
-* DNS.
-* TLS/HTTPS.
-* Edge protection.
-* DDoS mitigation.
-* Bot protection.
-* WAF capabilities where configured.
+- DNS.
+- TLS/HTTPS.
+- Edge protection.
+- DDoS mitigation.
+- Bot protection.
+- WAF capabilities where configured.
 
 Application-level security remains mandatory.
 
 Cloudflare is not a replacement for:
 
-* Authentication.
-* Authorization.
-* Database security.
-* Input validation.
-* Audit logging.
+- Authentication.
+- Authorization.
+- Database security.
+- Input validation.
+- Audit logging.
 
 ---
 
@@ -2029,10 +2029,10 @@ The final mechanism depends on the exact cookie and API architecture.
 
 Possible protections include:
 
-* SameSite cookies.
-* CSRF tokens where required.
-* Origin checking.
-* Proper CORS configuration.
+- SameSite cookies.
+- CSRF tokens where required.
+- Origin checking.
+- Proper CORS configuration.
 
 The final implementation must be documented before production.
 
@@ -2079,12 +2079,12 @@ Production APIs should return useful but non-sensitive errors.
 
 The application must not expose:
 
-* Database stack traces.
-* Secret values.
-* Internal filesystem paths.
-* SQL queries.
-* Session tokens.
-* Authentication provider secrets.
+- Database stack traces.
+- Secret values.
+- Internal filesystem paths.
+- SQL queries.
+- Session tokens.
+- Authentication provider secrets.
 
 Development environments may use more detailed debugging.
 
@@ -2132,9 +2132,9 @@ Audit logs are therefore business/security records and should be treated more ca
 
 The frontend may use permissions to determine:
 
-* Which menu items to display.
-* Which buttons to show.
-* Which dashboard sections to render.
+- Which menu items to display.
+- Which buttons to show.
+- Which dashboard sections to render.
 
 However:
 
@@ -2162,11 +2162,11 @@ Only explicitly permitted fields should be exposed.
 
 This is especially important for:
 
-* Participant information.
-* Organizer information.
-* Session information.
-* Audit logs.
-* Sponsor contacts.
+- Participant information.
+- Organizer information.
+- Session information.
+- Audit logs.
+- Sponsor contacts.
 
 ---
 
@@ -2176,13 +2176,13 @@ The initial system is expected to have a moderate number of users.
 
 Therefore the architecture should prioritize:
 
-* Efficient database queries.
-* Appropriate indexes.
-* Caching of stable public content.
-* Optimized media.
-* Efficient real-time connections.
-* Avoiding unnecessary polling.
-* Pagination for large datasets.
+- Efficient database queries.
+- Appropriate indexes.
+- Caching of stable public content.
+- Optimized media.
+- Efficient real-time connections.
+- Avoiding unnecessary polling.
+- Pagination for large datasets.
 
 A distributed microservice architecture is not required.
 
@@ -2192,11 +2192,11 @@ A distributed microservice architecture is not required.
 
 Caching may be used for relatively stable public information:
 
-* Sports.
-* Venues.
-* Rules.
-* Sponsors.
-* Published news.
+- Sports.
+- Venues.
+- Rules.
+- Sponsors.
+- Published news.
 
 Highly dynamic competition data should have shorter cache lifetimes or bypass caching where appropriate.
 
@@ -2233,12 +2233,12 @@ Large collections should be paginated.
 
 Potential examples:
 
-* Audit logs.
-* Participants.
-* Teams.
-* Media.
-* News.
-* Matches.
+- Audit logs.
+- Participants.
+- Teams.
+- Media.
+- News.
+- Matches.
 
 The API should not return an unbounded number of records.
 
@@ -2250,13 +2250,13 @@ The client should follow accessible web-development practices.
 
 Requirements include:
 
-* Semantic HTML.
-* Keyboard accessibility.
-* Accessible form labels.
-* Adequate contrast.
-* Meaningful focus states.
-* Screen-reader-compatible controls.
-* Reduced-motion consideration.
+- Semantic HTML.
+- Keyboard accessibility.
+- Accessible form labels.
+- Adequate contrast.
+- Meaningful focus states.
+- Screen-reader-compatible controls.
+- Reduced-motion consideration.
 
 ---
 
@@ -2264,17 +2264,17 @@ Requirements include:
 
 The public platform must support:
 
-* Desktop.
-* Laptop.
-* Tablet.
-* Mobile.
+- Desktop.
+- Laptop.
+- Tablet.
+- Mobile.
 
 The organizer platform should prioritize mobile operation for:
 
-* Volunteers.
-* Sports Coordinators.
-* Score operators.
-* Media staff.
+- Volunteers.
+- Sports Coordinators.
+- Score operators.
+- Media staff.
 
 The live-scoring interface should be optimized primarily for phones.
 
@@ -2302,12 +2302,12 @@ Manual Acceptance Testing
 
 Unit tests should cover business logic such as:
 
-* Tournament calculations.
-* Standings.
-* Score validation.
-* State transitions.
-* Permission evaluation.
-* Ranking calculations.
+- Tournament calculations.
+- Standings.
+- Score validation.
+- State transitions.
+- Permission evaluation.
+- Ranking calculations.
 
 ---
 
@@ -2315,12 +2315,12 @@ Unit tests should cover business logic such as:
 
 Integration tests should verify interactions between:
 
-* NestJS.
-* Prisma.
-* PostgreSQL.
-* Authentication.
-* Competition services.
-* Audit system.
+- NestJS.
+- Prisma.
+- PostgreSQL.
+- Authentication.
+- Competition services.
+- Audit system.
 
 ---
 
@@ -2389,11 +2389,11 @@ Prettier will be used as the project's automated formatting standard.
 
 Developers should not manually debate:
 
-* Indentation.
-* Spaces.
-* Line breaks.
-* Quote styles.
-* Trailing commas.
+- Indentation.
+- Spaces.
+- Line breaks.
+- Quote styles.
+- Trailing commas.
 
 The formatter establishes the standard.
 
@@ -2403,11 +2403,11 @@ The formatter establishes the standard.
 
 `.editorconfig` should define basic editor behavior such as:
 
-* Character encoding.
-* Line endings.
-* Indentation.
-* Final newline.
-* Trailing whitespace.
+- Character encoding.
+- Line endings.
+- Indentation.
+- Final newline.
+- Trailing whitespace.
 
 This ensures consistency across editors.
 
@@ -2419,10 +2419,10 @@ ESLint will enforce project-level JavaScript/TypeScript coding rules.
 
 Rules should focus on:
 
-* Correctness.
-* Maintainability.
-* Common bugs.
-* Consistent patterns.
+- Correctness.
+- Maintainability.
+- Common bugs.
+- Consistent patterns.
 
 The configuration should avoid excessive rules that slow down beginner developers without providing meaningful value.
 
@@ -2454,11 +2454,11 @@ Direct pushes to protected branches should be restricted.
 
 A Pull Request should contain:
 
-* What was changed.
-* Why it was changed.
-* Testing performed.
-* Screenshots where UI changes are involved.
-* Known limitations.
+- What was changed.
+- Why it was changed.
+- Testing performed.
+- Screenshots where UI changes are involved.
+- Known limitations.
 
 Automated checks must pass before merging.
 
@@ -2470,11 +2470,11 @@ The main production branch should be protected.
 
 Recommended requirements:
 
-* Pull Request required.
-* CI checks required.
-* Review required.
-* Direct push restricted.
-* Force push restricted.
+- Pull Request required.
+- CI checks required.
+- Review required.
+- Direct push restricted.
+- Force push restricted.
 
 Exact GitHub configuration is an implementation task.
 
@@ -2562,11 +2562,11 @@ Production PostgreSQL requires a backup strategy.
 
 The final backup configuration must specify:
 
-* Frequency.
-* Retention.
-* Storage location.
-* Encryption.
-* Restoration procedure.
+- Frequency.
+- Retention.
+- Storage location.
+- Encryption.
+- Restoration procedure.
 
 A backup strategy must include restoration testing.
 
@@ -2576,12 +2576,12 @@ A backup strategy must include restoration testing.
 
 Potential failure scenarios include:
 
-* Application crash.
-* Database corruption.
-* VM failure.
-* Accidental data modification.
-* Credential compromise.
-* Network failure.
+- Application crash.
+- Database corruption.
+- VM failure.
+- Accidental data modification.
+- Credential compromise.
+- Network failure.
 
 The recovery strategy should prioritize restoration of:
 
@@ -2596,12 +2596,12 @@ The recovery strategy should prioritize restoration of:
 
 Production should provide monitoring for:
 
-* Application availability.
-* Server health.
-* Database health.
-* Error rates.
-* Authentication failures.
-* Critical application failures.
+- Application availability.
+- Server health.
+- Database health.
+- Error rates.
+- Authentication failures.
+- Critical application failures.
 
 The exact monitoring solution is TBD.
 
@@ -2863,12 +2863,12 @@ This provides clear module boundaries without introducing unnecessary deployment
 
 Microservices would introduce:
 
-* More deployments.
-* More networking.
-* More infrastructure.
-* More debugging complexity.
-* More DevOps requirements.
-* Greater learning burden for the development team.
+- More deployments.
+- More networking.
+- More infrastructure.
+- More debugging complexity.
+- More DevOps requirements.
+- Greater learning burden for the development team.
 
 The current event scale does not justify that complexity.
 
@@ -2979,56 +2979,56 @@ The platform should explicitly consider:
 
 Mitigations:
 
-* Secure cookies.
-* HttpOnly.
-* Session expiry.
-* Revocation.
-* Session monitoring.
-* Security signals.
+- Secure cookies.
+- HttpOnly.
+- Session expiry.
+- Revocation.
+- Session monitoring.
+- Security signals.
 
 ### Threat: IDOR/BOLA
 
 Mitigations:
 
-* UUIDs.
-* Object-level authorization.
-* Scope checks.
+- UUIDs.
+- Object-level authorization.
+- Scope checks.
 
 ### Threat: Unauthorized Score Change
 
 Mitigations:
 
-* Authentication.
-* RBAC.
-* Sport scope.
-* Match state validation.
-* Audit logging.
+- Authentication.
+- RBAC.
+- Sport scope.
+- Match state validation.
+- Audit logging.
 
 ### Threat: Malicious Client
 
 Mitigations:
 
-* Server-side validation.
-* Server-side authorization.
-* DTOs.
-* Database constraints.
+- Server-side validation.
+- Server-side authorization.
+- DTOs.
+- Database constraints.
 
 ### Threat: Bot Traffic
 
 Mitigations:
 
-* Cloudflare.
-* WAF/bot protection where configured.
-* Application safeguards for expensive operations.
+- Cloudflare.
+- WAF/bot protection where configured.
+- Application safeguards for expensive operations.
 
 ### Threat: Database Exposure
 
 Mitigations:
 
-* Private database access.
-* Credentials outside Git.
-* Least-privilege database account.
-* Network controls.
+- Private database access.
+- Credentials outside Git.
+- Least-privilege database account.
+- Network controls.
 
 ---
 
@@ -3042,13 +3042,13 @@ However:
 
 The engineering objective is to ensure that:
 
-* A leaked identifier does not grant access.
-* A malicious client cannot bypass backend authorization.
-* A stolen session can be revoked.
-* Critical actions are traceable.
-* Data corruption is minimized.
-* Unauthorized changes are detectable.
-* Recovery is possible.
+- A leaked identifier does not grant access.
+- A malicious client cannot bypass backend authorization.
+- A stolen session can be revoked.
+- Critical actions are traceable.
+- Data corruption is minimized.
+- Unauthorized changes are detectable.
+- Recovery is possible.
 
 ---
 
@@ -3056,13 +3056,13 @@ The engineering objective is to ensure that:
 
 The architecture must account for:
 
-* Approximately 6–7 beginner developers.
-* Project lead with primary architectural responsibility.
-* Limited development time.
-* Mid-semester examinations from 18–23 September.
-* Feature freeze target of 10–12 September.
-* Production deployment before Convoquer'26.
-* Mobile-heavy operational usage.
+- Approximately 6–7 beginner developers.
+- Project lead with primary architectural responsibility.
+- Limited development time.
+- Mid-semester examinations from 18–23 September.
+- Feature freeze target of 10–12 September.
+- Production deployment before Convoquer'26.
+- Mobile-heavy operational usage.
 
 Therefore, architecture should favor:
 
@@ -3177,22 +3177,22 @@ The architecture should be implemented in approximately this order:
 
 The architecture is considered implemented when:
 
-* Client and server are independently structured.
-* Public website communicates with the backend.
-* Authentication works through Google.
-* Server-side sessions work.
-* RBAC is enforced server-side.
-* Object-level authorization works.
-* Competition data is stored relationally.
-* Match state transitions are validated.
-* Live scoring updates are persisted and broadcast.
-* Results are auditable.
-* Critical actions are logged.
-* Participant imports are validated.
-* CI passes.
-* Production deployment is reproducible.
-* Backups exist.
-* Security checks have been performed.
+- Client and server are independently structured.
+- Public website communicates with the backend.
+- Authentication works through Google.
+- Server-side sessions work.
+- RBAC is enforced server-side.
+- Object-level authorization works.
+- Competition data is stored relationally.
+- Match state transitions are validated.
+- Live scoring updates are persisted and broadcast.
+- Results are auditable.
+- Critical actions are logged.
+- Participant imports are validated.
+- CI passes.
+- Production deployment is reproducible.
+- Backups exist.
+- Security checks have been performed.
 
 ---
 
@@ -3260,22 +3260,22 @@ The system should remain simple enough for the current development team to under
 
 The following remain intentionally open:
 
-* Exact Next.js version.
-* Exact NestJS version.
-* Exact PostgreSQL version.
-* Exact Prisma version.
-* WebSocket implementation details.
-* Exact Google OAuth configuration.
-* Session-binding/anomaly policy.
-* File-storage provider.
-* Production reverse proxy.
-* Process manager/container strategy.
-* Monitoring solution.
-* Backup implementation.
-* Exact API versioning.
-* Exact sport-specific score schemas.
-* Exact tournament algorithms.
-* Exact ranking formulas.
+- Exact Next.js version.
+- Exact NestJS version.
+- Exact PostgreSQL version.
+- Exact Prisma version.
+- WebSocket implementation details.
+- Exact Google OAuth configuration.
+- Session-binding/anomaly policy.
+- File-storage provider.
+- Production reverse proxy.
+- Process manager/container strategy.
+- Monitoring solution.
+- Backup implementation.
+- Exact API versioning.
+- Exact sport-specific score schemas.
+- Exact tournament algorithms.
+- Exact ranking formulas.
 
 These should be resolved through implementation-specific decisions and ADRs rather than silently assumed.
 

@@ -6,7 +6,7 @@
 **Database:** PostgreSQL  
 **ORM:** Prisma  
 **Database Document Version:** 1.0  
-**Status:** Approved Database Design Baseline  
+**Status:** Approved Database Design Baseline
 
 ---
 
@@ -16,16 +16,16 @@ This document defines the logical database architecture of the Convoquer'26 Digi
 
 It describes:
 
-* What data the platform stores.
-* How entities are related.
-* Which data is authoritative.
-* Which data is derived.
-* How users and permissions are represented.
-* How competition data is represented.
-* How sessions are managed.
-* How critical actions are audited.
-* How participant data is imported.
-* How database integrity is maintained.
+- What data the platform stores.
+- How entities are related.
+- Which data is authoritative.
+- Which data is derived.
+- How users and permissions are represented.
+- How competition data is represented.
+- How sessions are managed.
+- How critical actions are audited.
+- How participant data is imported.
+- How database integrity is maintained.
 
 The actual Prisma schema should be generated from this design after review.
 
@@ -35,13 +35,13 @@ The actual Prisma schema should be generated from this design after review.
 
 The database must be:
 
-* Relational.
-* Strongly constrained.
-* Transaction-safe.
-* Auditable.
-* Modular.
-* Understandable to the development team.
-* Extensible to future Convoquer editions.
+- Relational.
+- Strongly constrained.
+- Transaction-safe.
+- Auditable.
+- Modular.
+- Understandable to the development team.
+- Extensible to future Convoquer editions.
 
 The database should not become a dumping ground for frontend state.
 
@@ -57,13 +57,13 @@ PostgreSQL is the primary database.
 
 Reasons:
 
-* Strong relational model.
-* Transactions.
-* Foreign-key constraints.
-* Good indexing.
-* JSON support where genuinely useful.
-* Strong consistency.
-* Mature production ecosystem.
+- Strong relational model.
+- Transactions.
+- Foreign-key constraints.
+- Good indexing.
+- JSON support where genuinely useful.
+- Strong consistency.
+- Mature production ecosystem.
 
 ---
 
@@ -73,12 +73,12 @@ Prisma will provide the primary application-level database interface.
 
 Responsibilities:
 
-* Schema definition.
-* Migrations.
-* Type-safe queries.
-* Relationships.
-* Transactions.
-* Development tooling.
+- Schema definition.
+- Migrations.
+- Type-safe queries.
+- Relationships.
+- Transactions.
+- Development tooling.
 
 The application should avoid arbitrary database access from controllers.
 
@@ -586,9 +586,9 @@ The session records the originating IP address.
 
 IP information can be used for:
 
-* Security auditing.
-* Suspicious-session detection.
-* Incident investigation.
+- Security auditing.
+- Suspicious-session detection.
+- Incident investigation.
 
 It should not automatically invalidate a session whenever the IP changes.
 
@@ -614,11 +614,11 @@ Web
 
 Departments may contain:
 
-* Heads.
-* Members.
-* Volunteers.
-* Tasks.
-* Assignments.
+- Heads.
+- Members.
+- Volunteers.
+- Tasks.
+- Assignments.
 
 ---
 
@@ -767,10 +767,10 @@ Not every participant field is public.
 
 Potentially sensitive fields include:
 
-* Roll number.
-* Date of birth.
-* Contact number.
-* Internal registration information.
+- Roll number.
+- Date of birth.
+- Contact number.
+- Internal registration information.
 
 The database may store these fields while the public API deliberately excludes them.
 
@@ -931,10 +931,10 @@ A TournamentParticipant identifies who is actually participating in a particular
 
 This is useful because:
 
-* Not every team necessarily participates in every tournament.
-* Chess may use individuals.
-* Athletics may contain individual participants.
-* Future sports may have different competition units.
+- Not every team necessarily participates in every tournament.
+- Chess may use individuals.
+- Athletics may contain individual participants.
+- Future sports may have different competition units.
 
 Conceptually:
 
@@ -1046,9 +1046,9 @@ status
 
 A Match may contain:
 
-* Two teams.
-* Multiple participants.
-* Individual competitors.
+- Two teams.
+- Multiple participants.
+- Individual competitors.
 
 Therefore the architecture should not permanently assume exactly two team IDs.
 
@@ -1605,15 +1605,15 @@ Production imports should preferably be atomic unless a deliberately designed st
 
 Validation should check:
 
-* Required columns.
-* Data types.
-* Valid institutes.
-* Valid sports.
-* Valid teams.
-* Duplicate records.
-* Invalid dates.
-* Invalid contact information.
-* Missing required values.
+- Required columns.
+- Data types.
+- Valid institutes.
+- Valid sports.
+- Valid teams.
+- Duplicate records.
+- Invalid dates.
+- Invalid contact information.
+- Missing required values.
 
 ---
 
@@ -2013,19 +2013,19 @@ The system should distinguish between authoritative and derived information.
 
 ### Authoritative
 
-* Participant records.
-* Match records.
-* Score events.
-* Approved results.
-* User roles.
+- Participant records.
+- Match records.
+- Score events.
+- Approved results.
+- User roles.
 
 ### Derived
 
-* Standings.
-* Rankings.
-* Medal tally.
-* Match statistics.
-* Institute totals.
+- Standings.
+- Rankings.
+- Medal tally.
+- Match statistics.
+- Institute totals.
 
 Derived data should be recalculable from authoritative information wherever practical.
 
@@ -2095,19 +2095,19 @@ Use:
 
 For:
 
-* Event start date.
-* Event end date.
-* Participant date of birth.
+- Event start date.
+- Event end date.
+- Participant date of birth.
 
 ### Timestamp
 
 For:
 
-* Match scheduled time.
-* Score event time.
-* Audit events.
-* Sessions.
-* News publication.
+- Match scheduled time.
+- Score event time.
+- Audit events.
+- Sessions.
+- News publication.
 
 ---
 
@@ -2189,10 +2189,10 @@ The database must therefore protect against conflicting updates.
 
 Potential mechanisms:
 
-* Transactions.
-* Row-level locking where necessary.
-* Version checks.
-* Optimistic concurrency controls.
+- Transactions.
+- Row-level locking where necessary.
+- Version checks.
+- Optimistic concurrency controls.
 
 The exact strategy will be finalized during scoring implementation.
 
@@ -2245,12 +2245,12 @@ Public read-heavy data may be cached.
 
 Potential candidates:
 
-* Sports.
-* Venues.
-* Published rules.
-* Sponsors.
-* Published news.
-* Published results.
+- Sports.
+- Venues.
+- Published rules.
+- Sponsors.
+- Published news.
+- Published results.
 
 Live scores should use real-time updates rather than relying solely on long-lived caching.
 
@@ -2292,10 +2292,10 @@ Only the application/database infrastructure should have access according to net
 
 Production credentials must:
 
-* Never be committed to Git.
-* Never appear in frontend environment variables.
-* Never appear in client-side bundles.
-* Be stored through secure server environment configuration.
+- Never be committed to Git.
+- Never appear in frontend environment variables.
+- Never appear in client-side bundles.
+- Be stored through secure server environment configuration.
 
 ---
 
@@ -2341,14 +2341,14 @@ Tests should not run against production.
 
 The repository may include development seed data for:
 
-* Test users.
-* Roles.
-* Permissions.
-* Sports.
-* Institutes.
-* Teams.
-* Sample tournaments.
-* Sample matches.
+- Test users.
+- Roles.
+- Permissions.
+- Sports.
+- Institutes.
+- Teams.
+- Sample tournaments.
+- Sample matches.
 
 Production secrets and real participant information must never be included in seed files.
 
@@ -2362,11 +2362,11 @@ Access must therefore follow least privilege.
 
 Sensitive information should be:
 
-* Restricted.
-* Excluded from public DTOs.
-* Protected in logs.
-* Protected in backups.
-* Deleted/retained according to the final institutional policy.
+- Restricted.
+- Excluded from public DTOs.
+- Protected in logs.
+- Protected in backups.
+- Deleted/retained according to the final institutional policy.
 
 ---
 
@@ -2392,11 +2392,11 @@ The production database requires automated backups.
 
 The final strategy must define:
 
-* Backup frequency.
-* Retention.
-* Storage location.
-* Encryption.
-* Restoration procedure.
+- Backup frequency.
+- Retention.
+- Storage location.
+- Encryption.
+- Restoration procedure.
 
 ---
 
@@ -2450,9 +2450,9 @@ The import system should identify possible duplicates using appropriate fields.
 
 Potential identifiers:
 
-* Institutional roll number.
-* Name + institute.
-* Official registration identifier.
+- Institutional roll number.
+- Name + institute.
+- Official registration identifier.
 
 The final matching rules depend on the official registration spreadsheet.
 
@@ -2543,11 +2543,11 @@ Not every piece of information requires a table.
 
 A new table should be introduced when:
 
-* It has independent identity.
-* It has multiple relationships.
-* It has its own lifecycle.
-* It needs independent querying.
-* It represents a meaningful domain concept.
+- It has independent identity.
+- It has multiple relationships.
+- It has its own lifecycle.
+- It needs independent querying.
+- It represents a meaningful domain concept.
 
 Simple attributes should remain fields.
 
@@ -2567,10 +2567,10 @@ tournament.configuration = {
 
 Core entities such as:
 
-* Rounds.
-* Matches.
-* Teams.
-* Results.
+- Rounds.
+- Matches.
+- Teams.
+- Results.
 
 should remain relational.
 
@@ -2646,11 +2646,11 @@ The final athletics schema is TBD.
 
 Chess may use:
 
-* Individual participants.
-* Swiss rounds.
-* Round-robin structures.
-* Board pairings.
-* Individual results.
+- Individual participants.
+- Swiss rounds.
+- Round-robin structures.
+- Board pairings.
+- Individual results.
 
 Therefore the tournament model must support individual competitors.
 
@@ -2662,11 +2662,11 @@ The exact schema depends on the final Chess format.
 
 Potential future sports such as:
 
-* E-Sports.
-* Hockey.
-* Squash.
-* Pool.
-* Weightlifting.
+- E-Sports.
+- Hockey.
+- Squash.
+- Pool.
+- Weightlifting.
 
 must not require major schema redesign if added.
 
@@ -2694,9 +2694,9 @@ Only authorized application processes and administrators should have production 
 
 Developers should preferably interact with production through:
 
-* Application APIs.
-* Controlled administrative tooling.
-* Approved database access procedures.
+- Application APIs.
+- Controlled administrative tooling.
+- Approved database access procedures.
 
 ---
 
@@ -2704,12 +2704,12 @@ Developers should preferably interact with production through:
 
 Production monitoring should include:
 
-* Connection health.
-* Query failures.
-* Database availability.
-* Storage usage.
-* Backup status.
-* Slow queries where practical.
+- Connection health.
+- Query failures.
+- Database availability.
+- Storage usage.
+- Backup status.
+- Slow queries where practical.
 
 ---
 
@@ -2767,12 +2767,12 @@ Any destructive migration must be deliberate, backed up and reviewed.
 
 Whenever a developer introduces a new database entity, they should document:
 
-* Why it exists.
-* What it represents.
-* Its owner/domain.
-* Relationships.
-* Important constraints.
-* Whether it is authoritative or derived.
+- Why it exists.
+- What it represents.
+- Its owner/domain.
+- Relationships.
+- Important constraints.
+- Whether it is authoritative or derived.
 
 ---
 
@@ -2826,16 +2826,16 @@ Good:
 
 The following are considered high-integrity:
 
-* Match scores.
-* Score events.
-* Official results.
-* Tournament progression.
-* Standings.
-* Institute ranking.
-* User roles.
-* Permissions.
-* Sessions.
-* Audit records.
+- Match scores.
+- Score events.
+- Official results.
+- Tournament progression.
+- Standings.
+- Institute ranking.
+- User roles.
+- Permissions.
+- Sessions.
+- Audit records.
 
 These require stronger controls than ordinary content.
 
@@ -2845,9 +2845,9 @@ These require stronger controls than ordinary content.
 
 Examples:
 
-* Draft news.
-* Draft sponsor descriptions.
-* Draft gallery descriptions.
+- Draft news.
+- Draft sponsor descriptions.
+- Draft gallery descriptions.
 
 These can use simpler workflows.
 
@@ -2929,17 +2929,17 @@ This is the **logical entity inventory**, not a promise that every item will bec
 
 The following require additional domain-specific decisions before final Prisma implementation:
 
-* TournamentParticipant.
-* MatchParticipant.
-* Sport-specific scoring.
-* Athletics performance model.
-* Chess pairing/model.
-* Bracket advancement.
-* Standing calculation.
-* Overall ranking calculation.
-* Media storage.
-* Official management.
-* Hospitality-specific operational data.
+- TournamentParticipant.
+- MatchParticipant.
+- Sport-specific scoring.
+- Athletics performance model.
+- Chess pairing/model.
+- Bracket advancement.
+- Standing calculation.
+- Overall ranking calculation.
+- Media storage.
+- Official management.
+- Hospitality-specific operational data.
 
 ---
 
@@ -3025,34 +3025,34 @@ Then the Prisma schema can be generated from the combined decisions.
 
 **Confirmed:**
 
-* PostgreSQL.
-* Prisma.
-* UUID identifiers.
-* Event-based architecture.
-* Database-backed sessions.
-* RBAC entities.
-* Competition entities.
-* Audit logging.
-* Participant import pipeline.
-* Derived standings/ranking model.
-* Transactional critical operations.
-* Public/private data separation.
+- PostgreSQL.
+- Prisma.
+- UUID identifiers.
+- Event-based architecture.
+- Database-backed sessions.
+- RBAC entities.
+- Competition entities.
+- Audit logging.
+- Participant import pipeline.
+- Derived standings/ranking model.
+- Transactional critical operations.
+- Public/private data separation.
 
 **TBD:**
 
-* Final participant fields.
-* Final sports.
-* Tournament formats.
-* Sport-specific scoring models.
-* Athletics model.
-* Chess model.
-* Overall ranking formula.
-* Final media storage.
-* Official data model.
-* Hospitality-specific tables.
-* Exact retention policies.
-* Exact indexing after query analysis.
-* Final Prisma implementation details.
+- Final participant fields.
+- Final sports.
+- Tournament formats.
+- Sport-specific scoring models.
+- Athletics model.
+- Chess model.
+- Overall ranking formula.
+- Final media storage.
+- Official data model.
+- Hospitality-specific tables.
+- Exact retention policies.
+- Exact indexing after query analysis.
+- Final Prisma implementation details.
 
 ---
 

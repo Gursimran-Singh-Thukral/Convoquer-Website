@@ -8,7 +8,7 @@
 **Development Model:** Feature Branch + Pull Request  
 **Team Size:** ~6–7 Developers + Project Lead  
 **Document Version:** 1.0  
-**Status:** Approved Development Baseline  
+**Status:** Approved Development Baseline
 
 ---
 
@@ -18,15 +18,15 @@ This document defines how the Convoquer'26 development team will use Git and Git
 
 The objectives are to:
 
-* Keep the repository clean.
-* Prevent accidental breaking changes.
-* Make collaboration predictable.
-* Teach beginners a professional Git workflow.
-* Make every change traceable.
-* Prevent direct uncontrolled changes to production code.
-* Make code review mandatory for important changes.
-* Integrate automated quality checks.
-* Make it easy to identify who changed what and why.
+- Keep the repository clean.
+- Prevent accidental breaking changes.
+- Make collaboration predictable.
+- Teach beginners a professional Git workflow.
+- Make every change traceable.
+- Prevent direct uncontrolled changes to production code.
+- Make code review mandatory for important changes.
+- Integrate automated quality checks.
+- Make it easy to identify who changed what and why.
 
 ---
 
@@ -175,11 +175,11 @@ chore/update-dependencies
 
 Branch names should:
 
-* Use lowercase.
-* Use hyphens.
-* Be descriptive.
-* Be reasonably short.
-* Represent one logical task.
+- Use lowercase.
+- Use hyphens.
+- Be descriptive.
+- Be reasonably short.
+- Represent one logical task.
 
 Avoid:
 
@@ -290,10 +290,10 @@ frequently.
 
 This shows:
 
-* Current branch.
-* Modified files.
-* Untracked files.
-* Staged files.
+- Current branch.
+- Modified files.
+- Untracked files.
+- Staged files.
 
 ---
 
@@ -616,14 +616,14 @@ Major architecture change
 
 The project lead should:
 
-* Maintain architectural consistency.
-* Resolve major technical disagreements.
-* Review critical security changes.
-* Protect `main`.
-* Coordinate milestones.
-* Ensure documentation remains synchronized.
-* Help beginners understand Git.
-* Prevent unnecessary scope expansion.
+- Maintain architectural consistency.
+- Resolve major technical disagreements.
+- Review critical security changes.
+- Protect `main`.
+- Coordinate milestones.
+- Ensure documentation remains synchronized.
+- Help beginners understand Git.
+- Prevent unnecessary scope expansion.
 
 ---
 
@@ -631,14 +631,14 @@ The project lead should:
 
 Every developer should:
 
-* Keep their branch focused.
-* Pull changes regularly.
-* Resolve their own straightforward conflicts.
-* Test before opening PRs.
-* Explain their code.
-* Respond to review comments.
-* Never commit secrets.
-* Never bypass security.
+- Keep their branch focused.
+- Pull changes regularly.
+- Resolve their own straightforward conflicts.
+- Test before opening PRs.
+- Explain their code.
+- Respond to review comments.
+- Never commit secrets.
+- Never bypass security.
 
 ---
 
@@ -1215,10 +1215,10 @@ to share progress.
 
 Draft PRs are useful when:
 
-* Feedback is needed.
-* Architecture needs review.
-* Work is incomplete.
-* Another developer needs to understand progress.
+- Feedback is needed.
+- Architecture needs review.
+- Work is incomplete.
+- Another developer needs to understand progress.
 
 ---
 
@@ -1982,35 +1982,35 @@ GIT_WORKFLOW.md
 
 Confirmed:
 
-* GitHub repository.
-* Monorepo.
-* Protected `main`.
-* Feature branches.
-* Pull Requests.
-* Code review.
-* GitHub Issues.
-* GitHub Milestones.
-* Conventional commit types.
-* Squash merging.
-* Automated CI checks.
-* Security-sensitive PR review.
-* Database migration review.
-* No direct production database changes.
-* Secret protection.
-* Hotfix workflow.
-* Draft PRs.
-* Branch cleanup.
-* Documentation synchronization.
+- GitHub repository.
+- Monorepo.
+- Protected `main`.
+- Feature branches.
+- Pull Requests.
+- Code review.
+- GitHub Issues.
+- GitHub Milestones.
+- Conventional commit types.
+- Squash merging.
+- Automated CI checks.
+- Security-sensitive PR review.
+- Database migration review.
+- No direct production database changes.
+- Secret protection.
+- Hotfix workflow.
+- Draft PRs.
+- Branch cleanup.
+- Documentation synchronization.
 
 TBD:
 
-* Exact repository name.
-* Exact GitHub organization/account.
-* Final branch protection settings.
-* Exact GitHub Actions workflows.
-* Required number of reviewers.
-* Final CODEOWNERS configuration.
-* Exact release/versioning scheme.
+- Exact repository name.
+- Exact GitHub organization/account.
+- Final branch protection settings.
+- Exact GitHub Actions workflows.
+- Required number of reviewers.
+- Final CODEOWNERS configuration.
+- Exact release/versioning scheme.
 
 ---
 

@@ -11,7 +11,7 @@
 **Session Model:** Database-backed sessions  
 **Infrastructure Protection:** Cloudflare  
 **Document Version:** 1.0  
-**Status:** Approved Security Baseline  
+**Status:** Approved Security Baseline
 
 ---
 
@@ -21,35 +21,35 @@ This document defines the security architecture and security requirements for th
 
 The platform will handle:
 
-* Organizer accounts.
-* Institutional authentication.
-* Participant information.
-* Team information.
-* Competition fixtures.
-* Live scores.
-* Results.
-* Standings.
-* Institute rankings.
-* Organizer operations.
-* Media.
-* Sponsor information.
-* Internal communications.
-* Administrative functions.
+- Organizer accounts.
+- Institutional authentication.
+- Participant information.
+- Team information.
+- Competition fixtures.
+- Live scores.
+- Results.
+- Standings.
+- Institute rankings.
+- Organizer operations.
+- Media.
+- Sponsor information.
+- Internal communications.
+- Administrative functions.
 
 The security architecture must protect these resources against:
 
-* Unauthorized access.
-* Session theft.
-* Account compromise.
-* Privilege escalation.
-* Score manipulation.
-* Result manipulation.
-* Database compromise.
-* API abuse.
-* Data leakage.
-* Malicious uploads.
-* Cross-site attacks.
-* Accidental organizer misuse.
+- Unauthorized access.
+- Session theft.
+- Account compromise.
+- Privilege escalation.
+- Score manipulation.
+- Result manipulation.
+- Database compromise.
+- API abuse.
+- Data leakage.
+- Malicious uploads.
+- Cross-site attacks.
+- Accidental organizer misuse.
 
 ---
 
@@ -220,13 +220,13 @@ Application User
 
 The OAuth implementation must:
 
-* Use the official OAuth flow.
-* Validate OAuth state.
-* Validate callback parameters.
-* Verify the authenticated identity.
-* Never expose OAuth client secrets to the browser.
-* Never store unnecessary OAuth credentials.
-* Use HTTPS in production.
+- Use the official OAuth flow.
+- Validate OAuth state.
+- Validate callback parameters.
+- Verify the authenticated identity.
+- Never expose OAuth client secrets to the browser.
+- Never store unnecessary OAuth credentials.
+- Use HTTPS in production.
 
 ---
 
@@ -440,10 +440,10 @@ Session records should contain IP information.
 
 This is useful for:
 
-* Audit.
-* Security investigations.
-* Detecting unusual session changes.
-* Detecting potentially stolen sessions.
+- Audit.
+- Security investigations.
+- Detecting unusual session changes.
+- Detecting potentially stolen sessions.
 
 ---
 
@@ -841,15 +841,15 @@ Realtime Broadcast
 
 The backend must validate:
 
-* Match exists.
-* Match is active.
-* User has authority.
-* User has correct sport scope.
-* Event type is valid.
-* Participant belongs to the match.
-* Score transition is valid.
-* Event is not duplicated.
-* Match state allows the event.
+- Match exists.
+- Match is active.
+- User has authority.
+- User has correct sport scope.
+- Event type is valid.
+- Participant belongs to the match.
+- Score transition is valid.
+- Event is not duplicated.
+- Match state allows the event.
 
 ---
 
@@ -934,12 +934,12 @@ Result overrides are highly sensitive.
 
 They must:
 
-* Require elevated permission.
-* Validate the replacement result.
-* Require a reason.
-* Be audited.
-* Trigger necessary standings/ranking recalculation.
-* Trigger appropriate realtime updates.
+- Require elevated permission.
+- Validate the replacement result.
+- Require a reason.
+- Be audited.
+- Trigger necessary standings/ranking recalculation.
+- Trigger appropriate realtime updates.
 
 ---
 
@@ -1062,9 +1062,9 @@ The project should support secret rotation.
 
 At minimum:
 
-* Google OAuth credentials.
-* Session secrets.
-* Database credentials.
+- Google OAuth credentials.
+- Session secrets.
+- Database credentials.
 
 Rotation procedures should be documented before production deployment.
 
@@ -1350,10 +1350,10 @@ Excel files may contain malicious or unexpected content.
 
 The application must not:
 
-* Execute spreadsheet macros.
-* Trust formulas as server-side instructions.
-* Execute embedded scripts.
-* Treat cell contents as HTML.
+- Execute spreadsheet macros.
+- Trust formulas as server-side instructions.
+- Execute embedded scripts.
+- Treat cell contents as HTML.
 
 Imported values must be treated as data.
 
@@ -1773,10 +1773,10 @@ Production database backups should be configured before the event.
 
 Backups should be:
 
-* Automated.
-* Protected.
-* Access-controlled.
-* Tested.
+- Automated.
+- Protected.
+- Access-controlled.
+- Tested.
 
 ---
 
@@ -2144,10 +2144,10 @@ Media Member → Media Head
 
 through:
 
-* API requests.
-* Modified frontend state.
-* Direct database IDs.
-* Crafted JSON payloads.
+- API requests.
+- Modified frontend state.
+- Direct database IDs.
+- Crafted JSON payloads.
 
 All unauthorized attempts must fail.
 
@@ -2327,42 +2327,42 @@ Before production, the following are mandatory:
 
 ### Authentication
 
-* Google OAuth.
-* IIT Jammu account verification.
-* Secure sessions.
+- Google OAuth.
+- IIT Jammu account verification.
+- Secure sessions.
 
 ### Authorization
 
-* Server-side RBAC.
-* Permission checks.
-* Scope checks.
-* Object-level authorization.
+- Server-side RBAC.
+- Permission checks.
+- Scope checks.
+- Object-level authorization.
 
 ### Competition
 
-* Secure score updates.
-* Result approval.
-* Transactional critical operations.
-* Audit logging.
+- Secure score updates.
+- Result approval.
+- Transactional critical operations.
+- Audit logging.
 
 ### Infrastructure
 
-* HTTPS.
-* Protected PostgreSQL.
-* Secure secrets.
-* Cloudflare/infrastructure protection.
+- HTTPS.
+- Protected PostgreSQL.
+- Secure secrets.
+- Cloudflare/infrastructure protection.
 
 ### Data
 
-* DTO-based responses.
-* Sensitive-field filtering.
-* Secure imports.
+- DTO-based responses.
+- Sensitive-field filtering.
+- Secure imports.
 
 ### Recovery
 
-* Database backup.
-* Restore procedure.
-* Session revocation procedure.
+- Database backup.
+- Restore procedure.
+- Session revocation procedure.
 
 ---
 
@@ -2624,43 +2624,43 @@ ARCHITECTURE.md
 
 Confirmed:
 
-* Google OAuth.
-* IIT Jammu institutional authentication.
-* Database-backed sessions.
-* Secure session cookies.
-* Server-side authorization.
-* RBAC.
-* Permission + scope model.
-* Object-level authorization.
-* UUID resource identifiers.
-* IP/session metadata.
-* Session revocation.
-* No permanent IP binding.
-* Live-score integrity controls.
-* Result approval.
-* Result override auditing.
-* Transactional critical operations.
-* PostgreSQL isolation.
-* Secure secret management.
-* HTTPS.
-* Cloudflare infrastructure protection.
-* File/import validation.
-* Audit logging.
-* Backup and recovery requirements.
-* Security testing requirements.
-* No application-level rate limiting in the initial design.
+- Google OAuth.
+- IIT Jammu institutional authentication.
+- Database-backed sessions.
+- Secure session cookies.
+- Server-side authorization.
+- RBAC.
+- Permission + scope model.
+- Object-level authorization.
+- UUID resource identifiers.
+- IP/session metadata.
+- Session revocation.
+- No permanent IP binding.
+- Live-score integrity controls.
+- Result approval.
+- Result override auditing.
+- Transactional critical operations.
+- PostgreSQL isolation.
+- Secure secret management.
+- HTTPS.
+- Cloudflare infrastructure protection.
+- File/import validation.
+- Audit logging.
+- Backup and recovery requirements.
+- Security testing requirements.
+- No application-level rate limiting in the initial design.
 
 TBD:
 
-* Exact session expiration values.
-* Exact anomaly-detection policy.
-* Final CSRF implementation.
-* Final CSP.
-* Cloudflare configuration.
-* Final production infrastructure.
-* Final media storage provider.
-* Exact backup provider and retention.
-* Final incident-response authority.
+- Exact session expiration values.
+- Exact anomaly-detection policy.
+- Final CSRF implementation.
+- Final CSP.
+- Cloudflare configuration.
+- Final production infrastructure.
+- Final media storage provider.
+- Exact backup provider and retention.
+- Final incident-response authority.
 
 ---
 

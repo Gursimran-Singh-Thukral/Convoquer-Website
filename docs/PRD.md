@@ -7,7 +7,7 @@
 **Document Version:** 1.0  
 **Status:** Initial Product Requirements Document  
 **Target Feature Freeze:** 10–12 September 2026  
-**Primary Development Team:** Web Development Team, IIT Jammu  
+**Primary Development Team:** Web Development Team, IIT Jammu
 
 ---
 
@@ -35,20 +35,20 @@ The platform is intended to become the official digital source of truth for even
 
 The platform should replace fragmented/manual approaches wherever practical and provide a single source of truth for:
 
-* Sports
-* Teams
-* Players
-* Fixtures
-* Match schedules
-* Live scores
-* Results
-* Standings
-* Overall institute rankings
-* Announcements
-* Venues
-* Media
-* Sponsors
-* Organizer operations
+- Sports
+- Teams
+- Players
+- Fixtures
+- Match schedules
+- Live scores
+- Results
+- Standings
+- Overall institute rankings
+- Announcements
+- Venues
+- Media
+- Sponsors
+- Organizer operations
 
 ---
 
@@ -102,27 +102,27 @@ The project must be divided into manageable phases so that the team can produce 
 
 The Convoquer'26 organizing policy establishes the leadership structure as:
 
-* Convener
-* Three Co-Conveners
-* Hospitality & Security Head
-* Management Head
-* Media Head
-* Design Head
-* Sponsorship Head
-* Overall Sports Coordinator
-* Web Developer
+- Convener
+- Three Co-Conveners
+- Hospitality & Security Head
+- Management Head
+- Media Head
+- Design Head
+- Sponsorship Head
+- Overall Sports Coordinator
+- Web Developer
 
 The policy defines the Convener as responsible for overall leadership, supervision and decision-making. Co-Conveners assist with coordination and decision-making.
 
 The policy further defines the major Head-level responsibilities:
 
-* Hospitality & Security — accommodation, food, guest/player management, safety, crowd management and institute security coordination.
-* Management — scheduling, logistics and on-ground coordination.
-* Media — social media, promotion, photography, videography and publicity.
-* Design — graphics, banners, posters and branding.
-* Sponsorship — sponsor outreach and sponsor relations.
-* Overall Sports Coordinator — coordination of sports events, match conduct, officials and gameplay issues.
-* Web Developer — development and maintenance of the official website/portal for registrations, schedules, results and live updates.
+- Hospitality & Security — accommodation, food, guest/player management, safety, crowd management and institute security coordination.
+- Management — scheduling, logistics and on-ground coordination.
+- Media — social media, promotion, photography, videography and publicity.
+- Design — graphics, banners, posters and branding.
+- Sponsorship — sponsor outreach and sponsor relations.
+- Overall Sports Coordinator — coordination of sports events, match conduct, officials and gameplay issues.
+- Web Developer — development and maintenance of the official website/portal for registrations, schedules, results and live updates.
 
 Lower-level Sports Coordinator, Volunteer and team-member workflows remain subject to further organizational confirmation.
 
@@ -156,19 +156,19 @@ The platform should:
 
 The following are not guaranteed for the initial release and require further stakeholder decisions:
 
-* Participant self-registration.
-* Public participant accounts.
-* Public player profiles.
-* Advanced player statistics.
-* Advanced team statistics.
-* Accommodation management.
-* Transportation management.
-* Medical facility management.
-* Parking management.
-* Advanced offline conflict resolution.
-* Fully automated tournament generation for every possible tournament format.
-* Post-Convoquer multi-year archival system beyond the foundational architecture.
-* Any competition rule not officially approved by the organizing committee.
+- Participant self-registration.
+- Public participant accounts.
+- Public player profiles.
+- Advanced player statistics.
+- Advanced team statistics.
+- Accommodation management.
+- Transportation management.
+- Medical facility management.
+- Parking management.
+- Advanced offline conflict resolution.
+- Fully automated tournament generation for every possible tournament format.
+- Post-Convoquer multi-year archival system beyond the foundational architecture.
+- Any competition rule not officially approved by the organizing committee.
 
 These may be introduced in later phases.
 
@@ -200,9 +200,9 @@ The final venue list is TBD.
 
 Current estimates:
 
-* Approximately 7–8 participating colleges/institutes.
-* Approximately 12 sports, subject to confirmation.
-* Total participant count is TBD.
+- Approximately 7–8 participating colleges/institutes.
+- Approximately 12 sports, subject to confirmation.
+- Total participant count is TBD.
 
 ---
 
@@ -212,24 +212,24 @@ Current estimates:
 
 Current list:
 
-* Cricket
-* Football
-* Basketball
-* Volleyball
-* Badminton
-* Table Tennis
-* Athletics
-* Chess
+- Cricket
+- Football
+- Basketball
+- Volleyball
+- Badminton
+- Table Tennis
+- Athletics
+- Chess
 
 ## 8.2 Potential Additional Sports
 
 Subject to confirmation:
 
-* E-Sports
-* Hockey
-* Squash
-* Pool
-* Weightlifting
+- E-Sports
+- Hockey
+- Squash
+- Pool
+- Weightlifting
 
 ## 8.3 Dynamic Sports Model
 
@@ -280,32 +280,32 @@ The Home page should function as both:
 
 ## 10.1 Proposed Components
 
-* Convoquer'26 branding
-* IIT Jammu branding
-* Event dates
-* Countdown
-* Primary event introduction
-* Featured sports
-* Live matches
-* Today's schedule
-* Upcoming matches
-* Recent results
-* Overall leaderboard
-* Latest announcements
-* News
-* Sponsors
-* Gallery
-* Contact information
+- Convoquer'26 branding
+- IIT Jammu branding
+- Event dates
+- Countdown
+- Primary event introduction
+- Featured sports
+- Live matches
+- Today's schedule
+- Upcoming matches
+- Recent results
+- Overall leaderboard
+- Latest announcements
+- News
+- Sponsors
+- Gallery
+- Contact information
 
 ## 10.2 During the Fest
 
 The homepage should prioritize dynamic information such as:
 
-* Live matches
-* Current scores
-* Upcoming fixtures
-* Important announcements
-* Latest results
+- Live matches
+- Current scores
+- Upcoming fixtures
+- Important announcements
+- Latest results
 
 ---
 
@@ -313,13 +313,13 @@ The homepage should prioritize dynamic information such as:
 
 The About section should provide:
 
-* Convoquer overview
-* History
-* Convoquer'25 reference where applicable
-* Purpose
-* IIT Jammu association
-* Event objectives
-* Organizing committee information where appropriate
+- Convoquer overview
+- History
+- Convoquer'25 reference where applicable
+- Purpose
+- IIT Jammu association
+- Event objectives
+- Organizing committee information where appropriate
 
 ---
 
@@ -353,18 +353,18 @@ The Schedule page should provide centralized event scheduling.
 
 Users should be able to filter by:
 
-* Sport
-* Date
-* Venue
-* Match status
+- Sport
+- Date
+- Venue
+- Match status
 
 Potential states:
 
-* Upcoming
-* Live
-* Completed
-* Postponed
-* Cancelled
+- Upcoming
+- Live
+- Completed
+- Postponed
+- Cancelled
 
 Each fixture should lead to its Match Details page.
 
@@ -393,27 +393,27 @@ Examples:
 
 ### Football
 
-* Goals
-* Match time
-* Cards
-* Substitutions where implemented
+- Goals
+- Match time
+- Cards
+- Substitutions where implemented
 
 ### Basketball
 
-* Period/quarter scores
-* Current score
+- Period/quarter scores
+- Current score
 
 ### Volleyball
 
-* Set-by-set score
+- Set-by-set score
 
 ### Badminton
 
-* Game/set scores
+- Game/set scores
 
 ### Chess
 
-* Board/round results
+- Board/round results
 
 The exact event-level scoring requirements for each sport remain configurable.
 
@@ -480,12 +480,12 @@ State transitions must be permission-controlled.
 
 The Results section should provide:
 
-* Completed matches
-* Sport-specific results
-* Match details
-* Final scores
-* Result status
-* Tournament progression
+- Completed matches
+- Sport-specific results
+- Match details
+- Final scores
+- Result status
+- Tournament progression
 
 Only approved/published results should be treated as official public results.
 
@@ -497,14 +497,14 @@ Only approved/published results should be treated as official public results.
 
 Where applicable, sports may expose:
 
-* Played
-* Wins
-* Losses
-* Draws
-* Points
-* Scores
-* Goal/run/point differential
-* Other sport-specific metrics
+- Played
+- Wins
+- Losses
+- Draws
+- Points
+- Scores
+- Goal/run/point differential
+- Other sport-specific metrics
 
 Exact rules are TBD.
 
@@ -522,13 +522,13 @@ The public platform should provide team information where approved for public di
 
 Possible information:
 
-* Institute
-* Sport
-* Team name
-* Tournament
-* Matches
-* Results
-* Standings
+- Institute
+- Sport
+- Team name
+- Tournament
+- Matches
+- Results
+- Standings
 
 Public player-level information is TBD.
 
@@ -538,9 +538,9 @@ Public player-level information is TBD.
 
 Rules should be organized by:
 
-* General rules
-* Sport
-* Tournament
+- General rules
+- Sport
+- Tournament
 
 Official rule documents should be downloadable where necessary.
 
@@ -550,14 +550,14 @@ Official rule documents should be downloadable where necessary.
 
 Each venue may contain:
 
-* Venue name
-* Location
-* Sports hosted
-* Directions
-* Map
-* Schedule
-* Current/upcoming matches
-* Venue-specific instructions
+- Venue name
+- Location
+- Sports hosted
+- Directions
+- Map
+- Schedule
+- Current/upcoming matches
+- Venue-specific instructions
 
 ---
 
@@ -565,10 +565,10 @@ Each venue may contain:
 
 The platform should provide an event/campus map showing relevant:
 
-* Sports venues
-* Reporting desk
-* Important locations
-* Event facilities
+- Sports venues
+- Reporting desk
+- Important locations
+- Event facilities
 
 Exact map implementation is TBD.
 
@@ -580,12 +580,12 @@ News is intended for longer-form event communication.
 
 Potential content:
 
-* Event announcements
-* Registration opening
-* Major milestones
-* Event stories
-* Results/highlights
-* Media coverage
+- Event announcements
+- Registration opening
+- Major milestones
+- Event stories
+- Results/highlights
+- Media coverage
 
 ---
 
@@ -595,11 +595,11 @@ Announcements are intended for time-sensitive information.
 
 Examples:
 
-* Match postponement
-* Venue change
-* Schedule update
-* Emergency information
-* Operational notices
+- Match postponement
+- Venue change
+- Schedule update
+- Emergency information
+- Operational notices
 
 Public announcements and internal organizer announcements must be treated as separate visibility scopes.
 
@@ -609,12 +609,12 @@ Public announcements and internal organizer announcements must be treated as sep
 
 The Media team should be able to manage:
 
-* Photos
-* Albums
-* Videos
-* Livestream information
-* Event coverage
-* Published media
+- Photos
+- Albums
+- Videos
+- Livestream information
+- Event coverage
+- Published media
 
 The platform is expected to support livestreaming, subject to final implementation details.
 
@@ -626,13 +626,13 @@ Sponsors should be represented as structured data.
 
 Possible attributes:
 
-* Sponsor name
-* Logo
-* Tier/category
-* Website
-* Display priority
-* Status
-* Visibility
+- Sponsor name
+- Logo
+- Tier/category
+- Website
+- Display priority
+- Status
+- Visibility
 
 Sponsors should be dynamically manageable.
 
@@ -642,14 +642,14 @@ Sponsors should be dynamically manageable.
 
 The FAQ should answer common questions regarding:
 
-* Participation
-* Sports
-* Schedule
-* Venues
-* Reporting
-* Results
-* Rules
-* Contacts
+- Participation
+- Sports
+- Schedule
+- Venues
+- Reporting
+- Results
+- Rules
+- Contacts
 
 ---
 
@@ -657,10 +657,10 @@ The FAQ should answer common questions regarding:
 
 The Contact section may contain:
 
-* Official Convoquer contact
-* Reporting desk
-* Emergency contacts
-* Relevant institute contacts
+- Official Convoquer contact
+- Reporting desk
+- Emergency contacts
+- Relevant institute contacts
 
 Personal contact information should only be published after authorization.
 
@@ -689,12 +689,12 @@ Every dashboard should be contextual.
 
 A user should immediately see:
 
-* Information relevant to their role.
-* Their responsibilities.
-* Their assignments.
-* Relevant notifications.
-* Required actions.
-* Relevant schedules.
+- Information relevant to their role.
+- Their responsibilities.
+- Their assignments.
+- Relevant notifications.
+- Required actions.
+- Relevant schedules.
 
 Users should not be presented with unnecessary administrative information.
 
@@ -726,12 +726,12 @@ Defines **where** the permission applies.
 
 Possible scopes:
 
-* Global
-* Department
-* Sport
-* Assigned resource
-* Own resource
-* Public
+- Global
+- Department
+- Sport
+- Assigned resource
+- Own resource
+- Public
 
 ## 31.3 Assignment
 
@@ -773,27 +773,27 @@ The initial role model includes:
 
 ### Global
 
-* Convener
-* Co-Convener
+- Convener
+- Co-Convener
 
 ### Heads
 
-* Hospitality & Security Head
-* Management Head
-* Media Head
-* Design Head
-* Sponsorship Head
-* Overall Sports Coordinator
-* Web Developer
+- Hospitality & Security Head
+- Management Head
+- Media Head
+- Design Head
+- Sponsorship Head
+- Overall Sports Coordinator
+- Web Developer
 
 ### Operational
 
-* Sports Coordinator
-* Volunteer
-* Media Team
-* Design Team
-* Web Team
-* Management Team
+- Sports Coordinator
+- Volunteer
+- Media Team
+- Design Team
+- Web Team
+- Management Team
 
 Additional specialized roles may be introduced without restructuring the authorization architecture.
 
@@ -821,27 +821,27 @@ The Convener shall have global authority over the platform.
 
 Capabilities include, subject to audit:
 
-* User management
-* Role management
-* Permission management
-* Sports
-* Tournaments
-* Teams
-* Players
-* Matches
-* Scores
-* Results
-* Schedules
-* Venues
-* Volunteers
-* Tasks
-* Media
-* Sponsors
-* Announcements
-* System configuration
-* Audit logs
-* Sessions
-* Critical overrides
+- User management
+- Role management
+- Permission management
+- Sports
+- Tournaments
+- Teams
+- Players
+- Matches
+- Scores
+- Results
+- Schedules
+- Venues
+- Volunteers
+- Tasks
+- Media
+- Sponsors
+- Announcements
+- System configuration
+- Audit logs
+- Sessions
+- Critical overrides
 
 The Convener's authority does not bypass audit logging.
 
@@ -853,10 +853,10 @@ Co-Conveners shall have operational authority comparable to the Convener.
 
 However:
 
-* Each Co-Convener must have an independent account.
-* Actions must be attributable to the individual.
-* Co-Conveners must not impersonate the Convener.
-* Sensitive and critical actions must appear in audit logs.
+- Each Co-Convener must have an independent account.
+- Actions must be attributable to the individual.
+- Co-Conveners must not impersonate the Convener.
+- Sensitive and critical actions must appear in audit logs.
 
 ---
 
@@ -866,29 +866,29 @@ The dashboard should support:
 
 ### Participant intelligence
 
-* Participating institutes
-* Teams
-* Players/participants where permitted
-* Expected participant counts
-* Sport distribution
-* Venue distribution
-* Match schedules
+- Participating institutes
+- Teams
+- Players/participants where permitted
+- Expected participant counts
+- Sport distribution
+- Venue distribution
+- Match schedules
 
 ### Hospitality
 
-* Refreshment planning
-* Expected attendance
-* Venue-based participant estimates
-* Hospitality assignments
-* Volunteer assignments
+- Refreshment planning
+- Expected attendance
+- Venue-based participant estimates
+- Hospitality assignments
+- Volunteer assignments
 
 ### Security
 
-* Operational information
-* Venue information
-* Crowd-related information
-* Security assignments
-* Internal instructions
+- Operational information
+- Venue information
+- Crowd-related information
+- Security assignments
+- Internal instructions
 
 The role should not inherently have access to competition modification, score modification or global user administration.
 
@@ -898,14 +898,14 @@ The role should not inherently have access to competition modification, score mo
 
 Capabilities should include:
 
-* Event schedules
-* Venue scheduling
-* Logistics
-* On-ground coordination
-* Operational tasks
-* Assignments
-* Schedule updates
-* Venue management
+- Event schedules
+- Venue scheduling
+- Logistics
+- On-ground coordination
+- Operational tasks
+- Assignments
+- Schedule updates
+- Venue management
 
 Competition results and scores should not be modifiable solely by virtue of this role.
 
@@ -915,16 +915,16 @@ Competition results and scores should not be modifiable solely by virtue of this
 
 Capabilities should include:
 
-* Gallery management
-* Albums
-* Photography
-* Videography
-* Livestream management
-* News
-* Public announcements
-* Media uploads
-* Media publication
-* Event publicity
+- Gallery management
+- Albums
+- Photography
+- Videography
+- Livestream management
+- News
+- Public announcements
+- Media uploads
+- Media publication
+- Event publicity
 
 Competition data remains outside this role unless separately assigned.
 
@@ -934,13 +934,13 @@ Competition data remains outside this role unless separately assigned.
 
 Capabilities should focus on:
 
-* Design assets
-* Branding
-* Graphics
-* Posters
-* Banners
-* Digital creatives
-* Asset organization
+- Design assets
+- Branding
+- Graphics
+- Posters
+- Banners
+- Digital creatives
+- Asset organization
 
 Design users should not automatically receive competition publication or score-management privileges.
 
@@ -950,12 +950,12 @@ Design users should not automatically receive competition publication or score-m
 
 Capabilities should include:
 
-* Sponsor records
-* Sponsor tiers
-* Sponsor logos
-* Sponsor links
-* Sponsor visibility
-* Sponsor-related operational information
+- Sponsor records
+- Sponsor tiers
+- Sponsor logos
+- Sponsor links
+- Sponsor visibility
+- Sponsor-related operational information
 
 Confidential sponsor documents, if ever stored, should use additional restricted permissions.
 
@@ -967,20 +967,20 @@ The Overall Sports Coordinator should have cross-sport competition-management ac
 
 Capabilities should include:
 
-* Sports
-* Tournaments
-* Teams
-* Players
-* Fixtures
-* Matches
-* Officials
-* Scheduling
-* Venue coordination
-* Live score oversight
-* Result management
-* Standings
-* Brackets
-* Sports Coordinators
+- Sports
+- Tournaments
+- Teams
+- Players
+- Fixtures
+- Matches
+- Officials
+- Scheduling
+- Venue coordination
+- Live score oversight
+- Result management
+- Standings
+- Brackets
+- Sports Coordinators
 
 The role should not automatically receive system-administration permissions.
 
@@ -994,17 +994,17 @@ Default scope:
 
 A Sports Coordinator may manage:
 
-* Their sport
-* Its teams
-* Its players
-* Its tournaments
-* Its fixtures
-* Its matches
-* Its scores
-* Its results
-* Its standings
-* Its officials
-* Its relevant venues
+- Their sport
+- Its teams
+- Its players
+- Its tournaments
+- Its fixtures
+- Its matches
+- Its scores
+- Its results
+- Its standings
+- Its officials
+- Its relevant venues
 
 Sports Coordinators should not manage unrelated sports.
 
@@ -1018,21 +1018,21 @@ Volunteers should receive task-based access.
 
 Potential capabilities:
 
-* View own assignments
-* View own schedule
-* Accept assignments
-* Mark assignment status
-* View relevant venue information
-* View relevant public/operational announcements
+- View own assignments
+- View own schedule
+- Accept assignments
+- Mark assignment status
+- View relevant venue information
+- View relevant public/operational announcements
 
 Volunteers should not automatically receive access to:
 
-* Score modification
-* Result approval
-* User management
-* Role management
-* Unrelated participant data
-* Competition administration
+- Score modification
+- Result approval
+- User management
+- Role management
+- Unrelated participant data
+- Competition administration
 
 ---
 
@@ -1044,13 +1044,13 @@ A Team Member should not automatically inherit their Head's complete permission 
 
 Specialized roles may be introduced for:
 
-* Photographer
-* Videographer
-* Livestream operator
-* Social media operator
-* Designer
-* Web operator
-* Management volunteer
+- Photographer
+- Videographer
+- Livestream operator
+- Social media operator
+- Designer
+- Web operator
+- Management volunteer
 
 ---
 
@@ -1108,12 +1108,12 @@ Session identifiers must be non-predictable.
 
 Sessions should support:
 
-* Expiration
-* Revocation
-* Rotation where applicable
-* Individual session termination
-* Logout invalidation
-* Security-event tracking
+- Expiration
+- Revocation
+- Rotation where applicable
+- Individual session termination
+- Logout invalidation
+- Security-event tracking
 
 The system should detect suspicious session reuse.
 
@@ -1185,15 +1185,15 @@ Critical operations should include additional controls.
 
 Examples:
 
-* Final score modification
-* Result approval
-* Result override
-* Team disqualification
-* Tournament structure modification
-* Permission changes
-* Role changes
-* Session revocation
-* Critical data restoration
+- Final score modification
+- Result approval
+- Result override
+- Team disqualification
+- Tournament structure modification
+- Permission changes
+- Role changes
+- Session revocation
+- Critical data restoration
 
 Critical actions should record:
 
@@ -1260,14 +1260,14 @@ The frontend must never be treated as a security boundary.
 
 Before accepting a score/result update, the backend should validate:
 
-* User authentication
-* Session validity
-* Permission
-* Resource scope
-* Match state
-* Sport-specific rules
-* Data validity
-* State transition validity
+- User authentication
+- Session validity
+- Permission
+- Resource scope
+- Match state
+- Sport-specific rules
+- Data validity
+- State transition validity
 
 ---
 
@@ -1303,11 +1303,11 @@ The architecture should support multiple tournament formats.
 
 Potential formats:
 
-* Knockout
-* Round Robin
-* League
-* Swiss
-* Group Stage + Knockout
+- Knockout
+- Round Robin
+- League
+- Swiss
+- Group Stage + Knockout
 
 The exact format of each sport is TBD.
 
@@ -1333,14 +1333,14 @@ Any seeding configuration/generation should be traceable.
 
 Fixtures should contain:
 
-* Tournament
-* Round
-* Match
-* Participating teams/participants
-* Venue
-* Scheduled time
-* Officials
-* Status
+- Tournament
+- Round
+- Match
+- Participating teams/participants
+- Venue
+- Scheduled time
+- Officials
+- Status
 
 Fixtures should be editable only by authorized users.
 
@@ -1379,12 +1379,12 @@ Primary use is expected to be on phones.
 
 The scoring interface should prioritize:
 
-* Large controls
-* Fast interaction
-* Minimal navigation
-* Clear current score
-* Match status
-* Confirmation of critical actions
+- Large controls
+- Fast interaction
+- Minimal navigation
+- Clear current score
+- Match status
+- Confirmation of critical actions
 
 The system should support temporary local state where feasible so short connectivity interruptions do not unnecessarily destroy entered information.
 
@@ -1467,11 +1467,11 @@ The system should support configurable overall institute ranking.
 
 Possible scoring inputs:
 
-* Gold
-* Silver
-* Bronze
-* Sport position
-* Tournament points
+- Gold
+- Silver
+- Bronze
+- Sport position
+- Tournament points
 
 The official scoring formula is TBD.
 
@@ -1501,13 +1501,13 @@ Database Import
 
 Expected fields currently include:
 
-* Name
-* Photograph — TBD
-* College
-* Roll Number — TBD
-* Gender — TBD
-* DOB — TBD
-* Contact Number — TBD
+- Name
+- Photograph — TBD
+- College
+- Roll Number — TBD
+- Gender — TBD
+- DOB — TBD
+- Contact Number — TBD
 
 The final schema must be based on the official Excel format before development begins.
 
@@ -1519,14 +1519,14 @@ Imports should not directly overwrite production data without validation.
 
 The system should provide:
 
-* File validation
-* Required-column validation
-* Data-type validation
-* Duplicate detection
-* Error reporting
-* Preview
-* Import confirmation
-* Import audit log
+- File validation
+- Required-column validation
+- Data-type validation
+- Duplicate detection
+- Error reporting
+- Preview
+- Import confirmation
+- Import audit log
 
 Import jobs should have unique IDs.
 
@@ -1554,11 +1554,11 @@ Venue
 
 This can allow Hospitality to estimate:
 
-* Participants per institute
-* Participants per sport
-* Participants expected at each venue
-* Match-based participant distribution
-* Refreshment requirements
+- Participants per institute
+- Participants per sport
+- Participants expected at each venue
+- Match-based participant distribution
+- Refreshment requirements
 
 The exact operational formulas will be determined after the event logistics are finalized.
 
@@ -1628,13 +1628,13 @@ The platform should be prepared for livestreaming.
 
 Media users may manage:
 
-* Stream information
-* Stream status
-* Assigned venue
-* Event coverage
-* Gallery
-* News
-* Videos
+- Stream information
+- Stream status
+- Assigned venue
+- Event coverage
+- Gallery
+- News
+- Videos
 
 The exact streaming provider/technical implementation is TBD.
 
@@ -1699,28 +1699,28 @@ Application-level authorization and data-integrity protections remain mandatory.
 
 The system should implement, as applicable:
 
-* HTTPS
-* Secure authentication
-* Google OAuth
-* Verified institutional domain
-* Secure sessions
-* Session expiration
-* Session revocation
-* Secure cookies where applicable
-* CSRF protection where applicable
-* Server-side authorization
-* Object-level authorization
-* Input validation
-* Database constraints
-* Transactional critical operations
-* Audit logs
-* UUID identifiers
-* Secrets management
-* Environment-variable separation
-* Production/debug separation
-* Secure error handling
-* Backup/recovery procedures
-* Cloudflare protection
+- HTTPS
+- Secure authentication
+- Google OAuth
+- Verified institutional domain
+- Secure sessions
+- Session expiration
+- Session revocation
+- Secure cookies where applicable
+- CSRF protection where applicable
+- Server-side authorization
+- Object-level authorization
+- Input validation
+- Database constraints
+- Transactional critical operations
+- Audit logs
+- UUID identifiers
+- Secrets management
+- Environment-variable separation
+- Production/debug separation
+- Secure error handling
+- Backup/recovery procedures
+- Cloudflare protection
 
 No system can honestly guarantee that it is impossible to compromise; the engineering requirement is to minimize attack surface and ensure that compromise of a single identifier or client-side control does not grant unauthorized access.
 
@@ -1778,12 +1778,12 @@ The database may contain information that must never appear publicly.
 
 Examples:
 
-* Internal organizer information
-* Session metadata
-* Audit logs
-* Internal assignments
-* Sensitive participant data
-* Private sponsor information
+- Internal organizer information
+- Session metadata
+- Audit logs
+- Internal assignments
+- Sensitive participant data
+- Private sponsor information
 
 The API layer must explicitly determine what information is publicly serializable.
 
@@ -1825,11 +1825,11 @@ Developers should not manually spend time correcting indentation or line spacing
 
 The project should use:
 
-* Prettier
-* ESLint
-* EditorConfig
-* TypeScript
-* Automated checks
+- Prettier
+- ESLint
+- EditorConfig
+- TypeScript
+- Automated checks
 
 VS Code should be configured for formatting on save.
 
@@ -1886,18 +1886,18 @@ Direct pushes to protected branches should be restricted.
 
 The project should establish:
 
-* Branch naming conventions
-* Commit conventions
-* Pull Request conventions
-* Code-review requirements
-* Formatting rules
-* Naming conventions
-* Folder structure
-* Component conventions
-* API conventions
-* Error-handling conventions
-* Environment configuration
-* Definition of Done
+- Branch naming conventions
+- Commit conventions
+- Pull Request conventions
+- Code-review requirements
+- Formatting rules
+- Naming conventions
+- Folder structure
+- Component conventions
+- API conventions
+- Error-handling conventions
+- Environment configuration
+- Definition of Done
 
 These should be documented separately in the engineering documentation.
 
@@ -1907,14 +1907,14 @@ These should be documented separately in the engineering documentation.
 
 The public website should aim for:
 
-* Keyboard accessibility
-* Adequate contrast
-* Semantic HTML
-* Meaningful labels
-* Accessible forms
-* Responsive design
-* Reduced-motion consideration
-* Screen-reader-friendly structure
+- Keyboard accessibility
+- Adequate contrast
+- Semantic HTML
+- Meaningful labels
+- Accessible forms
+- Responsive design
+- Reduced-motion consideration
+- Screen-reader-friendly structure
 
 ---
 
@@ -1922,10 +1922,10 @@ The public website should aim for:
 
 The public website must work across:
 
-* Desktop
-* Laptop
-* Tablet
-* Mobile
+- Desktop
+- Laptop
+- Tablet
+- Mobile
 
 The organizer platform should additionally prioritize mobile usability for operational roles.
 
@@ -1937,13 +1937,13 @@ The live-scoring interface should be designed primarily for phone-sized screens.
 
 The public website should prioritize:
 
-* Fast initial load
-* Optimized images
-* Lazy loading
-* Efficient API requests
-* Caching where appropriate
-* Minimal unnecessary JavaScript
-* Responsive interactions
+- Fast initial load
+- Optimized images
+- Lazy loading
+- Efficient API requests
+- Caching where appropriate
+- Minimal unnecessary JavaScript
+- Responsive interactions
 
 Live score updates should avoid unnecessarily polling the backend at excessive frequencies.
 
@@ -1955,14 +1955,14 @@ The final real-time mechanism will be determined during technical architecture.
 
 The public website should include:
 
-* Proper page titles
-* Meta descriptions
-* Open Graph metadata
-* Structured semantic HTML
-* Sitemap
-* Robots configuration
-* Social sharing metadata
-* Indexable public content
+- Proper page titles
+- Meta descriptions
+- Open Graph metadata
+- Structured semantic HTML
+- Sitemap
+- Robots configuration
+- Social sharing metadata
+- Indexable public content
 
 Private organizer pages must not be indexed.
 
@@ -1974,13 +1974,13 @@ The production platform should provide enough visibility to diagnose issues.
 
 At minimum:
 
-* Application logs
-* Error logs
-* Authentication failures
-* Critical operation logs
-* Database errors
-* Deployment logs
-* Audit logs
+- Application logs
+- Error logs
+- Authentication failures
+- Critical operation logs
+- Database errors
+- Deployment logs
+- Audit logs
 
 Sensitive data must not be unnecessarily written to logs.
 
@@ -1992,10 +1992,10 @@ Production data should have a backup strategy.
 
 The exact:
 
-* Frequency
-* Retention
-* Storage location
-* Restoration procedure
+- Frequency
+- Retention
+- Storage location
+- Restoration procedure
 
 must be finalized before production deployment.
 
@@ -2031,102 +2031,102 @@ The following should be treated as the initial critical scope:
 
 ## Public
 
-* Home
-* About
-* Sports
-* Schedule
-* Live Scores
-* Results
-* Teams
-* Leaderboard
-* Rules
-* Venues
-* Announcements
-* Contact
+- Home
+- About
+- Sports
+- Schedule
+- Live Scores
+- Results
+- Teams
+- Leaderboard
+- Rules
+- Venues
+- Announcements
+- Contact
 
 ## Competition
 
-* Sports
-* Teams
-* Tournament structure
-* Fixtures
-* Matches
-* Basic live scoring
-* Direct result entry
-* Result approval
-* Standings where applicable
+- Sports
+- Teams
+- Tournament structure
+- Fixtures
+- Matches
+- Basic live scoring
+- Direct result entry
+- Result approval
+- Standings where applicable
 
 ## Organizer
 
-* Google authentication
-* IIT Jammu domain restriction
-* Session management
-* RBAC foundation
-* Convener / Co-Convener access
-* Sports Coordinator functionality
-* Basic volunteer assignments
-* Basic Management functionality
+- Google authentication
+- IIT Jammu domain restriction
+- Session management
+- RBAC foundation
+- Convener / Co-Convener access
+- Sports Coordinator functionality
+- Basic volunteer assignments
+- Basic Management functionality
 
 ## Security
 
-* UUID identifiers
-* Server-side authorization
-* Object-level authorization
-* Audit logging
-* Secure sessions
-* Cloudflare deployment
-* Protected database access
+- UUID identifiers
+- Server-side authorization
+- Object-level authorization
+- Audit logging
+- Secure sessions
+- Cloudflare deployment
+- Protected database access
 
 ## Development
 
-* GitHub repository
-* Branch protection
-* Formatting
-* Linting
-* Type checking
-* Automated CI
+- GitHub repository
+- Branch protection
+- Formatting
+- Linting
+- Type checking
+- Automated CI
 
 ---
 
 # 89. Proposed P1 Features
 
-* Advanced tournament generation
-* Advanced seeding
-* Sport-specific advanced live events
-* Hospitality intelligence
-* Advanced volunteer task management
-* Media dashboard
-* Livestream management
-* Sponsor management
-* Gallery
-* News CMS
-* Campus map
-* Advanced standings
-* Player statistics
+- Advanced tournament generation
+- Advanced seeding
+- Sport-specific advanced live events
+- Hospitality intelligence
+- Advanced volunteer task management
+- Media dashboard
+- Livestream management
+- Sponsor management
+- Gallery
+- News CMS
+- Campus map
+- Advanced standings
+- Player statistics
 
 ---
 
 # 90. Proposed P2 Features
 
-* Advanced player profiles
-* Advanced team statistics
-* Advanced analytics
-* Advanced offline scoring
-* Advanced notifications
-* Advanced operational dashboards
-* Advanced media workflows
+- Advanced player profiles
+- Advanced team statistics
+- Advanced analytics
+- Advanced offline scoring
+- Advanced notifications
+- Advanced operational dashboards
+- Advanced media workflows
 
 ---
 
 # 91. Proposed P3 / Future
 
-* Multi-year Convoquer editions
-* Convoquer'27 using the same platform
-* Historical archives
-* Advanced tournament-generation algorithms
-* Advanced analytics
-* Full operational resource planning
-* More sophisticated participant logistics
+- Multi-year Convoquer editions
+- Convoquer'27 using the same platform
+- Historical archives
+- Advanced tournament-generation algorithms
+- Advanced analytics
+- Full operational resource planning
+- More sophisticated participant logistics
 
 ---
 
@@ -2140,15 +2140,15 @@ Establish the development environment.
 
 Deliverables:
 
-* GitHub repository
-* Branch strategy
-* Project structure
-* Formatting
-* Linting
-* TypeScript
-* CI
-* Development documentation
-* Environment configuration
+- GitHub repository
+- Branch strategy
+- Project structure
+- Formatting
+- Linting
+- TypeScript
+- CI
+- Development documentation
+- Environment configuration
 
 ---
 
@@ -2156,16 +2156,16 @@ Deliverables:
 
 Deliver:
 
-* Layout
-* Navigation
-* Home
-* About
-* Sports
-* Rules
-* Venues
-* Sponsors
-* Contact
-* Responsive design
+- Layout
+- Navigation
+- Home
+- About
+- Sports
+- Rules
+- Venues
+- Sponsors
+- Contact
+- Responsive design
 
 ---
 
@@ -2173,16 +2173,16 @@ Deliver:
 
 Deliver:
 
-* Google login
-* IIT Jammu email restriction
-* User records
-* Roles
-* Permissions
-* Scopes
-* Sessions
-* Logout
-* Session revocation
-* Organizer dashboard routing
+- Google login
+- IIT Jammu email restriction
+- User records
+- Roles
+- Permissions
+- Scopes
+- Sessions
+- Logout
+- Session revocation
+- Organizer dashboard routing
 
 ---
 
@@ -2190,14 +2190,14 @@ Deliver:
 
 Deliver:
 
-* Sports
-* Institutes
-* Teams
-* Players
-* Tournaments
-* Venues
-* Fixtures
-* Matches
+- Sports
+- Institutes
+- Teams
+- Players
+- Tournaments
+- Venues
+- Fixtures
+- Matches
 
 Include validated Excel import.
 
@@ -2207,13 +2207,13 @@ Include validated Excel import.
 
 Deliver:
 
-* Schedule
-* Match management
-* Tournament rounds
-* Basic brackets
-* Standings
-* Result entry
-* Result approval
+- Schedule
+- Match management
+- Tournament rounds
+- Basic brackets
+- Standings
+- Result entry
+- Result approval
 
 ---
 
@@ -2221,12 +2221,12 @@ Deliver:
 
 Deliver:
 
-* Mobile scoring interface
-* Live match state
-* Sport-specific score models for priority sports
-* Live public display
-* Match completion
-* Result submission
+- Mobile scoring interface
+- Live match state
+- Sport-specific score models for priority sports
+- Live public display
+- Match completion
+- Result submission
 
 ---
 
@@ -2252,13 +2252,13 @@ Priority:
 
 Deliver:
 
-* Gallery
-* News
-* Livestream integration
-* Announcements
-* Sponsors
-* Map
-* Event information
+- Gallery
+- News
+- Livestream integration
+- Announcements
+- Sponsors
+- Map
+- Event information
 
 ---
 
@@ -2266,16 +2266,16 @@ Deliver:
 
 Perform:
 
-* End-to-end testing
-* Permission testing
-* Score integrity testing
-* Session testing
-* Import testing
-* Mobile testing
-* Browser testing
-* Performance testing
-* Security review
-* Failure testing
+- End-to-end testing
+- Permission testing
+- Score integrity testing
+- Session testing
+- Import testing
+- Mobile testing
+- Browser testing
+- Performance testing
+- Security review
+- Failure testing
 
 ---
 
@@ -2283,14 +2283,14 @@ Perform:
 
 Deliver:
 
-* Production deployment
-* Domain
-* Cloudflare
-* HTTPS
-* Database
-* Backups
-* Monitoring
-* Final security verification
+- Production deployment
+- Domain
+- Cloudflare
+- HTTPS
+- Database
+- Backups
+- Monitoring
+- Final security verification
 
 ---
 
@@ -2308,13 +2308,13 @@ No major new features should be introduced after this point.
 
 Focus on:
 
-* Bug fixing
-* Testing
-* Security review
-* Performance
-* Data validation
-* Deployment
-* Documentation
+- Bug fixing
+- Testing
+- Security review
+- Performance
+- Data validation
+- Deployment
+- Documentation
 
 ## 18–23 September
 
@@ -2326,8 +2326,8 @@ The project team should minimize development workload around the lead developer'
 
 The development team consists of approximately:
 
-* 1 Project Lead / Web Developer
-* 6–7 beginner developers
+- 1 Project Lead / Web Developer
+- 6–7 beginner developers
 
 The project must therefore include a learning-oriented workflow.
 
@@ -2359,51 +2359,51 @@ Potential workstreams:
 
 ### Project Lead
 
-* Architecture
-* Integration
-* Code review
-* Security decisions
-* Critical backend logic
-* Deployment
-* Technical coordination
+- Architecture
+- Integration
+- Code review
+- Security decisions
+- Critical backend logic
+- Deployment
+- Technical coordination
 
 ### Frontend Team
 
-* Public website
-* Components
-* Responsive UI
-* Public data presentation
+- Public website
+- Components
+- Responsive UI
+- Public data presentation
 
 ### Backend Team
 
-* API
-* Database
-* Authentication
-* RBAC
-* Competition engine
+- API
+- Database
+- Authentication
+- RBAC
+- Competition engine
 
 ### Competition Team
 
-* Fixtures
-* Match management
-* Scoring
-* Results
-* Standings
+- Fixtures
+- Match management
+- Scoring
+- Results
+- Standings
 
 ### Organizer Platform Team
 
-* Dashboards
-* Tasks
-* Assignments
-* Department functionality
+- Dashboards
+- Tasks
+- Assignments
+- Department functionality
 
 ### QA / Platform
 
-* Testing
-* CI
-* Deployment
-* Monitoring
-* Documentation
+- Testing
+- CI
+- Deployment
+- Monitoring
+- Documentation
 
 These are workstreams, not final assignments.
 
@@ -2466,25 +2466,25 @@ Public results must originate from approved competition data.
 
 The following require stakeholder confirmation:
 
-* Final sports list.
-* Final number of participating institutes.
-* Exact participant fields.
-* Official Excel structure.
-* Tournament format for each sport.
-* Overall ranking formula.
-* Final scoring rules.
-* Final venue list.
-* Medical facilities.
-* Transportation.
-* Parking.
-* Refreshment arrangements.
-* Volunteer responsibilities.
-* Sports Coordinator responsibilities.
-* Exact media/livestream system.
-* Public player information.
-* Public participant information.
-* Final notification strategy.
-* Final post-Convoquer archival requirements.
+- Final sports list.
+- Final number of participating institutes.
+- Exact participant fields.
+- Official Excel structure.
+- Tournament format for each sport.
+- Overall ranking formula.
+- Final scoring rules.
+- Final venue list.
+- Medical facilities.
+- Transportation.
+- Parking.
+- Refreshment arrangements.
+- Volunteer responsibilities.
+- Sports Coordinator responsibilities.
+- Exact media/livestream system.
+- Public player information.
+- Public participant information.
+- Final notification strategy.
+- Final post-Convoquer archival requirements.
 
 These must not be silently assumed by developers.
 
@@ -2535,15 +2535,15 @@ Convoquer Platform
 
 Each edition can eventually have its own:
 
-* Sports
-* Teams
-* Participants
-* Tournaments
-* Matches
-* Results
-* Rankings
-* Media
-* Sponsors
+- Sports
+- Teams
+- Participants
+- Tournaments
+- Matches
+- Results
+- Rankings
+- Media
+- Sponsors
 
 This is a future architectural objective and does not imply that a complete multi-year archive must be delivered for Convoquer'26.
 
@@ -2555,38 +2555,38 @@ The project will be considered successful if, before Convoquer'26:
 
 ### Public users can
 
-* Find event information.
-* Find sports.
-* Find schedules.
-* Find venues.
-* Follow live scores.
-* View results.
-* View standings.
-* View announcements.
-* Access official rules.
-* Access event information from mobile devices.
+- Find event information.
+- Find sports.
+- Find schedules.
+- Find venues.
+- Follow live scores.
+- View results.
+- View standings.
+- View announcements.
+- Access official rules.
+- Access event information from mobile devices.
 
 ### Organizers can
 
-* Authenticate securely.
-* Access only their permitted functionality.
-* Manage relevant operational information.
-* Manage matches and scores according to their permissions.
-* Publish/approve relevant information.
-* Manage assignments where applicable.
-* Trace critical actions.
+- Authenticate securely.
+- Access only their permitted functionality.
+- Manage relevant operational information.
+- Manage matches and scores according to their permissions.
+- Publish/approve relevant information.
+- Manage assignments where applicable.
+- Trace critical actions.
 
 ### The system can
 
-* Maintain competition data centrally.
-* Import official participant data.
-* Support multiple tournament formats.
-* Support live scoring.
-* Support direct result entry.
-* Protect critical competition data.
-* Maintain an audit trail.
-* Run through the official domain.
-* Be maintained by the Web Development Team.
+- Maintain competition data centrally.
+- Import official participant data.
+- Support multiple tournament formats.
+- Support live scoring.
+- Support direct result entry.
+- Protect critical competition data.
+- Maintain an audit trail.
+- Run through the official domain.
+- Be maintained by the Web Development Team.
 
 ---
 

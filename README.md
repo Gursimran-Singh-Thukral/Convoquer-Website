@@ -16,25 +16,25 @@ The Convoquer'26 Digital Platform consists of two major parts:
 
 The public-facing platform will provide participants, students, visitors and spectators with access to:
 
-* Event information
-* Sports
-* Teams
-* Fixtures
-* Match schedules
-* Live scores
-* Results
-* Point tables
-* Knockout brackets
-* Leaderboards
-* Institute rankings
-* Medal tally
-* Venues
-* Rules & Regulations
-* Sponsors
-* News & Updates
-* Gallery
-* FAQs
-* Contact information
+- Event information
+- Sports
+- Teams
+- Fixtures
+- Match schedules
+- Live scores
+- Results
+- Point tables
+- Knockout brackets
+- Leaderboards
+- Institute rankings
+- Medal tally
+- Venues
+- Rules & Regulations
+- Sponsors
+- News & Updates
+- Gallery
+- FAQs
+- Contact information
 
 ### Organizer Platform
 
@@ -44,15 +44,15 @@ Different users will receive different capabilities based on their assigned role
 
 The platform will support roles and teams such as:
 
-* Convener
-* Co-Conveners
-* Team Heads
-* Sports Coordinators
-* Volunteers
-* Media Team
-* Design Team
-* Web Team
-* Management
+- Convener
+- Co-Conveners
+- Team Heads
+- Sports Coordinators
+- Volunteers
+- Media Team
+- Design Team
+- Web Team
+- Management
 
 A user may have multiple roles where required.
 
@@ -147,13 +147,13 @@ The `docs/` directory contains the project's technical documentation.
 
 Defines:
 
-* Product vision
-* Functional requirements
-* User types
-* Public website requirements
-* Organizer platform requirements
-* Competition requirements
-* Event requirements
+- Product vision
+- Functional requirements
+- User types
+- Public website requirements
+- Organizer platform requirements
+- Competition requirements
+- Event requirements
 
 ---
 
@@ -163,12 +163,12 @@ Defines:
 
 Defines:
 
-* System architecture
-* Client/server separation
-* Major components
-* Communication between components
-* Deployment architecture
-* Architectural decisions
+- System architecture
+- Client/server separation
+- Major components
+- Communication between components
+- Deployment architecture
+- Architectural decisions
 
 ---
 
@@ -178,12 +178,12 @@ Defines:
 
 Defines:
 
-* Database entities
-* Relationships
-* Constraints
-* Identifiers
-* Data integrity rules
-* Database design principles
+- Database entities
+- Relationships
+- Constraints
+- Identifiers
+- Data integrity rules
+- Database design principles
 
 ---
 
@@ -193,12 +193,12 @@ Defines:
 
 Defines:
 
-* Roles
-* Permissions
-* Role hierarchy
-* Resource-level access
-* Sport-level access
-* Organizer capabilities
+- Roles
+- Permissions
+- Role hierarchy
+- Resource-level access
+- Sport-level access
+- Organizer capabilities
 
 ---
 
@@ -208,11 +208,11 @@ Defines:
 
 Defines:
 
-* Backend API structure
-* Endpoints
-* Request/response contracts
-* Authentication requirements
-* Authorization requirements
+- Backend API structure
+- Endpoints
+- Request/response contracts
+- Authentication requirements
+- Authorization requirements
 
 ---
 
@@ -222,14 +222,14 @@ Defines:
 
 Defines:
 
-* Authentication security
-* Session management
-* Authorization
-* Score integrity
-* Result integrity
-* Database security
-* Audit logging
-* Security principles
+- Authentication security
+- Session management
+- Authorization
+- Score integrity
+- Result integrity
+- Database security
+- Audit logging
+- Security principles
 
 ---
 
@@ -239,11 +239,11 @@ Defines:
 
 Defines:
 
-* Development methodology
-* Development environment
-* Project conventions
-* Feature development process
-* Engineering practices
+- Development methodology
+- Development environment
+- Project conventions
+- Feature development process
+- Engineering practices
 
 ---
 
@@ -253,11 +253,11 @@ Defines:
 
 Defines:
 
-* Branching strategy
-* Commit conventions
-* Pull requests
-* Code reviews
-* GitHub workflow
+- Branching strategy
+- Commit conventions
+- Pull requests
+- Code reviews
+- GitHub workflow
 
 ---
 
@@ -267,11 +267,11 @@ Defines:
 
 Defines:
 
-* Formatting
-* Naming
-* File organization
-* TypeScript conventions
-* General coding standards
+- Formatting
+- Naming
+- File organization
+- TypeScript conventions
+- General coding standards
 
 Automated tooling will enforce as many of these rules as possible.
 
@@ -283,13 +283,13 @@ Automated tooling will enforce as many of these rules as possible.
 
 Defines:
 
-* Unit testing
-* Integration testing
-* E2E testing
-* Security testing
-* Realtime testing
-* Competition simulation
-* Release testing
+- Unit testing
+- Integration testing
+- E2E testing
+- Security testing
+- Realtime testing
+- Competition simulation
+- Release testing
 
 ---
 
@@ -299,14 +299,14 @@ Defines:
 
 Defines:
 
-* Staging
-* Production
-* VM deployment
-* Cloudflare
-* PostgreSQL deployment
-* Backups
-* Recovery
-* Production operations
+- Staging
+- Production
+- VM deployment
+- Cloudflare
+- PostgreSQL deployment
+- Backups
+- Recovery
+- Production operations
 
 ---
 
@@ -316,13 +316,13 @@ Defines:
 
 Defines:
 
-* Development phases
-* Priorities
-* Task allocation
-* Milestones
-* Team responsibilities
-* Development timeline
-* Definition of Done
+- Development phases
+- Priorities
+- Task allocation
+- Milestones
+- Team responsibilities
+- Development timeline
+- Definition of Done
 
 ---
 
@@ -466,11 +466,11 @@ The platform is intended to provide realtime competition information.
 
 This includes:
 
-* Live scores
-* Match status
-* Results
-* Standings where applicable
-* Other important competition updates
+- Live scores
+- Match status
+- Results
+- Standings where applicable
+- Other important competition updates
 
 Realtime communication will primarily use WebSockets.
 

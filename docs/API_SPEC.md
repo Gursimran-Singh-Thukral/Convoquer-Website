@@ -4,7 +4,7 @@
 **Institute:** Indian Institute of Technology Jammu  
 **Event:** Convoquer'26  
 **Document Version:** 1.0  
-**Status:** Approved RBAC Baseline  
+**Status:** Approved RBAC Baseline
 
 ---
 
@@ -18,18 +18,18 @@ It answers:
 
 The RBAC system is responsible for protecting:
 
-* Competition data.
-* Scores.
-* Results.
-* Tournament structures.
-* Participant information.
-* Organizer operations.
-* Media.
-* Announcements.
-* User accounts.
-* Roles and permissions.
-* Sessions.
-* System configuration.
+- Competition data.
+- Scores.
+- Results.
+- Tournament structures.
+- Participant information.
+- Organizer operations.
+- Media.
+- Announcements.
+- User accounts.
+- Roles and permissions.
+- Sessions.
+- System configuration.
 
 ---
 
@@ -2177,11 +2177,11 @@ Organizers should not be able to impersonate other users as a normal feature.
 
 If emergency impersonation is ever required, it must:
 
-* Be highly restricted.
-* Require explicit authorization.
-* Be prominently audited.
-* Preserve the identity of the original administrator.
-* Record the impersonated user.
+- Be highly restricted.
+- Require explicit authorization.
+- Be prominently audited.
+- Preserve the identity of the original administrator.
+- Record the impersonated user.
 
 This is currently not required.
 
@@ -2456,17 +2456,17 @@ Execution should be more privileged than upload.
 
 The following must be confirmed before final RBAC implementation:
 
-* Exact Co-Convener permissions.
-* Exact result approval hierarchy.
-* Exact Sports Coordinator permissions.
-* Whether Sports Coordinators can approve results.
-* Exact Head-level user-management permissions.
-* Exact Web Developer production permissions.
-* Exact Hospitality data visibility.
-* Exact participant-field visibility.
-* Exact Volunteer capabilities.
-* Whether certain Heads can assign roles.
-* Emergency override policy.
+- Exact Co-Convener permissions.
+- Exact result approval hierarchy.
+- Exact Sports Coordinator permissions.
+- Whether Sports Coordinators can approve results.
+- Exact Head-level user-management permissions.
+- Exact Web Developer production permissions.
+- Exact Hospitality data visibility.
+- Exact participant-field visibility.
+- Exact Volunteer capabilities.
+- Whether certain Heads can assign roles.
+- Emergency override policy.
 
 Until confirmed, the more restrictive interpretation should be used.
 
@@ -2641,21 +2641,21 @@ API_SPEC.md    SECURITY.md
 
 The following principles are locked:
 
-* Server-side authorization.
-* Default deny.
-* Least privilege.
-* Multiple roles per user.
-* Permission + scope model.
-* Assignment-aware access.
-* Object-level authorization.
-* UUIDs do not provide authorization.
-* Database-backed sessions.
-* Immediate effect of role revocation.
-* Critical-action auditing.
-* Convener global authority.
-* Individually traceable Co-Conveners.
-* Sport-scoped Sports Coordinators.
-* Assignment-oriented Volunteers.
-* Separate organizational and technical authority.
+- Server-side authorization.
+- Default deny.
+- Least privilege.
+- Multiple roles per user.
+- Permission + scope model.
+- Assignment-aware access.
+- Object-level authorization.
+- UUIDs do not provide authorization.
+- Database-backed sessions.
+- Immediate effect of role revocation.
+- Critical-action auditing.
+- Convener global authority.
+- Individually traceable Co-Conveners.
+- Sport-scoped Sports Coordinators.
+- Assignment-oriented Volunteers.
+- Separate organizational and technical authority.
 
 The exact permission matrix for unresolved organizational responsibilities remains subject to confirmation before implementation.

@@ -1,22 +1,21 @@
 {
-
     "name": "Convoquer-Website",
     "version": "0.1.0",
     "private": "true",
     "description": "Official Digital Platform for Convoquer'26 at IIT Jammu",
     "workspaces": [
-
         "client",
         "server"
-
     ],
     "scripts": {
-
         "dev": "npm run dev --workspaces --if-present",
         "build": "npm run build --workspaces --if-present",
         "lint": "npm run lint --workspaces --if-present",
-        "test": "npm run test --workspaces --if-present"
-
+        "test": "npm run test --workspaces --if-present",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "devDependencies": {
+        "prettier": "3.9.6"
     }
-
 }

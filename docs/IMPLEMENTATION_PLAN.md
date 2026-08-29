@@ -14,7 +14,7 @@
 **Target Feature Completion:** 10–12 September 2026  
 **Target Testing/Handoff:** Around 20 September 2026  
 **Document Version:** 1.0  
-**Status:** Approved Implementation Baseline  
+**Status:** Approved Implementation Baseline
 
 ---
 

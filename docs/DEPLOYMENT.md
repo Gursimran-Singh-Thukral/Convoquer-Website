@@ -13,7 +13,7 @@
 **Repository:** GitHub  
 **Deployment Model:** Production + Staging  
 **Document Version:** 1.0  
-**Status:** Approved Deployment Baseline  
+**Status:** Approved Deployment Baseline
 
 ---
 
@@ -1739,49 +1739,49 @@ ARCHITECTURE.md
 
 Confirmed:
 
-* VM-based deployment.
-* Cloudflare edge layer.
-* HTTPS.
-* Reverse proxy.
-* Next.js client.
-* NestJS server.
-* PostgreSQL.
-* Prisma migrations.
-* Environment separation.
-* Staging environment.
-* Production environment.
-* Google OAuth.
-* Server-side session management.
-* WebSocket support.
-* GitHub-based deployment workflow.
-* Automated CI checks.
-* Production backups.
-* Backup restoration testing.
-* Rollback planning.
-* Production monitoring.
-* Event-time deployment freeze.
-* Emergency deployment procedure.
-* Production smoke testing.
-* Disaster recovery planning.
+- VM-based deployment.
+- Cloudflare edge layer.
+- HTTPS.
+- Reverse proxy.
+- Next.js client.
+- NestJS server.
+- PostgreSQL.
+- Prisma migrations.
+- Environment separation.
+- Staging environment.
+- Production environment.
+- Google OAuth.
+- Server-side session management.
+- WebSocket support.
+- GitHub-based deployment workflow.
+- Automated CI checks.
+- Production backups.
+- Backup restoration testing.
+- Rollback planning.
+- Production monitoring.
+- Event-time deployment freeze.
+- Emergency deployment procedure.
+- Production smoke testing.
+- Disaster recovery planning.
 
 TBD:
 
-* Final VM specifications.
-* Operating system.
-* Exact domain.
-* Exact Cloudflare configuration.
-* Reverse proxy choice.
-* Process manager.
-* CI/CD implementation.
-* Staging infrastructure.
-* Backup provider.
-* Backup frequency.
-* RPO.
-* RTO.
-* Monitoring stack.
-* Log management stack.
-* Exact production deployment mechanism.
-* Final Google Workspace/OAuth configuration.
+- Final VM specifications.
+- Operating system.
+- Exact domain.
+- Exact Cloudflare configuration.
+- Reverse proxy choice.
+- Process manager.
+- CI/CD implementation.
+- Staging infrastructure.
+- Backup provider.
+- Backup frequency.
+- RPO.
+- RTO.
+- Monitoring stack.
+- Log management stack.
+- Exact production deployment mechanism.
+- Final Google Workspace/OAuth configuration.
 
 ---
 
