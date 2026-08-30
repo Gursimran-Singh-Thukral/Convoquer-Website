@@ -1,12 +1,12 @@
 # Convoquer'26 Digital Platform
 
-**Product:** Official Digital Platform for Convoquer'26  
-**Institute:** Indian Institute of Technology Jammu  
-**Event:** Convoquer'26  
-**Event Dates:** 1–4 October 2026  
-**Document Version:** 1.0  
-**Status:** Initial Product Requirements Document  
-**Target Feature Freeze:** 10–12 September 2026  
+**Product:** Official Digital Platform for Convoquer'26
+**Institute:** Indian Institute of Technology Jammu
+**Event:** Convoquer'26
+**Event Dates:** 1–4 October 2026
+**Document Version:** 1.0
+**Status:** Initial Product Requirements Document
+**Target Feature Freeze:** 10–12 September 2026
 **Primary Development Team:** Web Development Team, IIT Jammu
 
 ---
@@ -200,7 +200,7 @@ The final venue list is TBD.
 
 Current estimates:
 
-- Approximately 7–8 participating colleges/institutes.
+- Approximately 15-16 participating colleges/institutes.
 - Approximately 12 sports, subject to confirmation.
 - Total participant count is TBD.
 
@@ -214,21 +214,14 @@ Current list:
 
 - Cricket
 - Football
-- Basketball
-- Volleyball
-- Badminton
-- Table Tennis
-- Athletics
-- Chess
-
-## 8.2 Potential Additional Sports
-
-Subject to confirmation:
-
+- Basketball (M/W)
+- Volleyball (M/W)
+- Badminton (M/W/Mix)
+- Table Tennis (M/W)
+- Athletics (M/W)
+- Chess (M/W)
 - E-Sports
-- Hockey
-- Squash
-- Pool
+- Squash (M/W)
 - Weightlifting
 
 ## 8.3 Dynamic Sports Model
@@ -900,7 +893,7 @@ Capabilities should include:
 
 - Event schedules
 - Venue scheduling
-- Logistics
+- Logistics (Buggy, Bus)
 - On-ground coordination
 - Operational tasks
 - Assignments
@@ -1000,6 +993,7 @@ A Sports Coordinator may manage:
 - Its tournaments
 - Its fixtures
 - Its matches
+- Its volunteers
 - Its scores
 - Its results
 - Its standings
@@ -1502,12 +1496,10 @@ Database Import
 Expected fields currently include:
 
 - Name
-- Photograph — TBD
+- ID Photograph
 - College
-- Roll Number — TBD
-- Gender — TBD
-- DOB — TBD
-- Contact Number — TBD
+- Gender
+- Contact Number
 
 The final schema must be based on the official Excel format before development begins.
 
@@ -2466,24 +2458,24 @@ Public results must originate from approved competition data.
 
 The following require stakeholder confirmation:
 
-- Final sports list.
-- Final number of participating institutes.
-- Exact participant fields.
-- Official Excel structure.
-- Tournament format for each sport.
-- Overall ranking formula.
-- Final scoring rules.
-- Final venue list.
-- Medical facilities.
-- Transportation.
-- Parking.
-- Refreshment arrangements.
-- Volunteer responsibilities.
-- Sports Coordinator responsibilities.
-- Exact media/livestream system.
-- Public player information.
-- Public participant information.
-- Final notification strategy.
+- Final sports list. (11)
+- Final number of participating institutes. (TBD)
+- Exact participant fields. (TBD)
+- Official Excel structure. (TBD)
+- Tournament format for each sport. (TBD)
+- Overall ranking formula. (TBD)
+- Final scoring rules. (TBD)
+- Final venue list. (TBD)
+- Medical facilities. (Will be Provided)
+- Transportation. (Buggies for Internal Movements)
+- Parking. (Provided)
+- Refreshment arrangements. (Sports Head, Hospitality Head)
+- Volunteer responsibilities. (Respective Heads)
+- Sports Coordinator responsibilities. (Score Approval, Requirements, Equipments, Scoring, Referees)
+- Exact media/livestream system. (Youtube Link, Drive Link)
+- Public player information. (Jersey Number, Name)
+- Public participant information. (Jersey Number, Name)
+- Final notification strategy. (WhatsApp, Mail)
 - Final post-Convoquer archival requirements.
 
 These must not be silently assumed by developers.
