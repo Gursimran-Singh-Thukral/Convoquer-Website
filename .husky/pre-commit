@@ -1,3 +1,5 @@
 npm test
 
+npm run format
+
 npx lint-staged
