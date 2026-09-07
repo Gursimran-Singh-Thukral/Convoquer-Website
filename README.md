@@ -528,6 +528,20 @@ Once the initial setup is complete, developers will be able to start the project
 
 The README will be updated as the project setup becomes finalized.
 
+### Prerequisites Setup
+
+1. **PostgreṣṣSQL Database:**
+   - Install PostgreSQL locally (via [PostgreSQL.org](https://www.postgresql.org/download/) or Docker: `docker run --name convoquer-postgres -e POSTGRES_PASSWORD=mysecretpassword -p 5432:5432 -d postgres`).
+   - Create a database for the project (e.g., `convoquer26`).
+   - Copy `server/.env.example` to `server/.env` and update the `DATABASE_URL` connection string (e.g., `postgresql://postgres:mysecretpassword@localhost:5432/convoquer26?schema=public`).
+
+2. **Google OAuth (for @iitjammu.ac.in restriction):**
+   - Go to the [Google Cloud Console](https://console.cloud.google.com/).
+   - Create a new project, navigate to "APIs & Services" > "Credentials".
+   - Create an "OAuth client ID" (Web application).
+   - Set the Authorized Redirect URIs to your local environment (e.g., `http://localhost:3000/api/auth/callback/google` or backend equivalent).
+   - Copy the Client ID and Client Secret into the `server/.env` file.
+
 ---
 
 # Development Phases
