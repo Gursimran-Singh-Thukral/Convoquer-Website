@@ -1,34 +1,34 @@
 {
-    "name": "Convoquer-Website",
-    "version": "0.1.0",
-    "private": "true",
-    "description": "Official Digital Platform for Convoquer'26 at IIT Jammu",
-    "workspaces": [
-        "client",
-        "server"
+  "name": "Convoquer-Website",
+  "version": "0.1.0",
+  "private": "true",
+  "description": "Official Digital Platform for Convoquer'26 at IIT Jammu",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "9.1.7",
+    "lint-staged": "16.4.0",
+    "prettier": "3.9.6",
+    "typescript-eslint": "8.68.0"
+  },
+  "lint-staged": {
+    "*.{js, jsx, ts, tsx}": [
+      "prettier --write",
+      "eslint --fix"
     ],
-    "scripts": {
-        "dev": "npm run dev --workspaces --if-present",
-        "build": "npm run build --workspaces --if-present",
-        "lint": "npm run lint --workspaces --if-present",
-        "test": "npm run test --workspaces --if-present",
-        "format": "prettier --write .",
-        "format:check": "prettier --check .",
-        "prepare": "husky"
-    },
-    "devDependencies": {
-        "husky": "9.1.7",
-        "lint-staged": "16.4.0",
-        "prettier": "3.9.6",
-        "typescript-eslint": "8.68.0"
-    },
-    "lint-staged": {
-        "*.{js, jsx, ts, tsx}": [
-            "prettier --write",
-            "eslint --fix"
-        ],
-        "*.{json, md, mdx, yml, yaml, css, scss, html}": [
-            "prettier --write"
-        ]
-    }
+    "*.{json, md, mdx, yml, yaml, css, scss, html}": [
+      "prettier --write"
+    ]
+  }
 }

@@ -176,13 +176,13 @@ Preferred:
 
 ```ts
 const createMatch = async () => {
-    try {
-        const match = await matchService.create();
+  try {
+    const match = await matchService.create();
 
-        return match;
-    } catch (error) {
-        throw error;
-    }
+    return match;
+  } catch (error) {
+    throw error;
+  }
 };
 ```
 
@@ -204,7 +204,7 @@ const { title, description } = createMatchDto;
 const createdBy = req.user.id;
 
 if (!title || !description) {
-    throw new BadRequestException();
+  throw new BadRequestException();
 }
 
 const match = await this.matchService.create();
@@ -277,12 +277,12 @@ Bad:
 
 ```ts
 async function processEverything() {
-    // Authentication
-    // Database
-    // Score calculation
-    // Email
-    // Audit
-    // Notification
+  // Authentication
+  // Database
+  // Score calculation
+  // Email
+  // Audit
+  // Notification
 }
 ```
 
@@ -439,7 +439,7 @@ Repeated important strings should be centralized when appropriate.
 Avoid scattering:
 
 ```ts
-"RESULT_APPROVED";
+'RESULT_APPROVED';
 ```
 
 throughout dozens of files.
@@ -563,11 +563,11 @@ Recommended order:
 Example:
 
 ```ts
-import { Injectable } from "@nestjs/common";
-import { PrismaService } from "@/database/prisma.service";
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '@/database/prisma.service';
 
-import { ScoreService } from "./score.service";
-import { UpdateScoreDto } from "./dto/update-score.dto";
+import { ScoreService } from './score.service';
+import { UpdateScoreDto } from './dto/update-score.dto';
 ```
 
 The final ESLint configuration should enforce import consistency where practical.
@@ -581,7 +581,7 @@ Unused imports must not remain in the codebase.
 The uploaded reference file contains an apparently unused import:
 
 ```js
-const { get } = require("../routes/userRoutes");
+const { get } = require('../routes/userRoutes');
 ```
 
 The new project should use ESLint/TypeScript checks to catch such issues automatically.
@@ -609,7 +609,7 @@ The project should use one quote style consistently.
 Recommended:
 
 ```ts
-const message = "Match updated successfully";
+const message = 'Match updated successfully';
 ```
 
 Prettier will enforce the final configuration.
@@ -688,15 +688,15 @@ Examples:
 
 ```ts
 interface MatchScore {
-    home: number;
-    away: number;
+  home: number;
+  away: number;
 }
 ```
 
 and:
 
 ```ts
-type MatchStatus = "SCHEDULED" | "LIVE" | "COMPLETED";
+type MatchStatus = 'SCHEDULED' | 'LIVE' | 'COMPLETED';
 ```
 
 The project's final conventions for interfaces vs type aliases should remain consistent.
@@ -731,7 +731,7 @@ Example:
 
 ```ts
 if (!match) {
-    throw new NotFoundException("Match not found");
+  throw new NotFoundException('Match not found');
 }
 ```
 
@@ -1040,7 +1040,7 @@ then:
 
 ```tsx
 {
-    canEditScore && <ScoreEditor />;
+  canEditScore && <ScoreEditor />;
 }
 ```
 
@@ -1336,11 +1336,11 @@ Example:
 
 ```ts
 if (!match) {
-    throw new NotFoundException("Match not found");
+  throw new NotFoundException('Match not found');
 }
 
 if (match.status === MatchStatus.COMPLETED) {
-    throw new BadRequestException("Match is already completed");
+  throw new BadRequestException('Match is already completed');
 }
 ```
 
@@ -1356,13 +1356,13 @@ Bad:
 
 ```ts
 if (user) {
-    if (match) {
-        if (match.status) {
-            if (permission) {
-                // ...
-            }
-        }
+  if (match) {
+    if (match.status) {
+      if (permission) {
+        // ...
+      }
     }
+  }
 }
 ```
 
@@ -1378,14 +1378,14 @@ For example:
 
 ```ts
 switch (match.status) {
-    case MatchStatus.SCHEDULED:
-        break;
+  case MatchStatus.SCHEDULED:
+    break;
 
-    case MatchStatus.LIVE:
-        break;
+  case MatchStatus.LIVE:
+    break;
 
-    case MatchStatus.COMPLETED:
-        break;
+  case MatchStatus.COMPLETED:
+    break;
 }
 ```
 
@@ -1405,10 +1405,10 @@ prefer:
 
 ```ts
 const canPublishResult =
-    hasApprovalPermission &&
-    isValidResult &&
-    !isAlreadyPublished &&
-    participantCount > MINIMUM_PARTICIPANTS;
+  hasApprovalPermission &&
+  isValidResult &&
+  !isAlreadyPublished &&
+  participantCount > MINIMUM_PARTICIPANTS;
 ```
 
 ---
@@ -1534,13 +1534,13 @@ The repository should eventually contain scripts similar to:
 
 ```json
 {
-    "scripts": {
-        "format": "prettier --write .",
-        "format:check": "prettier --check .",
-        "lint": "eslint .",
-        "typecheck": "tsc --noEmit",
-        "test": "..."
-    }
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "..."
+  }
 }
 ```
 
