@@ -56,10 +56,7 @@ export class CompetitionController {
   @Patch('events/:id')
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('sport.update')
-  async updateEvent(
-    @Param('id') id: string,
-    @Body() dto: UpdateEventDto,
-  ) {
+  async updateEvent(@Param('id') id: string, @Body() dto: UpdateEventDto) {
     return this.eventsService.updateEvent(id, dto);
   }
 
@@ -90,10 +87,7 @@ export class CompetitionController {
   @Patch('sports/:id')
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('sport.update')
-  async updateSport(
-    @Param('id') id: string,
-    @Body() dto: UpdateSportDto,
-  ) {
+  async updateSport(@Param('id') id: string, @Body() dto: UpdateSportDto) {
     return this.sportsService.updateSport(id, dto);
   }
 
@@ -131,10 +125,7 @@ export class CompetitionController {
   @Patch('venues/:id')
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('venue.update')
-  async updateVenue(
-    @Param('id') id: string,
-    @Body() dto: UpdateVenueDto,
-  ) {
+  async updateVenue(@Param('id') id: string, @Body() dto: UpdateVenueDto) {
     return this.venuesService.updateVenue(id, dto);
   }
 

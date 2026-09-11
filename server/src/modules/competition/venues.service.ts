@@ -4,10 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
-import {
-  CreateVenueDto,
-  UpdateVenueDto,
-} from './dto/competition.dto.js';
+import { CreateVenueDto, UpdateVenueDto } from './dto/competition.dto.js';
 
 @Injectable()
 export class VenuesService {

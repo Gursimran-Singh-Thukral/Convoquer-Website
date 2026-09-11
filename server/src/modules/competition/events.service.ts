@@ -4,10 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
-import {
-  CreateEventDto,
-  UpdateEventDto,
-} from './dto/competition.dto.js';
+import { CreateEventDto, UpdateEventDto } from './dto/competition.dto.js';
 
 @Injectable()
 export class EventsService {
@@ -57,7 +54,9 @@ export class EventsService {
       where: { slug: dto.slug },
     });
     if (existing) {
-      throw new ConflictException(`Event with slug "${dto.slug}" already exists`);
+      throw new ConflictException(
+        `Event with slug "${dto.slug}" already exists`,
+      );
     }
 
     return this.prisma.event.create({
@@ -84,7 +83,9 @@ export class EventsService {
         where: { slug: dto.slug },
       });
       if (slugClash) {
-        throw new ConflictException(`Event with slug "${dto.slug}" already exists`);
+        throw new ConflictException(
+          `Event with slug "${dto.slug}" already exists`,
+        );
       }
     }
 

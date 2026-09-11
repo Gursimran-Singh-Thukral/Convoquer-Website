@@ -119,8 +119,14 @@ describe('Competition Services (Events, Sports, Venues)', () => {
     });
 
     it('should throw ConflictException on duplicate sport name in same event', async () => {
-      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1', name: "Convoquer'26" });
-      prismaMock.sport.findFirst.mockResolvedValue({ id: 'sport-1', name: 'Cricket' });
+      prismaMock.event.findUnique.mockResolvedValue({
+        id: 'event-1',
+        name: "Convoquer'26",
+      });
+      prismaMock.sport.findFirst.mockResolvedValue({
+        id: 'sport-1',
+        name: 'Cricket',
+      });
 
       await expect(
         sportsService.createSport({
@@ -182,7 +188,10 @@ describe('Competition Services (Events, Sports, Venues)', () => {
     });
 
     it('should create a new venue', async () => {
-      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1', name: "Convoquer'26" });
+      prismaMock.event.findUnique.mockResolvedValue({
+        id: 'event-1',
+        name: "Convoquer'26",
+      });
       prismaMock.venue.findFirst.mockResolvedValue(null);
       prismaMock.venue.create.mockResolvedValue({
         id: 'v-new',
@@ -200,8 +209,14 @@ describe('Competition Services (Events, Sports, Venues)', () => {
     });
 
     it('should throw ConflictException on duplicate venue name in same event', async () => {
-      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1', name: "Convoquer'26" });
-      prismaMock.venue.findFirst.mockResolvedValue({ id: 'v-1', name: 'Main Ground' });
+      prismaMock.event.findUnique.mockResolvedValue({
+        id: 'event-1',
+        name: "Convoquer'26",
+      });
+      prismaMock.venue.findFirst.mockResolvedValue({
+        id: 'v-1',
+        name: 'Main Ground',
+      });
 
       await expect(
         venuesService.createVenue({

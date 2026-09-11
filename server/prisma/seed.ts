@@ -311,11 +311,20 @@ async function main() {
   // Seed Confirmed Sports
   const confirmedSports = [
     { name: 'Cricket', description: 'T20 & League Cricket tournament' },
-    { name: 'Football', description: 'Full-pitch inter-college football championship' },
+    {
+      name: 'Football',
+      description: 'Full-pitch inter-college football championship',
+    },
     { name: 'Basketball', description: '5v5 full-court basketball tournament' },
     { name: 'Volleyball', description: 'Standard 6v6 volleyball championship' },
-    { name: 'Badminton', description: 'Singles and doubles badminton competition' },
-    { name: 'Table Tennis', description: 'Singles and doubles table tennis tournament' },
+    {
+      name: 'Badminton',
+      description: 'Singles and doubles badminton competition',
+    },
+    {
+      name: 'Table Tennis',
+      description: 'Singles and doubles table tennis tournament',
+    },
     { name: 'Athletics', description: 'Track and field athletics events' },
     { name: 'Chess', description: 'Classical & rapid chess tournament' },
   ];
@@ -346,7 +355,10 @@ async function main() {
   const campusVenues = [
     { name: 'Main Ground', location: 'Campus West' },
     { name: 'Cricket Ground', location: 'Campus South' },
-    { name: 'Indoor Sports Complex', location: 'Student Activity Centre (SAC)' },
+    {
+      name: 'Indoor Sports Complex',
+      location: 'Student Activity Centre (SAC)',
+    },
     { name: 'Basketball Court', location: 'Outdoor Sports Enclave' },
     { name: 'Volleyball Court', location: 'Outdoor Sports Enclave' },
   ];
@@ -373,7 +385,9 @@ async function main() {
     }
   }
 
-  console.log('Seeding complete. Seeded permissions, roles, event, sports, and venues.');
+  console.log(
+    'Seeding complete. Seeded permissions, roles, event, sports, and venues.',
+  );
 }
 
 main()
