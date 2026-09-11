@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TournamentsService } from './tournaments.service.js';
 import { MatchesService } from './matches.service.js';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 
 describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
   let prismaMock: any;
@@ -70,7 +74,11 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
   describe('TournamentsService', () => {
     it('should return tournaments list', async () => {
       prismaMock.tournament.findMany.mockResolvedValue([
-        { id: 'tourn-1', name: "Convoquer'26 Football Cup", format: 'KNOCKOUT' },
+        {
+          id: 'tourn-1',
+          name: "Convoquer'26 Football Cup",
+          format: 'KNOCKOUT',
+        },
       ]);
 
       const list = await tournamentsService.getTournaments('event-1');
@@ -81,9 +89,9 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
     it('should throw NotFoundException for invalid tournament ID', async () => {
       prismaMock.tournament.findUnique.mockResolvedValue(null);
 
-      await expect(tournamentsService.getTournamentById('invalid')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        tournamentsService.getTournamentById('invalid'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should create a tournament when event and sport exist', async () => {
@@ -121,11 +129,16 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
 
     it('should save tournament team seeds in transaction', async () => {
       prismaMock.tournament.findUnique.mockResolvedValue({ id: 'tourn-1' });
-      prismaMock.team.findUnique.mockResolvedValue({ id: 'team-1', name: 'IIT Jammu' });
-      prismaMock.tournamentTeamSeed.create.mockImplementation(({ data }: any) => ({
-        id: 'seed-id',
-        ...data,
-      }));
+      prismaMock.team.findUnique.mockResolvedValue({
+        id: 'team-1',
+        name: 'IIT Jammu',
+      });
+      prismaMock.tournamentTeamSeed.create.mockImplementation(
+        ({ data }: any) => ({
+          id: 'seed-id',
+          ...data,
+        }),
+      );
 
       const res = await tournamentsService.setSeeds('tourn-1', {
         seeds: [
@@ -343,7 +356,10 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
 
     it('should generate round robin fixtures for all team pairs', async () => {
       prismaMock.tournament.findUnique.mockResolvedValue({ id: 'tourn-rr' });
-      prismaMock.tournamentStage.create.mockResolvedValue({ id: 'stage-rr', name: 'Group Stage' });
+      prismaMock.tournamentStage.create.mockResolvedValue({
+        id: 'stage-rr',
+        name: 'Group Stage',
+      });
       prismaMock.match.create.mockImplementation(({ data }: any) => ({
         id: `m-${data.matchNumber}`,
         ...data,

@@ -78,10 +78,7 @@ export class FixturesController {
   @Post('tournaments/:id/seeds')
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('competition.manage')
-  async setSeeds(
-    @Param('id') tournamentId: string,
-    @Body() dto: SetSeedsDto,
-  ) {
+  async setSeeds(@Param('id') tournamentId: string, @Body() dto: SetSeedsDto) {
     return this.tournamentsService.setSeeds(tournamentId, dto);
   }
 
@@ -107,10 +104,7 @@ export class FixturesController {
   @Patch('stages/:id')
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('competition.manage')
-  async updateStage(
-    @Param('id') id: string,
-    @Body() dto: UpdateStageDto,
-  ) {
+  async updateStage(@Param('id') id: string, @Body() dto: UpdateStageDto) {
     return this.tournamentsService.updateStage(id, dto);
   }
 
@@ -178,10 +172,7 @@ export class FixturesController {
   @Patch('matches/:id')
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('competition.manage')
-  async updateMatch(
-    @Param('id') id: string,
-    @Body() dto: UpdateMatchDto,
-  ) {
+  async updateMatch(@Param('id') id: string, @Body() dto: UpdateMatchDto) {
     return this.matchesService.updateMatch(id, dto);
   }
 

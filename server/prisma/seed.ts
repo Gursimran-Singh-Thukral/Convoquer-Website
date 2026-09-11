@@ -584,7 +584,11 @@ async function main() {
 
   if (footballSport && mainGround) {
     let footballTournament = await prisma.tournament.findFirst({
-      where: { eventId: event.id, sportId: footballSport.id, name: "Convoquer'26 Inter-College Football Cup" },
+      where: {
+        eventId: event.id,
+        sportId: footballSport.id,
+        name: "Convoquer'26 Inter-College Football Cup",
+      },
     });
 
     if (!footballTournament) {
@@ -603,10 +607,18 @@ async function main() {
     }
 
     // Retrieve football teams for seeding
-    const teamIITJ = await prisma.team.findFirst({ where: { eventId: event.id, name: { contains: 'IIT Jammu' } } });
-    const teamNIT = await prisma.team.findFirst({ where: { eventId: event.id, name: { contains: 'NIT Srinagar' } } });
-    const teamSMVDU = await prisma.team.findFirst({ where: { eventId: event.id, name: { contains: 'SMVDU' } } });
-    const teamGCET = await prisma.team.findFirst({ where: { eventId: event.id, name: { contains: 'GCET' } } });
+    const teamIITJ = await prisma.team.findFirst({
+      where: { eventId: event.id, name: { contains: 'IIT Jammu' } },
+    });
+    const teamNIT = await prisma.team.findFirst({
+      where: { eventId: event.id, name: { contains: 'NIT Srinagar' } },
+    });
+    const teamSMVDU = await prisma.team.findFirst({
+      where: { eventId: event.id, name: { contains: 'SMVDU' } },
+    });
+    const teamGCET = await prisma.team.findFirst({
+      where: { eventId: event.id, name: { contains: 'GCET' } },
+    });
 
     if (teamIITJ && teamNIT && teamSMVDU && teamGCET) {
       // Configure Tournament Seeding:
@@ -616,9 +628,21 @@ async function main() {
       // Seed 4: GCET
       // Ensures Seed 1 and Seed 2 are in opposite halves of the bracket and can ONLY meet in Finals!
       const seedEntries = [
-        { teamId: teamIITJ.id, seedNumber: 1, notes: 'Defending Champion - Seed 1 (Top Half)' },
-        { teamId: teamNIT.id, seedNumber: 2, notes: 'Finalist 2025 - Seed 2 (Bottom Half)' },
-        { teamId: teamSMVDU.id, seedNumber: 3, notes: 'Semifinalist 2025 - Seed 3' },
+        {
+          teamId: teamIITJ.id,
+          seedNumber: 1,
+          notes: 'Defending Champion - Seed 1 (Top Half)',
+        },
+        {
+          teamId: teamNIT.id,
+          seedNumber: 2,
+          notes: 'Finalist 2025 - Seed 2 (Bottom Half)',
+        },
+        {
+          teamId: teamSMVDU.id,
+          seedNumber: 3,
+          notes: 'Semifinalist 2025 - Seed 3',
+        },
         { teamId: teamGCET.id, seedNumber: 4, notes: 'Seed 4' },
       ];
 
@@ -700,7 +724,9 @@ async function main() {
       }
 
       // Assign Lead Referee / Scorekeeper to matches
-      const leadUser = await prisma.user.findFirst({ where: { email: 'convener@iitjammu.ac.in' } });
+      const leadUser = await prisma.user.findFirst({
+        where: { email: 'convener@iitjammu.ac.in' },
+      });
       if (leadUser && m1 && m2) {
         await prisma.matchOfficial.upsert({
           where: { matchId_userId: { matchId: m1.id, userId: leadUser.id } },

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import {
   CreateTournamentDto,
@@ -52,8 +56,16 @@ export class TournamentsService {
           include: {
             matches: {
               include: {
-                teamA: { include: { institute: { select: { shortName: true, name: true } } } },
-                teamB: { include: { institute: { select: { shortName: true, name: true } } } },
+                teamA: {
+                  include: {
+                    institute: { select: { shortName: true, name: true } },
+                  },
+                },
+                teamB: {
+                  include: {
+                    institute: { select: { shortName: true, name: true } },
+                  },
+                },
                 winnerTeam: { select: { id: true, name: true } },
                 venue: true,
               },
@@ -76,7 +88,9 @@ export class TournamentsService {
             teamA: { select: { id: true, name: true } },
             teamB: { select: { id: true, name: true } },
             venue: true,
-            officials: { include: { user: { select: { id: true, name: true } } } },
+            officials: {
+              include: { user: { select: { id: true, name: true } } },
+            },
           },
           orderBy: { scheduledStartTime: 'asc' },
         },
@@ -91,10 +105,14 @@ export class TournamentsService {
   }
 
   async createTournament(dto: CreateTournamentDto) {
-    const event = await this.prisma.event.findUnique({ where: { id: dto.eventId } });
+    const event = await this.prisma.event.findUnique({
+      where: { id: dto.eventId },
+    });
     if (!event) throw new NotFoundException(`Event "${dto.eventId}" not found`);
 
-    const sport = await this.prisma.sport.findUnique({ where: { id: dto.sportId } });
+    const sport = await this.prisma.sport.findUnique({
+      where: { id: dto.sportId },
+    });
     if (!sport) throw new NotFoundException(`Sport "${dto.sportId}" not found`);
 
     return this.prisma.tournament.create({
@@ -147,7 +165,9 @@ export class TournamentsService {
    * so they cannot face each other until the Finals.
    */
   async setSeeds(tournamentId: string, dto: SetSeedsDto) {
-    const tournament = await this.prisma.tournament.findUnique({ where: { id: tournamentId } });
+    const tournament = await this.prisma.tournament.findUnique({
+      where: { id: tournamentId },
+    });
     if (!tournament) {
       throw new NotFoundException(`Tournament "${tournamentId}" not found`);
     }
@@ -158,10 +178,14 @@ export class TournamentsService {
 
     for (const seed of dto.seeds) {
       if (seedNumbers.has(seed.seedNumber)) {
-        throw new BadRequestException(`Duplicate seed number: ${seed.seedNumber}`);
+        throw new BadRequestException(
+          `Duplicate seed number: ${seed.seedNumber}`,
+        );
       }
       if (teamIds.has(seed.teamId)) {
-        throw new BadRequestException(`Duplicate team in seeding list: ${seed.teamId}`);
+        throw new BadRequestException(
+          `Duplicate team in seeding list: ${seed.teamId}`,
+        );
       }
       seedNumbers.add(seed.seedNumber);
       teamIds.add(seed.teamId);
@@ -206,8 +230,11 @@ export class TournamentsService {
   }
 
   async getSeeds(tournamentId: string) {
-    const tournament = await this.prisma.tournament.findUnique({ where: { id: tournamentId } });
-    if (!tournament) throw new NotFoundException(`Tournament "${tournamentId}" not found`);
+    const tournament = await this.prisma.tournament.findUnique({
+      where: { id: tournamentId },
+    });
+    if (!tournament)
+      throw new NotFoundException(`Tournament "${tournamentId}" not found`);
 
     return this.prisma.tournamentTeamSeed.findMany({
       where: { tournamentId },
@@ -227,8 +254,11 @@ export class TournamentsService {
   // ===================================
 
   async createStage(tournamentId: string, dto: CreateStageDto) {
-    const tournament = await this.prisma.tournament.findUnique({ where: { id: tournamentId } });
-    if (!tournament) throw new NotFoundException(`Tournament "${tournamentId}" not found`);
+    const tournament = await this.prisma.tournament.findUnique({
+      where: { id: tournamentId },
+    });
+    if (!tournament)
+      throw new NotFoundException(`Tournament "${tournamentId}" not found`);
 
     return this.prisma.tournamentStage.create({
       data: {
@@ -241,7 +271,9 @@ export class TournamentsService {
   }
 
   async updateStage(stageId: string, dto: UpdateStageDto) {
-    const stage = await this.prisma.tournamentStage.findUnique({ where: { id: stageId } });
+    const stage = await this.prisma.tournamentStage.findUnique({
+      where: { id: stageId },
+    });
     if (!stage) throw new NotFoundException(`Stage "${stageId}" not found`);
 
     return this.prisma.tournamentStage.update({

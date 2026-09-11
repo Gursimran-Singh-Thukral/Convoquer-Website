@@ -128,7 +128,14 @@ export class MatchesService {
         winnerTeam: true,
         officials: {
           include: {
-            user: { select: { id: true, name: true, email: true, profilePhotoUrl: true } },
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profilePhotoUrl: true,
+              },
+            },
           },
         },
       },
@@ -153,9 +160,11 @@ export class MatchesService {
     teamBId?: string;
     excludeMatchId?: string;
   }) {
-    const { startTime, endTime, venueId, teamAId, teamBId, excludeMatchId } = params;
+    const { startTime, endTime, venueId, teamAId, teamBId, excludeMatchId } =
+      params;
     // Default match duration is 90 mins if no end time specified
-    const effectiveEndTime = endTime || new Date(startTime.getTime() + 90 * 60 * 1000);
+    const effectiveEndTime =
+      endTime || new Date(startTime.getTime() + 90 * 60 * 1000);
 
     // 1. Check Venue Overlap
     if (venueId) {
@@ -170,7 +179,12 @@ export class MatchesService {
               OR: [
                 { scheduledEndTime: { gt: startTime } },
                 // If existing match has no endTime, assume 90 min window
-                { scheduledEndTime: null, scheduledStartTime: { gte: new Date(startTime.getTime() - 90 * 60 * 1000) } },
+                {
+                  scheduledEndTime: null,
+                  scheduledStartTime: {
+                    gte: new Date(startTime.getTime() - 90 * 60 * 1000),
+                  },
+                },
               ],
             },
           ],
@@ -198,7 +212,12 @@ export class MatchesService {
             {
               OR: [
                 { scheduledEndTime: { gt: startTime } },
-                { scheduledEndTime: null, scheduledStartTime: { gte: new Date(startTime.getTime() - 90 * 60 * 1000) } },
+                {
+                  scheduledEndTime: null,
+                  scheduledStartTime: {
+                    gte: new Date(startTime.getTime() - 90 * 60 * 1000),
+                  },
+                },
               ],
             },
           ],
@@ -210,7 +229,10 @@ export class MatchesService {
       });
 
       if (teamConflict) {
-        const teamName = teamConflict.teamAId === teamId ? teamConflict.teamA?.name : teamConflict.teamB?.name;
+        const teamName =
+          teamConflict.teamAId === teamId
+            ? teamConflict.teamA?.name
+            : teamConflict.teamB?.name;
         throw new ConflictException(
           `Scheduling conflict: Team "${teamName || teamId}" already has Match "${teamConflict.matchNumber || teamConflict.id}" scheduled at this time`,
         );
@@ -223,11 +245,16 @@ export class MatchesService {
   // ===================================
 
   async createMatch(dto: CreateMatchDto) {
-    const tournament = await this.prisma.tournament.findUnique({ where: { id: dto.tournamentId } });
-    if (!tournament) throw new NotFoundException(`Tournament "${dto.tournamentId}" not found`);
+    const tournament = await this.prisma.tournament.findUnique({
+      where: { id: dto.tournamentId },
+    });
+    if (!tournament)
+      throw new NotFoundException(`Tournament "${dto.tournamentId}" not found`);
 
     const startTime = new Date(dto.scheduledStartTime);
-    const endTime = dto.scheduledEndTime ? new Date(dto.scheduledEndTime) : new Date(startTime.getTime() + 90 * 60 * 1000);
+    const endTime = dto.scheduledEndTime
+      ? new Date(dto.scheduledEndTime)
+      : new Date(startTime.getTime() + 90 * 60 * 1000);
 
     // Validate conflicts
     await this.checkSchedulingConflicts({
@@ -262,7 +289,9 @@ export class MatchesService {
     const existing = await this.prisma.match.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException(`Match "${id}" not found`);
 
-    const startTime = dto.scheduledStartTime ? new Date(dto.scheduledStartTime) : existing.scheduledStartTime;
+    const startTime = dto.scheduledStartTime
+      ? new Date(dto.scheduledStartTime)
+      : existing.scheduledStartTime;
     const endTime = dto.scheduledEndTime
       ? new Date(dto.scheduledEndTime)
       : dto.scheduledStartTime
@@ -280,9 +309,18 @@ export class MatchesService {
       await this.checkSchedulingConflicts({
         startTime,
         endTime: endTime || undefined,
-        venueId: dto.venueId !== undefined ? dto.venueId : existing.venueId || undefined,
-        teamAId: dto.teamAId !== undefined ? dto.teamAId : existing.teamAId || undefined,
-        teamBId: dto.teamBId !== undefined ? dto.teamBId : existing.teamBId || undefined,
+        venueId:
+          dto.venueId !== undefined
+            ? dto.venueId
+            : existing.venueId || undefined,
+        teamAId:
+          dto.teamAId !== undefined
+            ? dto.teamAId
+            : existing.teamAId || undefined,
+        teamBId:
+          dto.teamBId !== undefined
+            ? dto.teamBId
+            : existing.teamBId || undefined,
         excludeMatchId: id,
       });
     }
@@ -321,7 +359,8 @@ export class MatchesService {
       ? new Date(dto.scheduledEndTime)
       : new Date(startTime.getTime() + 90 * 60 * 1000);
 
-    const venueId = dto.venueId !== undefined ? dto.venueId : match.venueId || undefined;
+    const venueId =
+      dto.venueId !== undefined ? dto.venueId : match.venueId || undefined;
 
     await this.checkSchedulingConflicts({
       startTime,
@@ -376,10 +415,14 @@ export class MatchesService {
   // ===================================
 
   async assignOfficial(matchId: string, dto: AssignOfficialDto) {
-    const match = await this.prisma.match.findUnique({ where: { id: matchId } });
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+    });
     if (!match) throw new NotFoundException(`Match "${matchId}" not found`);
 
-    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: dto.userId },
+    });
     if (!user) throw new NotFoundException(`User "${dto.userId}" not found`);
 
     const existing = await this.prisma.matchOfficial.findUnique({
@@ -415,7 +458,8 @@ export class MatchesService {
       },
     });
 
-    if (!existing) throw new NotFoundException('Match official assignment not found');
+    if (!existing)
+      throw new NotFoundException('Match official assignment not found');
 
     await this.prisma.matchOfficial.delete({
       where: { id: existing.id },
@@ -433,15 +477,20 @@ export class MatchesService {
    * Ensures Seed 1 and Seed 2 are placed in opposite halves so they
    * CANNOT play against each other before the Finals.
    */
-  async generateKnockoutBracket(tournamentId: string, dto: GenerateKnockoutBracketDto) {
+  async generateKnockoutBracket(
+    tournamentId: string,
+    dto: GenerateKnockoutBracketDto,
+  ) {
     const tournament = await this.prisma.tournament.findUnique({
       where: { id: tournamentId },
       include: { seeds: { orderBy: { seedNumber: 'asc' } } },
     });
-    if (!tournament) throw new NotFoundException(`Tournament "${tournamentId}" not found`);
+    if (!tournament)
+      throw new NotFoundException(`Tournament "${tournamentId}" not found`);
 
     // Determine teams: prioritize passed seeds/teamIds or stored seeds
-    let orderedTeams: Array<{ id: string; seedNumber: number; name?: string }> = [];
+    let orderedTeams: Array<{ id: string; seedNumber: number; name?: string }> =
+      [];
 
     if (dto.seeds && dto.seeds.length > 0) {
       orderedTeams = dto.seeds.map((s) => ({
@@ -459,11 +508,15 @@ export class MatchesService {
         seedNumber: index + 1,
       }));
     } else {
-      throw new BadRequestException('Teams or Seeds must be provided to generate a bracket');
+      throw new BadRequestException(
+        'Teams or Seeds must be provided to generate a bracket',
+      );
     }
 
     if (orderedTeams.length < 2) {
-      throw new BadRequestException('At least 2 teams required to generate a knockout bracket');
+      throw new BadRequestException(
+        'At least 2 teams required to generate a knockout bracket',
+      );
     }
 
     // Determine nearest power of 2 bracket size (e.g., 2, 4, 8, 16)
@@ -482,7 +535,13 @@ export class MatchesService {
     // Create a stage for the opening knockout round (e.g. Quarterfinals / Semifinals)
     const stageName =
       dto.stageName ||
-      (bracketSize === 2 ? 'Final' : bracketSize === 4 ? 'Semifinals' : bracketSize === 8 ? 'Quarterfinals' : `Round of ${bracketSize}`);
+      (bracketSize === 2
+        ? 'Final'
+        : bracketSize === 4
+          ? 'Semifinals'
+          : bracketSize === 8
+            ? 'Quarterfinals'
+            : `Round of ${bracketSize}`);
 
     const stage = await this.prisma.tournamentStage.create({
       data: {
@@ -514,9 +573,12 @@ export class MatchesService {
       const teamBId = seedToTeamMap.get(seedB) || null;
 
       const matchStart = new Date(
-        baseStartTime.getTime() + m * (matchDuration + breakMinutes) * 60 * 1000,
+        baseStartTime.getTime() +
+          m * (matchDuration + breakMinutes) * 60 * 1000,
       );
-      const matchEnd = new Date(matchStart.getTime() + matchDuration * 60 * 1000);
+      const matchEnd = new Date(
+        matchStart.getTime() + matchDuration * 60 * 1000,
+      );
 
       const matchNumber = `${tournament.name.substring(0, 4).toUpperCase()}-M0${m + 1}`;
 
@@ -587,11 +649,16 @@ export class MatchesService {
    * where every team plays every other team once.
    */
   async generateRoundRobin(tournamentId: string, dto: GenerateRoundRobinDto) {
-    const tournament = await this.prisma.tournament.findUnique({ where: { id: tournamentId } });
-    if (!tournament) throw new NotFoundException(`Tournament "${tournamentId}" not found`);
+    const tournament = await this.prisma.tournament.findUnique({
+      where: { id: tournamentId },
+    });
+    if (!tournament)
+      throw new NotFoundException(`Tournament "${tournamentId}" not found`);
 
     if (dto.teamIds.length < 2) {
-      throw new BadRequestException('At least 2 teams required for round-robin schedule');
+      throw new BadRequestException(
+        'At least 2 teams required for round-robin schedule',
+      );
     }
 
     const stage = await this.prisma.tournamentStage.create({
@@ -628,9 +695,12 @@ export class MatchesService {
         if (teamA === 'BYE' || teamB === 'BYE') continue;
 
         const matchStart = new Date(
-          baseStartTime.getTime() + (matchCounter - 1) * (matchDuration + breakMinutes) * 60 * 1000,
+          baseStartTime.getTime() +
+            (matchCounter - 1) * (matchDuration + breakMinutes) * 60 * 1000,
         );
-        const matchEnd = new Date(matchStart.getTime() + matchDuration * 60 * 1000);
+        const matchEnd = new Date(
+          matchStart.getTime() + matchDuration * 60 * 1000,
+        );
 
         const match = await this.prisma.match.create({
           data: {
