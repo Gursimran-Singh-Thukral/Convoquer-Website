@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { RbacModule } from './modules/rbac/rbac.module.js';
 import { CompetitionModule } from './modules/competition/competition.module.js';
+import { TeamsModule } from './modules/teams/teams.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -24,6 +25,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     AuthModule,
     RbacModule,
     CompetitionModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

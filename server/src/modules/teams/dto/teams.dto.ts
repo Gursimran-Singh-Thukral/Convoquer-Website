@@ -1,0 +1,95 @@
+export class CreateInstituteDto {
+  eventId!: string;
+  name!: string;
+  shortName?: string;
+  logoUrl?: string;
+  city?: string;
+  state?: string;
+}
+
+export class UpdateInstituteDto {
+  name?: string;
+  shortName?: string;
+  logoUrl?: string;
+  city?: string;
+  state?: string;
+  status?: string;
+}
+
+export class CreateTeamDto {
+  eventId!: string;
+  instituteId!: string;
+  sportId!: string;
+  name!: string;
+}
+
+export class UpdateTeamDto {
+  name?: string;
+  status?: string;
+}
+
+export class CreateParticipantDto {
+  eventId!: string;
+  instituteId?: string;
+  name!: string;
+  photographUrl?: string;
+  rollNumber?: string;
+  gender?: string;
+  dateOfBirth?: string | Date;
+  contactNumber?: string;
+  category?: string; // ATHLETE, AUDIENCE, GUEST, OFFICIAL
+}
+
+export class UpdateParticipantDto {
+  name?: string;
+  instituteId?: string;
+  photographUrl?: string;
+  rollNumber?: string;
+  gender?: string;
+  dateOfBirth?: string | Date;
+  contactNumber?: string;
+  category?: string;
+}
+
+export class RegisterOnSpotAttendeeDto {
+  eventId!: string;
+  name!: string;
+  contactNumber!: string;
+  category?: string; // AUDIENCE, GUEST, ATHLETE
+  instituteName?: string;
+  rollNumber?: string;
+  gender?: string;
+}
+
+export class SecurityCheckInDto {
+  participantId?: string;
+  gatePassNumber?: string;
+  notes?: string;
+}
+
+export class AddTeamMemberDto {
+  participantId!: string;
+  role?: string; // PLAYER, CAPTAIN, SUBSTITUTE
+  jerseyNumber?: number;
+}
+
+export class UpdateTeamMemberDto {
+  role?: string;
+  jerseyNumber?: number;
+}
+
+export class BulkImportParticipantRow {
+  name!: string;
+  college!: string;
+  sport?: string;
+  rollNumber?: string;
+  gender?: string;
+  contactNumber?: string;
+  role?: string; // PLAYER, CAPTAIN
+  category?: string;
+}
+
+export class BulkImportDto {
+  eventId!: string;
+  rows!: BulkImportParticipantRow[];
+}

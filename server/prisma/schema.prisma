@@ -1,11 +1,9 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ===================================
@@ -131,9 +129,11 @@ model Event {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  sports     Sport[]
-  venues     Venue[]
-  institutes Institute[]
+  sports       Sport[]
+  venues       Venue[]
+  institutes   Institute[]
+  teams        Team[]
+  participants Participant[]
 }
 
 model Sport {
@@ -188,22 +188,45 @@ model Team {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  sport     Sport     @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  event     Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  institute Institute    @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  sport     Sport        @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  members   TeamMember[]
 }
 
 model Participant {
-  id            String    @id @default(uuid())
-  eventId       String
-  instituteId   String
-  name          String
-  photographUrl String?
-  rollNumber    String?
-  gender        String?
-  dateOfBirth   DateTime?
-  contactNumber String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  eventId        String
+  instituteId    String?
+  name           String
+  photographUrl  String?
+  rollNumber     String?
+  gender         String?
+  dateOfBirth    DateTime?
+  contactNumber  String?
+  category       String    @default("ATHLETE") // ATHLETE, AUDIENCE, GUEST, OFFICIAL
+  isCheckedIn    Boolean   @default(false)
+  checkedInAt    DateTime?
+  gatePassNumber String?   @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  institute   Institute?   @relation(fields: [instituteId], references: [id], onDelete: SetNull)
+  teamMembers TeamMember[]
 }
+
+model TeamMember {
+  id            String      @id @default(uuid())
+  teamId        String
+  participantId String
+  role          String      @default("PLAYER") // PLAYER, CAPTAIN, SUBSTITUTE
+  jerseyNumber  Int?
+  createdAt     DateTime    @default(now())
+
+  team        Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, participantId])
+}
+

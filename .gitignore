@@ -96,6 +96,7 @@ Desktop.uni
 .cache/
 .parcel-cache/
 .turbo/
+*.tsbuildinfo
 
 # ===================================
 # Prisma
