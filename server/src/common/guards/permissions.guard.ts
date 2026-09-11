@@ -35,8 +35,14 @@ export class PermissionsGuard implements CanActivate {
     }
 
     // Extract scope parameters from URL params or query if present
-    const sportId = request.params?.sportId || request.query?.sportId || request.body?.sportId;
-    const eventId = request.params?.eventId || request.query?.eventId || request.body?.eventId;
+    const sportId =
+      request.params?.sportId ||
+      request.query?.sportId ||
+      request.body?.sportId;
+    const eventId =
+      request.params?.eventId ||
+      request.query?.eventId ||
+      request.body?.eventId;
     const departmentId =
       request.params?.departmentId ||
       request.query?.departmentId ||
@@ -50,7 +56,11 @@ export class PermissionsGuard implements CanActivate {
 
     // User must satisfy all listed permissions
     for (const permission of requiredPermissions) {
-      const hasPerm = await this.rbacService.hasPermission(user.id, permission, scope);
+      const hasPerm = await this.rbacService.hasPermission(
+        user.id,
+        permission,
+        scope,
+      );
       if (!hasPerm) {
         throw new ForbiddenException(
           `Insufficient permissions: Missing permission "${permission}"`,

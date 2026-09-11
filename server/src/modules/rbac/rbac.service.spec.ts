@@ -75,9 +75,7 @@ describe('RbacService & PermissionsGuard', () => {
           departmentId: null,
           role: {
             name: 'SPORTS_COORDINATOR',
-            permissions: [
-              { permission: { action: 'score.update' } },
-            ],
+            permissions: [{ permission: { action: 'score.update' } }],
           },
         },
       ]);
@@ -86,7 +84,9 @@ describe('RbacService & PermissionsGuard', () => {
 
       expect(auth.roles).toContain('SPORTS_COORDINATOR');
       expect(auth.permissions['score.update'].isGlobal).toBe(false);
-      expect(auth.permissions['score.update'].sportIds).toContain('sport-football');
+      expect(auth.permissions['score.update'].sportIds).toContain(
+        'sport-football',
+      );
     });
   });
 
@@ -102,30 +102,39 @@ describe('RbacService & PermissionsGuard', () => {
           departmentId: null,
           role: {
             name: 'SPORTS_COORDINATOR',
-            permissions: [
-              { permission: { action: 'score.update' } },
-            ],
+            permissions: [{ permission: { action: 'score.update' } }],
           },
         },
       ]);
     });
 
     it('should grant access when accessing within authorized sport scope', async () => {
-      const allowed = await rbacService.hasPermission('user-coord', 'score.update', {
-        sportId: 'sport-football',
-      });
+      const allowed = await rbacService.hasPermission(
+        'user-coord',
+        'score.update',
+        {
+          sportId: 'sport-football',
+        },
+      );
       expect(allowed).toBe(true);
     });
 
     it('should deny access when trying to update scores for an unauthorized sport', async () => {
-      const allowed = await rbacService.hasPermission('user-coord', 'score.update', {
-        sportId: 'sport-cricket',
-      });
+      const allowed = await rbacService.hasPermission(
+        'user-coord',
+        'score.update',
+        {
+          sportId: 'sport-cricket',
+        },
+      );
       expect(allowed).toBe(false);
     });
 
     it('should deny access for unassigned actions', async () => {
-      const allowed = await rbacService.hasPermission('user-coord', 'role.assign');
+      const allowed = await rbacService.hasPermission(
+        'user-coord',
+        'role.assign',
+      );
       expect(allowed).toBe(false);
     });
   });
@@ -147,7 +156,9 @@ describe('RbacService & PermissionsGuard', () => {
     });
 
     it('should throw UnauthorizedException if no user on request', async () => {
-      vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['score.update']);
+      vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
+        'score.update',
+      ]);
 
       const context: any = {
         getHandler: () => {},
@@ -184,7 +195,9 @@ describe('RbacService & PermissionsGuard', () => {
     });
 
     it('should allow access if user has all required permissions', async () => {
-      vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['score.update']);
+      vi.spyOn(reflector, 'getAllAndOverride').mockReturnValue([
+        'score.update',
+      ]);
       vi.spyOn(rbacService, 'hasPermission').mockResolvedValue(true);
 
       const context: any = {
@@ -206,9 +219,19 @@ describe('RbacService & PermissionsGuard', () => {
 
   describe('assignRole & AuditLog', () => {
     it('should write an audit log entry on role assignment', async () => {
-      prismaMock.user.findUnique.mockResolvedValue({ id: 'target-1', email: 'vol@iitjammu.ac.in' });
-      prismaMock.role.findFirst.mockResolvedValue({ id: 'role-vol', name: 'VOLUNTEER' });
-      prismaMock.userRole.upsert.mockResolvedValue({ id: 'ur-new', userId: 'target-1', roleId: 'role-vol' });
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'target-1',
+        email: 'vol@iitjammu.ac.in',
+      });
+      prismaMock.role.findFirst.mockResolvedValue({
+        id: 'role-vol',
+        name: 'VOLUNTEER',
+      });
+      prismaMock.userRole.upsert.mockResolvedValue({
+        id: 'ur-new',
+        userId: 'target-1',
+        roleId: 'role-vol',
+      });
       prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-1' });
 
       await rbacService.assignRole('convener-1', 'target-1', 'VOLUNTEER');

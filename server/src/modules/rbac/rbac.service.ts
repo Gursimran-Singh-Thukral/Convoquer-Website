@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 
 export interface UserPermissionEntry {
@@ -72,10 +69,16 @@ export class RbacService {
         if (isGlobal) {
           permissionsMap[action].isGlobal = true;
         } else {
-          if (ur.sportId && !permissionsMap[action].sportIds.includes(ur.sportId)) {
+          if (
+            ur.sportId &&
+            !permissionsMap[action].sportIds.includes(ur.sportId)
+          ) {
             permissionsMap[action].sportIds.push(ur.sportId);
           }
-          if (ur.eventId && !permissionsMap[action].eventIds.includes(ur.eventId)) {
+          if (
+            ur.eventId &&
+            !permissionsMap[action].eventIds.includes(ur.eventId)
+          ) {
             permissionsMap[action].eventIds.push(ur.eventId);
           }
           if (
@@ -122,7 +125,10 @@ export class RbacService {
     if (scope?.eventId && entry.eventIds.includes(scope.eventId)) {
       return true;
     }
-    if (scope?.departmentId && entry.departmentIds.includes(scope.departmentId)) {
+    if (
+      scope?.departmentId &&
+      entry.departmentIds.includes(scope.departmentId)
+    ) {
       return true;
     }
 
@@ -158,7 +164,9 @@ export class RbacService {
       where: { id: targetUserId },
     });
     if (!user) {
-      throw new NotFoundException(`Target user with id "${targetUserId}" not found`);
+      throw new NotFoundException(
+        `Target user with id "${targetUserId}" not found`,
+      );
     }
 
     const role = await this.prisma.role.findFirst({
@@ -229,7 +237,9 @@ export class RbacService {
     });
 
     if (!existing) {
-      throw new NotFoundException(`UserRole assignment "${userRoleId}" not found`);
+      throw new NotFoundException(
+        `UserRole assignment "${userRoleId}" not found`,
+      );
     }
 
     await this.prisma.userRole.delete({
