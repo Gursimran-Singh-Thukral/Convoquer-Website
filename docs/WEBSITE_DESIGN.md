@@ -6,22 +6,24 @@ Comprehensive specification of all pages, layouts, component hierarchies, visual
 
 ## 1. Design System & Visual Identity
 
-### 1.1 Aesthetic Theme: Athletic Neon & Deep Cyber-Dark
+### 1.1 Official Color Scheme: "Golden Hour"
+Convoquer'26 is visually anchored by the **"Golden Hour"** identity — evoking collegiate sports championship dusk, dramatic stadium floodlights against evening skies, and the golden glory of podium triumph.
 
-Convoquer'26 is an elite inter-institute collegiate sports festival hosted at IIT Jammu. The visual language conveys athleticism, energy, high precision, and collegiate pride.
-
-- **Theme**: Primary Dark Mode with High-Contrast Athletic Accents.
-- **Glassmorphism**: Translucent card surfaces with subtle backdrop blur (`backdrop-blur-md`) and 1px border glows (`border border-white/10`).
-- **Dynamic Accents**:
-  - **Electric Cyan** (`#00F2FE` / `#4FACFE`): Primary actions, interactive highlights, schedule timeline.
-  - **Neon Pulse Green** (`#10B981` / `#05FFA1`): Active "LIVE" matches, successful check-ins, verified passes.
-  - **Collegiate Gold** (`#F59E0B` / `#FCD34D`): Medal tallies, Seed 1 badges, trophies, championship titles.
-  - **Electric Violet** (`#8B5CF6` / `#7C3AED`): Featured tournaments, organizer tools, bracket connectors.
-  - **Alert Crimson** (`#EF4444` / `#DC2626`): Red cards, match cancellations, scheduling conflict warnings.
+- **Primary Colors**:
+  - **Burgundy (`HEX #800020`)**: Deep, regal, collegiate base representing endurance, discipline, and IIT Jammu athletic heritage.
+  - **Night Wine Surface (`HEX #180308` / `#27060F`)**: Dark base surfaces and deep obsidian wine cards.
+  - **Crimson Carrot (`HEX #FF4500`)**: Blazing high-energy accent representing athletic sprint, adrenaline, active live games, and bold CTAs.
+  - **Gold (`HEX #FFD700`)**: Radiant champion gold representing trophies, Seed 1 top rankings, medals, and high-impact typographic highlights.
+- **Hero & Radiant Gradients**:
+  - `linear-gradient(135deg, #800020 0%, #FF4500 52%, #FFD700 100%)` (The iconic Golden Hour stadium gradient).
+  - `radial-gradient(circle at top right, rgba(255, 69, 0, 0.25), rgba(128, 0, 32, 0.35), transparent 70%)`.
+- **Anti-AI Editorial Aesthetics**:
+  - **Avoiding Generic SaaS Clichés**: No sterile floating 4-pill bento boxes, no generic robotic drop-shadows, no centered "Unlock your sports potential" AI slogans.
+  - **Tactile Sports Editorial**: Authentic physical elements — textured match ticket stubs with perforation lines, physical tournament bracket cards, stadium floodlight flare glows, monospaced score ticker boards, and raw collegiate team typography with sharp angular accents.
 - **Typography**:
-  - **Headings**: `Outfit` or `Plus Jakarta Sans` — bold, modern, athletic geometry.
-  - **Body**: `Inter` — clean, highly readable tabular and list text.
-  - **Scores & Timers**: `JetBrains Mono` or `Chakra Petch` — monospaced tabular numerals preventing layout shifts during live score updates.
+  - **Display Headings**: `Syne`, `Cabinet Grotesk`, or `Outfit` with tight tracking and uppercase condensed impact.
+  - **Body Text**: `Inter` or `Plus Jakarta Sans` for clean, high-contrast, effortless legibility.
+  - **Game Clock & Numbers**: `JetBrains Mono` or `Chakra Petch` for monospaced score numerals that never shift during real-time updates.
 
 ---
 
