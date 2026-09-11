@@ -15,8 +15,8 @@ import { SessionGuard } from '../../common/guards/session.guard.js';
 import { PermissionsGuard } from '../../common/guards/permissions.guard.js';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 
-export interface AssignRoleDto {
-  role: string;
+export class AssignRoleDto {
+  role!: string;
   sportId?: string;
   eventId?: string;
   departmentId?: string;

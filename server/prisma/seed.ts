@@ -286,7 +286,94 @@ async function main() {
     }
   }
 
-  console.log('Seeding complete. Seeded permissions, roles, and mappings.');
+  // Seed Convoquer'26 Event
+  const event = await prisma.event.upsert({
+    where: { slug: 'convoquer-26' },
+    update: {
+      name: "Convoquer'26",
+      edition: '2026',
+      startDate: new Date('2026-10-01T00:00:00.000Z'),
+      endDate: new Date('2026-10-04T23:59:59.000Z'),
+      description: 'Official Annual Sports Fest of IIT Jammu',
+      status: 'ACTIVE',
+    },
+    create: {
+      slug: 'convoquer-26',
+      name: "Convoquer'26",
+      edition: '2026',
+      startDate: new Date('2026-10-01T00:00:00.000Z'),
+      endDate: new Date('2026-10-04T23:59:59.000Z'),
+      description: 'Official Annual Sports Fest of IIT Jammu',
+      status: 'ACTIVE',
+    },
+  });
+
+  // Seed Confirmed Sports
+  const confirmedSports = [
+    { name: 'Cricket', description: 'T20 & League Cricket tournament' },
+    { name: 'Football', description: 'Full-pitch inter-college football championship' },
+    { name: 'Basketball', description: '5v5 full-court basketball tournament' },
+    { name: 'Volleyball', description: 'Standard 6v6 volleyball championship' },
+    { name: 'Badminton', description: 'Singles and doubles badminton competition' },
+    { name: 'Table Tennis', description: 'Singles and doubles table tennis tournament' },
+    { name: 'Athletics', description: 'Track and field athletics events' },
+    { name: 'Chess', description: 'Classical & rapid chess tournament' },
+  ];
+
+  for (const sport of confirmedSports) {
+    const existing = await prisma.sport.findFirst({
+      where: { eventId: event.id, name: sport.name },
+    });
+
+    if (existing) {
+      await prisma.sport.update({
+        where: { id: existing.id },
+        data: { description: sport.description, status: 'ACTIVE' },
+      });
+    } else {
+      await prisma.sport.create({
+        data: {
+          eventId: event.id,
+          name: sport.name,
+          description: sport.description,
+          status: 'ACTIVE',
+        },
+      });
+    }
+  }
+
+  // Seed Venues
+  const campusVenues = [
+    { name: 'Main Ground', location: 'Campus West' },
+    { name: 'Cricket Ground', location: 'Campus South' },
+    { name: 'Indoor Sports Complex', location: 'Student Activity Centre (SAC)' },
+    { name: 'Basketball Court', location: 'Outdoor Sports Enclave' },
+    { name: 'Volleyball Court', location: 'Outdoor Sports Enclave' },
+  ];
+
+  for (const venue of campusVenues) {
+    const existing = await prisma.venue.findFirst({
+      where: { eventId: event.id, name: venue.name },
+    });
+
+    if (existing) {
+      await prisma.venue.update({
+        where: { id: existing.id },
+        data: { location: venue.location, status: 'ACTIVE' },
+      });
+    } else {
+      await prisma.venue.create({
+        data: {
+          eventId: event.id,
+          name: venue.name,
+          location: venue.location,
+          status: 'ACTIVE',
+        },
+      });
+    }
+  }
+
+  console.log('Seeding complete. Seeded permissions, roles, event, sports, and venues.');
 }
 
 main()

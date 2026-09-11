@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { RbacModule } from './modules/rbac/rbac.module.js';
+import { CompetitionModule } from './modules/competition/competition.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -22,6 +23,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     UsersModule,
     AuthModule,
     RbacModule,
+    CompetitionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
