@@ -572,8 +572,152 @@ async function main() {
     }
   }
 
+  // =========================================================================
+  // SEED TOURNAMENT, SEEDS, FIXTURES & MATCHES (PHASE 7)
+  // =========================================================================
+  const footballSport = await prisma.sport.findFirst({
+    where: { eventId: event.id, name: 'Football' },
+  });
+  const mainGround = await prisma.venue.findFirst({
+    where: { eventId: event.id, name: 'Main Ground' },
+  });
+
+  if (footballSport && mainGround) {
+    let footballTournament = await prisma.tournament.findFirst({
+      where: { eventId: event.id, sportId: footballSport.id, name: "Convoquer'26 Inter-College Football Cup" },
+    });
+
+    if (!footballTournament) {
+      footballTournament = await prisma.tournament.create({
+        data: {
+          eventId: event.id,
+          sportId: footballSport.id,
+          name: "Convoquer'26 Inter-College Football Cup",
+          format: 'KNOCKOUT',
+          status: 'UPCOMING',
+          pointsForWin: 3,
+          pointsForDraw: 1,
+          pointsForLoss: 0,
+        },
+      });
+    }
+
+    // Retrieve football teams for seeding
+    const teamIITJ = await prisma.team.findFirst({ where: { eventId: event.id, name: { contains: 'IIT Jammu' } } });
+    const teamNIT = await prisma.team.findFirst({ where: { eventId: event.id, name: { contains: 'NIT Srinagar' } } });
+    const teamSMVDU = await prisma.team.findFirst({ where: { eventId: event.id, name: { contains: 'SMVDU' } } });
+    const teamGCET = await prisma.team.findFirst({ where: { eventId: event.id, name: { contains: 'GCET' } } });
+
+    if (teamIITJ && teamNIT && teamSMVDU && teamGCET) {
+      // Configure Tournament Seeding:
+      // Seed 1: IIT Jammu (Defending Champ)
+      // Seed 2: NIT Srinagar (Runners Up)
+      // Seed 3: SMVDU
+      // Seed 4: GCET
+      // Ensures Seed 1 and Seed 2 are in opposite halves of the bracket and can ONLY meet in Finals!
+      const seedEntries = [
+        { teamId: teamIITJ.id, seedNumber: 1, notes: 'Defending Champion - Seed 1 (Top Half)' },
+        { teamId: teamNIT.id, seedNumber: 2, notes: 'Finalist 2025 - Seed 2 (Bottom Half)' },
+        { teamId: teamSMVDU.id, seedNumber: 3, notes: 'Semifinalist 2025 - Seed 3' },
+        { teamId: teamGCET.id, seedNumber: 4, notes: 'Seed 4' },
+      ];
+
+      for (const se of seedEntries) {
+        await prisma.tournamentTeamSeed.upsert({
+          where: {
+            tournamentId_teamId: {
+              tournamentId: footballTournament.id,
+              teamId: se.teamId,
+            },
+          },
+          update: { seedNumber: se.seedNumber, notes: se.notes },
+          create: {
+            tournamentId: footballTournament.id,
+            teamId: se.teamId,
+            seedNumber: se.seedNumber,
+            notes: se.notes,
+          },
+        });
+      }
+
+      // Create Semifinal and Final Stages
+      let semiStage = await prisma.tournamentStage.findFirst({
+        where: { tournamentId: footballTournament.id, name: 'Semifinals' },
+      });
+      if (!semiStage) {
+        semiStage = await prisma.tournamentStage.create({
+          data: {
+            tournamentId: footballTournament.id,
+            name: 'Semifinals',
+            sequence: 1,
+            stageType: 'KNOCKOUT',
+            status: 'PENDING',
+          },
+        });
+      }
+
+      // Match 1: Seed 1 (IIT Jammu) vs Seed 4 (GCET) [Top Half]
+      const m1Existing = await prisma.match.findFirst({
+        where: { tournamentId: footballTournament.id, matchNumber: 'FB-SF-01' },
+      });
+      let m1 = m1Existing;
+      if (!m1Existing) {
+        m1 = await prisma.match.create({
+          data: {
+            tournamentId: footballTournament.id,
+            stageId: semiStage.id,
+            venueId: mainGround.id,
+            matchNumber: 'FB-SF-01',
+            teamAId: teamIITJ.id,
+            teamBId: teamGCET.id,
+            scheduledStartTime: new Date('2026-10-02T09:00:00Z'),
+            scheduledEndTime: new Date('2026-10-02T10:30:00Z'),
+            status: 'SCHEDULED',
+          },
+        });
+      }
+
+      // Match 2: Seed 2 (NIT Srinagar) vs Seed 3 (SMVDU) [Bottom Half]
+      // Notice: Seed 1 and Seed 2 are separated into opposite semifinals!
+      const m2Existing = await prisma.match.findFirst({
+        where: { tournamentId: footballTournament.id, matchNumber: 'FB-SF-02' },
+      });
+      let m2 = m2Existing;
+      if (!m2Existing) {
+        m2 = await prisma.match.create({
+          data: {
+            tournamentId: footballTournament.id,
+            stageId: semiStage.id,
+            venueId: mainGround.id,
+            matchNumber: 'FB-SF-02',
+            teamAId: teamNIT.id,
+            teamBId: teamSMVDU.id,
+            scheduledStartTime: new Date('2026-10-02T11:00:00Z'),
+            scheduledEndTime: new Date('2026-10-02T12:30:00Z'),
+            status: 'SCHEDULED',
+          },
+        });
+      }
+
+      // Assign Lead Referee / Scorekeeper to matches
+      const leadUser = await prisma.user.findFirst({ where: { email: 'convener@iitjammu.ac.in' } });
+      if (leadUser && m1 && m2) {
+        await prisma.matchOfficial.upsert({
+          where: { matchId_userId: { matchId: m1.id, userId: leadUser.id } },
+          update: { role: 'REFEREE' },
+          create: { matchId: m1.id, userId: leadUser.id, role: 'REFEREE' },
+        });
+        await prisma.matchOfficial.upsert({
+          where: { matchId_userId: { matchId: m2.id, userId: leadUser.id } },
+          update: { role: 'REFEREE' },
+          create: { matchId: m2.id, userId: leadUser.id, role: 'REFEREE' },
+        });
+      }
+    }
+  }
+
   console.log(
-    'Seeding complete. Seeded permissions, roles, event, sports, venues, institutes, teams, and audience passes.',
+    'Seeding complete. Seeded permissions, roles, event, sports, venues, institutes, teams, audience passes, tournament seeds, and seeded knockout fixtures.',
   );
 }
 

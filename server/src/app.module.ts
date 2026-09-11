@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module.js';
 import { RbacModule } from './modules/rbac/rbac.module.js';
 import { CompetitionModule } from './modules/competition/competition.module.js';
 import { TeamsModule } from './modules/teams/teams.module.js';
+import { FixturesModule } from './modules/fixtures/fixtures.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -26,6 +27,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     RbacModule,
     CompetitionModule,
     TeamsModule,
+    FixturesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

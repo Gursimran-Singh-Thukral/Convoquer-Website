@@ -21,9 +21,10 @@ model User {
   updatedAt       DateTime  @updatedAt
   lastLoginAt     DateTime?
 
-  sessions  Session[]
-  userRoles UserRole[]
-  auditLogs AuditLog[] @relation("AuditLogUser")
+  sessions       Session[]
+  userRoles      UserRole[]
+  auditLogs      AuditLog[]      @relation("AuditLogUser")
+  matchOfficials MatchOfficial[]
 }
 
 model Role {
@@ -134,6 +135,7 @@ model Event {
   institutes   Institute[]
   teams        Team[]
   participants Participant[]
+  tournaments  Tournament[]
 }
 
 model Sport {
@@ -145,8 +147,9 @@ model Sport {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  event Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  teams Team[]
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  teams       Team[]
+  tournaments Tournament[]
 }
 
 model Venue {
@@ -158,7 +161,8 @@ model Venue {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  matches Match[]
 }
 
 model Institute {
@@ -188,10 +192,14 @@ model Team {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  event     Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  institute Institute    @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  sport     Sport        @relation(fields: [sportId], references: [id], onDelete: Cascade)
-  members   TeamMember[]
+  event           Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  institute       Institute            @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  sport           Sport                @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  members         TeamMember[]
+  matchesAsTeamA  Match[]              @relation("MatchTeamA")
+  matchesAsTeamB  Match[]              @relation("MatchTeamB")
+  matchesWon      Match[]              @relation("MatchWinner")
+  tournamentSeeds TournamentTeamSeed[]
 }
 
 model Participant {
@@ -228,5 +236,102 @@ model TeamMember {
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, participantId])
+}
+
+// ===================================
+// TOURNAMENTS, STAGES & MATCH FIXTURES
+// ===================================
+
+model Tournament {
+  id            String   @id @default(uuid())
+  eventId       String
+  sportId       String
+  name          String
+  format        String   @default("KNOCKOUT") // KNOCKOUT, ROUND_ROBIN, GROUP_KNOCKOUT, LEAGUE
+  status        String   @default("UPCOMING") // UPCOMING, ONGOING, COMPLETED
+  pointsForWin  Int      @default(3)
+  pointsForDraw Int      @default(1)
+  pointsForLoss Int      @default(0)
+  rulesJson     Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  event   Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sport   Sport                @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  stages  TournamentStage[]
+  matches Match[]
+  seeds   TournamentTeamSeed[]
+}
+
+model TournamentTeamSeed {
+  id           String   @id @default(uuid())
+  tournamentId String
+  teamId       String
+  seedNumber   Int      // 1, 2, 3, etc. Top 2 seeds placed on opposite halves so they cannot meet before Finals
+  notes        String?  // e.g. "Defending Champion", "Pool A Seed 1"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, teamId])
+  @@unique([tournamentId, seedNumber])
+}
+
+model TournamentStage {
+  id           String   @id @default(uuid())
+  tournamentId String
+  name         String   // e.g. "Quarterfinals", "Semifinals", "Final", "Group A"
+  sequence     Int      @default(1)
+  stageType    String   @default("KNOCKOUT") // KNOCKOUT, ROUND_ROBIN
+  status       String   @default("PENDING") // PENDING, ONGOING, COMPLETED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  matches    Match[]
+}
+
+model Match {
+  id                 String    @id @default(uuid())
+  tournamentId       String
+  stageId            String?
+  venueId            String?
+  matchNumber        String?   // e.g. "FB-M01", "CRIC-SF1"
+  teamAId            String?
+  teamBId            String?
+  teamAScore         Int?
+  teamBScore         Int?
+  winnerTeamId       String?
+  status             String    @default("SCHEDULED") // SCHEDULED, LIVE, COMPLETED, ABANDONED, CANCELLED, RESCHEDULED
+  scheduledStartTime DateTime
+  scheduledEndTime   DateTime?
+  actualStartTime    DateTime?
+  actualEndTime      DateTime?
+  scoreDetails       Json?     // Extra score breakdown: halves, quarters, sets, overs, bonus
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tournament Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  stage      TournamentStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  venue      Venue?           @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  teamA      Team?            @relation("MatchTeamA", fields: [teamAId], references: [id], onDelete: SetNull)
+  teamB      Team?            @relation("MatchTeamB", fields: [teamBId], references: [id], onDelete: SetNull)
+  winnerTeam Team?            @relation("MatchWinner", fields: [winnerTeamId], references: [id], onDelete: SetNull)
+  officials  MatchOfficial[]
+}
+
+model MatchOfficial {
+  id        String   @id @default(uuid())
+  matchId   String
+  userId    String
+  role      String   @default("SCOREKEEPER") // SCOREKEEPER, REFEREE, UMPIRE, JUDGE
+  createdAt DateTime @default(now())
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, userId])
 }
 
