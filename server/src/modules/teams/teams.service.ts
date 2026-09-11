@@ -29,7 +29,9 @@ export class TeamsService {
         ...(filter?.status ? { status: filter.status } : {}),
       },
       include: {
-        institute: { select: { id: true, name: true, shortName: true, logoUrl: true } },
+        institute: {
+          select: { id: true, name: true, shortName: true, logoUrl: true },
+        },
         sport: { select: { id: true, name: true } },
         _count: {
           select: { members: true },
@@ -79,7 +81,8 @@ export class TeamsService {
     ]);
 
     if (!event) throw new NotFoundException(`Event "${dto.eventId}" not found`);
-    if (!institute) throw new NotFoundException(`Institute "${dto.instituteId}" not found`);
+    if (!institute)
+      throw new NotFoundException(`Institute "${dto.instituteId}" not found`);
     if (!sport) throw new NotFoundException(`Sport "${dto.sportId}" not found`);
 
     const existing = await this.prisma.team.findFirst({
@@ -91,7 +94,9 @@ export class TeamsService {
       },
     });
     if (existing) {
-      throw new ConflictException(`Team "${dto.name}" already registered for this sport`);
+      throw new ConflictException(
+        `Team "${dto.name}" already registered for this sport`,
+      );
     }
 
     return this.prisma.team.create({
@@ -130,7 +135,10 @@ export class TeamsService {
     const participant = await this.prisma.participant.findUnique({
       where: { id: dto.participantId },
     });
-    if (!participant) throw new NotFoundException(`Participant "${dto.participantId}" not found`);
+    if (!participant)
+      throw new NotFoundException(
+        `Participant "${dto.participantId}" not found`,
+      );
 
     return this.prisma.teamMember.upsert({
       where: {
@@ -163,7 +171,11 @@ export class TeamsService {
     });
   }
 
-  async updateMember(teamId: string, participantId: string, dto: UpdateTeamMemberDto) {
+  async updateMember(
+    teamId: string,
+    participantId: string,
+    dto: UpdateTeamMemberDto,
+  ) {
     const existing = await this.prisma.teamMember.findUnique({
       where: {
         teamId_participantId: { teamId, participantId },

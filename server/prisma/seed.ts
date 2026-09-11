@@ -387,10 +387,30 @@ async function main() {
 
   // Seed Participating Institutes
   const institutesData = [
-    { name: 'Indian Institute of Technology Jammu', shortName: 'IIT Jammu', city: 'Jammu', state: 'J&K' },
-    { name: 'National Institute of Technology Srinagar', shortName: 'NIT Srinagar', city: 'Srinagar', state: 'J&K' },
-    { name: 'Shri Mata Vaishno Devi University', shortName: 'SMVDU', city: 'Katra', state: 'J&K' },
-    { name: 'Government College of Engineering and Technology', shortName: 'GCET Jammu', city: 'Jammu', state: 'J&K' },
+    {
+      name: 'Indian Institute of Technology Jammu',
+      shortName: 'IIT Jammu',
+      city: 'Jammu',
+      state: 'J&K',
+    },
+    {
+      name: 'National Institute of Technology Srinagar',
+      shortName: 'NIT Srinagar',
+      city: 'Srinagar',
+      state: 'J&K',
+    },
+    {
+      name: 'Shri Mata Vaishno Devi University',
+      shortName: 'SMVDU',
+      city: 'Katra',
+      state: 'J&K',
+    },
+    {
+      name: 'Government College of Engineering and Technology',
+      shortName: 'GCET Jammu',
+      city: 'Jammu',
+      state: 'J&K',
+    },
   ];
 
   const institutesMap = new Map<string, any>();
@@ -414,7 +434,9 @@ async function main() {
   }
 
   // Seed Sample Teams & Athletes for Football
-  const football = await prisma.sport.findFirst({ where: { eventId: event.id, name: 'Football' } });
+  const football = await prisma.sport.findFirst({
+    where: { eventId: event.id, name: 'Football' },
+  });
   const iitj = institutesMap.get('IIT Jammu');
   const nits = institutesMap.get('NIT Srinagar');
 

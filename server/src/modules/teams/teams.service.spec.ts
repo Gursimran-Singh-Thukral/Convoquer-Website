@@ -76,9 +76,9 @@ describe('Teams, Institutes & Participants Services', () => {
     it('should throw NotFoundException if institute not found', async () => {
       prismaMock.institute.findUnique.mockResolvedValue(null);
 
-      await expect(institutesService.getInstituteById('invalid-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        institutesService.getInstituteById('invalid-id'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw ConflictException on duplicate institute code within event', async () => {
@@ -250,7 +250,10 @@ describe('Teams, Institutes & Participants Services', () => {
         },
       ]);
 
-      const results = await participantsService.securitySearch('Rahul', 'event-1');
+      const results = await participantsService.securitySearch(
+        'Rahul',
+        'event-1',
+      );
       expect(results).toHaveLength(1);
       expect(results[0].gatePassNumber).toBe('CQ26-P-ABCD12');
       expect(prismaMock.participant.findMany).toHaveBeenCalledWith(
@@ -311,7 +314,10 @@ describe('Teams, Institutes & Participants Services', () => {
     it('should bulk import participants, creating institutes and returning summary', async () => {
       prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
       prismaMock.institute.findFirst.mockResolvedValue(null);
-      prismaMock.institute.create.mockResolvedValue({ id: 'inst-auto', name: 'IIT Delhi' });
+      prismaMock.institute.create.mockResolvedValue({
+        id: 'inst-auto',
+        name: 'IIT Delhi',
+      });
       prismaMock.participant.findFirst.mockResolvedValue(null);
       prismaMock.participant.create.mockImplementation(({ data }: any) => ({
         id: 'imported-p',
@@ -338,7 +344,9 @@ describe('Teams, Institutes & Participants Services', () => {
       expect(summary.totalRows).toBe(2);
       expect(summary.importedCount).toBe(1);
       expect(summary.errors).toHaveLength(1);
-      expect(summary.errors[0].error).toContain('Name and College are required');
+      expect(summary.errors[0].error).toContain(
+        'Name and College are required',
+      );
     });
   });
 });

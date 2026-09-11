@@ -38,7 +38,8 @@ export class ParticipantsService {
     if (filter?.eventId) where.eventId = filter.eventId;
     if (filter?.instituteId) where.instituteId = filter.instituteId;
     if (filter?.category) where.category = filter.category;
-    if (filter?.isCheckedIn !== undefined) where.isCheckedIn = filter.isCheckedIn;
+    if (filter?.isCheckedIn !== undefined)
+      where.isCheckedIn = filter.isCheckedIn;
 
     if (filter?.query) {
       where.OR = [
@@ -93,12 +94,17 @@ export class ParticipantsService {
   }
 
   async createParticipant(dto: CreateParticipantDto) {
-    const event = await this.prisma.event.findUnique({ where: { id: dto.eventId } });
+    const event = await this.prisma.event.findUnique({
+      where: { id: dto.eventId },
+    });
     if (!event) throw new NotFoundException(`Event "${dto.eventId}" not found`);
 
     if (dto.instituteId) {
-      const inst = await this.prisma.institute.findUnique({ where: { id: dto.instituteId } });
-      if (!inst) throw new NotFoundException(`Institute "${dto.instituteId}" not found`);
+      const inst = await this.prisma.institute.findUnique({
+        where: { id: dto.instituteId },
+      });
+      if (!inst)
+        throw new NotFoundException(`Institute "${dto.instituteId}" not found`);
 
       if (dto.rollNumber) {
         const existingParticipant = await this.prisma.participant.findFirst({
@@ -138,7 +144,9 @@ export class ParticipantsService {
   }
 
   async updateParticipant(id: string, dto: UpdateParticipantDto) {
-    const existing = await this.prisma.participant.findUnique({ where: { id } });
+    const existing = await this.prisma.participant.findUnique({
+      where: { id },
+    });
     if (!existing) {
       throw new NotFoundException(`Participant with id "${id}" not found`);
     }
@@ -164,7 +172,9 @@ export class ParticipantsService {
    * Immediately visible to security personnel.
    */
   async registerOnSpotAttendee(dto: RegisterOnSpotAttendeeDto) {
-    const event = await this.prisma.event.findUnique({ where: { id: dto.eventId } });
+    const event = await this.prisma.event.findUnique({
+      where: { id: dto.eventId },
+    });
     if (!event) throw new NotFoundException(`Event "${dto.eventId}" not found`);
 
     let instituteId: string | undefined = undefined;
@@ -252,9 +262,14 @@ export class ParticipantsService {
   /**
    * Check in a participant or audience member at the campus security gate.
    */
-  async checkInParticipant(dto: SecurityCheckInDto, checkedInByUserId?: string) {
+  async checkInParticipant(
+    dto: SecurityCheckInDto,
+    checkedInByUserId?: string,
+  ) {
     if (!dto.participantId && !dto.gatePassNumber) {
-      throw new BadRequestException('Either participantId or gatePassNumber must be provided');
+      throw new BadRequestException(
+        'Either participantId or gatePassNumber must be provided',
+      );
     }
 
     const participant = await this.prisma.participant.findFirst({
@@ -314,7 +329,9 @@ export class ParticipantsService {
    * Bulk Registration Import (e.g. from parsed Excel/CSV data)
    */
   async bulkImport(dto: BulkImportDto) {
-    const event = await this.prisma.event.findUnique({ where: { id: dto.eventId } });
+    const event = await this.prisma.event.findUnique({
+      where: { id: dto.eventId },
+    });
     if (!event) throw new NotFoundException(`Event "${dto.eventId}" not found`);
 
     let importedCount = 0;

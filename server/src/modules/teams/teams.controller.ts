@@ -84,7 +84,12 @@ export class TeamsController {
     @Query('sportId') sportId?: string,
     @Query('status') status?: string,
   ) {
-    return this.teamsService.getTeams({ eventId, instituteId, sportId, status });
+    return this.teamsService.getTeams({
+      eventId,
+      instituteId,
+      sportId,
+      status,
+    });
   }
 
   @Get('teams/:id')
@@ -102,10 +107,7 @@ export class TeamsController {
   @Patch('teams/:id')
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('team.update')
-  async updateTeam(
-    @Param('id') id: string,
-    @Body() dto: UpdateTeamDto,
-  ) {
+  async updateTeam(@Param('id') id: string, @Body() dto: UpdateTeamDto) {
     return this.teamsService.updateTeam(id, dto);
   }
 
@@ -153,7 +155,11 @@ export class TeamsController {
     @Query('query') query?: string,
   ) {
     const checkedInBool =
-      isCheckedIn === 'true' ? true : isCheckedIn === 'false' ? false : undefined;
+      isCheckedIn === 'true'
+        ? true
+        : isCheckedIn === 'false'
+          ? false
+          : undefined;
     return this.participantsService.getParticipants({
       eventId,
       instituteId,

@@ -4,10 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
-import {
-  CreateInstituteDto,
-  UpdateInstituteDto,
-} from './dto/teams.dto.js';
+import { CreateInstituteDto, UpdateInstituteDto } from './dto/teams.dto.js';
 
 @Injectable()
 export class InstitutesService {
