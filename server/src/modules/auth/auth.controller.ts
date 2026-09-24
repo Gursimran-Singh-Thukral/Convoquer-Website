@@ -29,7 +29,13 @@ export class AuthController {
     // Initiates the Google OAuth flow
   }
 
-  @Get('callback')
+  // Accepts both paths: the app's own default is /api/auth/callback (see
+  // GoogleStrategy's callbackURL), but a deployment's Google Cloud Console
+  // OAuth client and/or its GOOGLE_CALLBACK_URL env var may instead be set to
+  // the more conventional .../google/callback — Google redirects wherever the
+  // original auth request's redirect_uri pointed, so both must resolve here
+  // rather than requiring every deployment's config to match one exact path.
+  @Get(['callback', 'google/callback'])
   @UseGuards(GoogleAuthGuard)
   async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
     const user = req.user as any;
