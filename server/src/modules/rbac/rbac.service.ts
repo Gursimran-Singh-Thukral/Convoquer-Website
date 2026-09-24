@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -42,6 +43,8 @@ export interface UserEffectiveAuth {
 
 @Injectable()
 export class RbacService {
+  private readonly logger = new Logger(RbacService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -293,14 +296,27 @@ export class RbacService {
     const anyConvener = await this.prisma.userRole.findFirst({
       where: { role: { name: 'CONVENER' } },
     });
-    if (anyConvener) return;
+    if (anyConvener) {
+      this.logger.warn(
+        'CONVENER bootstrap skipped: a CONVENER already exists. Grant further access from the RBAC page, or run `npm run seed:roles -- --convener=<email>`.',
+      );
+      return;
+    }
 
     const convenerRole = await this.prisma.role.findUnique({
       where: { name: 'CONVENER' },
     });
-    if (!convenerRole) return;
+    if (!convenerRole) {
+      // Roles/permissions are only created by the seed script, so a fresh
+      // production database silently had nothing to grant.
+      this.logger.error(
+        'CONVENER bootstrap skipped: the CONVENER role does not exist. Run `npm run seed:roles` against this database, then sign in again.',
+      );
+      return;
+    }
 
     await this.assignRole(null, userId, convenerRole.id);
+    this.logger.log('CONVENER bootstrap granted to the configured email.');
   }
 
   /**

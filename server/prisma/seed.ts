@@ -600,6 +600,55 @@ async function main() {
     }
   }
 
+  // `--convener=<email>`: recovery path for when the sign-in bootstrap
+  // (CONVENER_BOOTSTRAP_EMAIL) couldn't run, e.g. roles weren't seeded yet.
+  // The account must have signed in with Google once so its User row exists.
+  const convenerEmail = process.argv
+    .find((arg) => arg.startsWith('--convener='))
+    ?.slice('--convener='.length)
+    .trim()
+    .toLowerCase();
+  if (convenerEmail) {
+    const user = await prisma.user.findUnique({
+      where: { emailHash: seedBlindIndex(convenerEmail) },
+    });
+    if (!user)
+      throw new Error(
+        `No account for ${convenerEmail}. Sign in with Google once, then re-run.`,
+      );
+    const existing = await prisma.userRole.findFirst({
+      where: {
+        userId: user.id,
+        roleId: convenerRole.id,
+        eventId: { equals: null },
+        departmentId: { equals: null },
+        sportId: { equals: null },
+      },
+    });
+    if (existing) {
+      console.log(`${convenerEmail} is already CONVENER.`);
+    } else {
+      const userRole = await prisma.userRole.create({
+        data: { userId: user.id, roleId: convenerRole.id },
+      });
+      await prisma.auditLog.create({
+        data: {
+          userId: null,
+          action: 'role.assign',
+          resource: 'UserRole',
+          resourceId: userRole.id,
+          newState: {
+            targetUserId: user.id,
+            targetUserEmail: user.email,
+            roleName: 'CONVENER',
+            source: 'seed --convener',
+          },
+        },
+      });
+      console.log(`Granted CONVENER to ${convenerEmail}.`);
+    }
+  }
+
   if (
     process.argv.includes('--roles-only') ||
     process.env.NODE_ENV === 'production'
