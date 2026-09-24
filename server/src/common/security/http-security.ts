@@ -17,6 +17,23 @@ export function allowedOrigins(): string[] {
   ];
 }
 
+/**
+ * The browser origin a write came from. Some browsers/extensions omit Origin
+ * (or send "null") on requests they still mark as same-origin, so fall back to
+ * the Referer's origin rather than rejecting a genuine first-party request.
+ */
+function requestOrigin(req: Request): string | undefined {
+  const origin = req.get('origin');
+  if (origin && origin !== 'null') return origin;
+  const referer = req.get('referer');
+  if (!referer) return undefined;
+  try {
+    return new URL(referer).origin;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Cookie-authenticated writes require an explicitly trusted browser origin. */
 export function csrfProtection(
   req: Request,
@@ -28,7 +45,10 @@ export function csrfProtection(
     !req.cookies?.sessionId
   )
     return next();
-  const origin = req.get('origin');
+  // Browser-set and unforgeable by page script: a same-origin request can't be
+  // a cross-site forgery even when Origin/Referer were stripped.
+  if (req.get('sec-fetch-site') === 'same-origin') return next();
+  const origin = requestOrigin(req);
   if (!origin || !allowedOrigins().includes(origin)) {
     res
       .status(403)
