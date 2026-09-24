@@ -26,6 +26,7 @@ import {
   UpdateParticipantDto,
   RegisterOnSpotAttendeeDto,
   SecurityCheckInDto,
+  SecurityMovementDto,
   AddTeamMemberDto,
   UpdateTeamMemberDto,
   BulkImportDto,
@@ -147,6 +148,8 @@ export class TeamsController {
   // ===================================
 
   @Get('participants')
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermissions('participant.view')
   async getParticipants(
     @Query('eventId') eventId?: string,
     @Query('instituteId') instituteId?: string,
@@ -170,6 +173,8 @@ export class TeamsController {
   }
 
   @Get('participants/:id')
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermissions('participant.view')
   async getParticipantById(@Param('id') id: string) {
     return this.participantsService.getParticipantById(id);
   }
@@ -199,6 +204,8 @@ export class TeamsController {
    * Fast participant/audience verification search for security gates
    */
   @Get('security/search')
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermissions('security.access')
   async securitySearch(
     @Query('q') query: string,
     @Query('eventId') eventId?: string,
@@ -210,6 +217,8 @@ export class TeamsController {
    * Security Gate Check-In Endpoint
    */
   @Post('security/check-in')
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermissions('security.access')
   async checkInParticipant(
     @Body() dto: SecurityCheckInDto,
     @Req() req: Request,
@@ -218,9 +227,25 @@ export class TeamsController {
     return this.participantsService.checkInParticipant(dto, userId);
   }
 
+  @Post('security/movement')
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermissions('security.access')
+  async recordSecurityMovement(
+    @Body() dto: SecurityMovementDto,
+    @Req() req: Request,
+  ) {
+    return this.participantsService.recordGateMovement(
+      dto,
+      (req as any).user?.id,
+    );
+  }
+
   /**
-   * On-Spot Registration for Audience, Guests, or unlisted Athletes.
-   * Immediately visible to security gate staff.
+   * Public self-service on-spot gate pass registration — filled directly by the
+   * visitor at the gate kiosk, not by staff. Deliberately unauthenticated (that's
+   * the point: no organizer login should be required), but every field is
+   * server-side validated in ParticipantsService.registerOnSpotAttendee, and the
+   * record is immediately visible to security gate staff.
    */
   @Post('security/on-spot-pass')
   async registerOnSpotAttendee(@Body() dto: RegisterOnSpotAttendeeDto) {
@@ -233,7 +258,7 @@ export class TeamsController {
   @Post('participants/import')
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('participant.create')
-  async bulkImport(@Body() dto: BulkImportDto) {
-    return this.participantsService.bulkImport(dto);
+  async bulkImport(@Body() dto: BulkImportDto, @Req() req: Request) {
+    return this.participantsService.bulkImport(dto, (req as any).user.id);
   }
 }

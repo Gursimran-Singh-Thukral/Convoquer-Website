@@ -1,33 +1,36 @@
 {
   "name": "Convoquer-Website",
   "version": "0.1.0",
-  "private": "true",
+  "private": true,
   "description": "Official Digital Platform for Convoquer'26 at IIT Jammu",
   "workspaces": [
     "client",
     "server"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
+    "dev": "node scripts/dev.mjs",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:rehearsal": "node scripts/tournament-rehearsal.mjs && node scripts/event-operations-rehearsal.mjs",
+    "test:rehearsal:access": "node scripts/events-access-rehearsal.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "husky": "9.1.7",
     "lint-staged": "16.4.0",
     "prettier": "3.9.6",
     "typescript-eslint": "8.68.0"
   },
   "lint-staged": {
-    "*.{js, jsx, ts, tsx}": [
+    "*.{js,jsx,ts,tsx}": [
       "prettier --write",
       "eslint --fix"
     ],
-    "*.{json, md, mdx, yml, yaml, css, scss, html}": [
+    "*.{json,md,mdx,yml,yaml,css,scss,html}": [
       "prettier --write"
     ]
   }

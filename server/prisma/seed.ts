@@ -2,10 +2,41 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { createCipheriv, createHmac, randomBytes } from 'crypto';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
+
+// Mirrors server/src/common/crypto/field-crypto.ts's blindIndex(). Duplicated
+// (rather than imported) because this script runs standalone via
+// `node --experimental-strip-types`, which can't resolve the app's compiled
+// `.js` import specifiers against source `.ts` files outside a build step.
+function seedEncryptionKey(): Buffer {
+  const raw = process.env.FIELD_ENCRYPTION_KEY;
+  return raw
+    ? Buffer.from(raw, raw.length === 64 ? 'hex' : 'base64')
+    : createHmac('sha256', 'convoquer-dev-only-insecure-key')
+        .update('convoquer-field-encryption')
+        .digest();
+}
+
+function seedBlindIndex(value: string): string {
+  return createHmac('sha256', seedEncryptionKey())
+    .update(value.trim().toLowerCase())
+    .digest('hex');
+}
+
+function seedEncrypt(plaintext: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', seedEncryptionKey(), iv);
+  const encrypted = Buffer.concat([
+    cipher.update(plaintext, 'utf8'),
+    cipher.final(),
+  ]);
+  const authTag = cipher.getAuthTag();
+  return `v1:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted.toString('base64')}`;
+}
 
 async function main() {
   console.log('Seeding database permissions and roles...');
@@ -26,11 +57,22 @@ async function main() {
 
     // Sports & Tournaments
     { action: 'sport.view', description: 'View sports list and configuration' },
+    { action: 'event.create', description: 'Create championship events' },
+    {
+      action: 'event.update',
+      description: 'Edit and archive championship events',
+    },
+    { action: 'event.delete', description: 'Delete empty championship events' },
     { action: 'sport.create', description: 'Create a new sport' },
     { action: 'sport.update', description: 'Update sport rules and details' },
     { action: 'tournament.view', description: 'View tournament structures' },
     { action: 'tournament.create', description: 'Create tournaments' },
     { action: 'tournament.update', description: 'Update tournaments' },
+    {
+      action: 'competition.manage',
+      description:
+        'Manage tournaments, seeding, stages, bracket/round-robin generation, matches and officials',
+    },
 
     // Teams & Participants
     { action: 'team.view', description: 'View teams' },
@@ -78,6 +120,35 @@ async function main() {
 
     // Auditing
     { action: 'audit.view', description: 'View audit logs' },
+
+    // Sponsors
+    { action: 'sponsor.create', description: 'Add a new sponsor' },
+    { action: 'sponsor.update', description: 'Update sponsor details' },
+    { action: 'sponsor.delete', description: 'Remove a sponsor' },
+
+    // Volunteers
+    {
+      action: 'volunteer.manage',
+      description: 'Register, update, or remove volunteer records',
+    },
+    {
+      action: 'volunteer.view.department',
+      description:
+        "View the volunteer roster within one's own managed department(s)",
+    },
+    {
+      action: 'task.view',
+      description: 'View operations tasks within assigned departments',
+    },
+    {
+      action: 'task.create',
+      description: 'Assign operations tasks within assigned departments',
+    },
+    { action: 'task.update', description: 'Update assigned operations tasks' },
+    {
+      action: 'security.access',
+      description: 'Use security entry and exit controls',
+    },
   ];
 
   for (const perm of permissions) {
@@ -107,8 +178,35 @@ async function main() {
       description: 'Coordinator for a specific sport scope',
     },
     {
+      name: 'SPORTS_VOLUNTEER',
+      description:
+        'Sports-side ground volunteer — no sport-wide scoring rights; can only score a specific match once assigned to it as a scoring duty by a Sports Coordinator',
+    },
+    {
       name: 'MEDIA_HEAD',
       description: 'Media, gallery and announcement operations lead',
+    },
+    {
+      name: 'MEDIA_TEAM',
+      description:
+        'Media team member — can submit photos/content for the Media Head to approve, cannot publish directly',
+    },
+    {
+      name: 'HOSPITALITY_HEAD',
+      description: 'Hospitality, logistics and on-ground guest operations lead',
+    },
+    {
+      name: 'SECURITY_HEAD',
+      description:
+        'Security, gate pass and participant clearance operations lead',
+    },
+    {
+      name: 'SECURITY_VOLUNTEER',
+      description: 'Security volunteer with gate entry and exit access',
+    },
+    {
+      name: 'WEB_DEV_HEAD',
+      description: 'Website, RBAC and technical operations lead',
     },
     {
       name: 'VOLUNTEER',
@@ -134,31 +232,54 @@ async function main() {
   const sportsCoordRole = await prisma.role.findUniqueOrThrow({
     where: { name: 'SPORTS_COORDINATOR' },
   });
+  const sportsVolunteerRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'SPORTS_VOLUNTEER' },
+  });
   const overallCoordRole = await prisma.role.findUniqueOrThrow({
     where: { name: 'OVERALL_SPORTS_COORDINATOR' },
   });
   const mediaHeadRole = await prisma.role.findUniqueOrThrow({
     where: { name: 'MEDIA_HEAD' },
   });
+  const mediaTeamRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'MEDIA_TEAM' },
+  });
+  const hospitalityHeadRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'HOSPITALITY_HEAD' },
+  });
+  const securityHeadRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'SECURITY_HEAD' },
+  });
+  const securityVolunteerRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'SECURITY_VOLUNTEER' },
+  });
+  const webDevHeadRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'WEB_DEV_HEAD' },
+  });
+  const coConvenerRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'CO_CONVENER' },
+  });
   const volunteerRole = await prisma.role.findUniqueOrThrow({
     where: { name: 'VOLUNTEER' },
   });
 
-  // Convener gets everything
+  // Convener and Co-Convener get everything (event-wide leadership authority)
   for (const perm of allPermissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: convenerRole.id,
+    for (const roleId of [convenerRole.id, coConvenerRole.id]) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId,
+            permissionId: perm.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId,
           permissionId: perm.id,
         },
-      },
-      update: {},
-      create: {
-        roleId: convenerRole.id,
-        permissionId: perm.id,
-      },
-    });
+      });
+    }
   }
 
   // Overall Sports Coordinator permissions
@@ -168,6 +289,7 @@ async function main() {
     'tournament.view',
     'tournament.create',
     'tournament.update',
+    'competition.manage',
     'team.view',
     'team.update',
     'participant.view',
@@ -186,6 +308,10 @@ async function main() {
     'venue.view',
     'venue.create',
     'venue.update',
+    'task.view',
+    'task.create',
+    'task.update',
+    'volunteer.view.department',
   ];
   for (const action of overallSportPermActions) {
     const permId = permMap.get(action);
@@ -208,6 +334,7 @@ async function main() {
     'sport.view',
     'tournament.view',
     'tournament.update',
+    'competition.manage',
     'team.view',
     'participant.view',
     'fixture.view',
@@ -219,7 +346,12 @@ async function main() {
     'score.update',
     'result.view',
     'result.submit',
+    'result.approve',
     'standings.view',
+    'task.view',
+    'task.create',
+    'task.update',
+    'volunteer.view.department',
   ];
   for (const action of sportsCoordPermActions) {
     const permId = permMap.get(action);
@@ -244,6 +376,10 @@ async function main() {
     'media.publish',
     'standings.view',
     'match.view',
+    'task.view',
+    'task.create',
+    'task.update',
+    'volunteer.view.department',
   ];
   for (const action of mediaPermActions) {
     const permId = permMap.get(action);
@@ -261,6 +397,154 @@ async function main() {
     }
   }
 
+  // Media Team member permissions — submit-only, no media.publish (they queue
+  // content for the Media Head to approve; see MediaAssetsModule).
+  const mediaTeamPermActions = [
+    'media.create',
+    'standings.view',
+    'match.view',
+    'task.view',
+    'task.update',
+  ];
+  for (const action of mediaTeamPermActions) {
+    const permId = permMap.get(action);
+    if (permId) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: mediaTeamRole.id,
+            permissionId: permId,
+          },
+        },
+        update: {},
+        create: { roleId: mediaTeamRole.id, permissionId: permId },
+      });
+    }
+  }
+
+  // Hospitality Head permissions
+  const hospitalityPermActions = [
+    'participant.view',
+    'participant.update',
+    'venue.view',
+    'venue.update',
+    'team.view',
+    'match.view',
+    'standings.view',
+    'task.view',
+    'task.create',
+    'task.update',
+    'volunteer.view.department',
+  ];
+  for (const action of hospitalityPermActions) {
+    const permId = permMap.get(action);
+    if (permId) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: hospitalityHeadRole.id,
+            permissionId: permId,
+          },
+        },
+        update: {},
+        create: { roleId: hospitalityHeadRole.id, permissionId: permId },
+      });
+    }
+  }
+
+  // Security Head permissions
+  const securityPermActions = [
+    'participant.view',
+    'participant.update',
+    'participant.create',
+    'venue.view',
+    'match.view',
+    'standings.view',
+    'security.access',
+    'task.view',
+    'task.create',
+    'task.update',
+    'volunteer.view.department',
+  ];
+  for (const action of securityPermActions) {
+    const permId = permMap.get(action);
+    if (permId) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: securityHeadRole.id,
+            permissionId: permId,
+          },
+        },
+        update: {},
+        create: { roleId: securityHeadRole.id, permissionId: permId },
+      });
+    }
+  }
+
+  // Security Volunteers are restricted to the Security tab (no separate
+  // Workforce/RBAC/Sports/Venue tabs) — see organizer/page.tsx canSeeWorkforceDept,
+  // which deliberately excludes this role. task.view/task.update are still
+  // granted so they can see and complete tasks assigned to them; those show up
+  // inside the Security tab's own task list, not the full Workforce dispatch card.
+  const securityVolunteerPermActions = [
+    'participant.view',
+    'participant.update',
+    'venue.view',
+    'security.access',
+    'task.view',
+    'task.update',
+  ];
+  for (const action of securityVolunteerPermActions) {
+    const permissionId = permMap.get(action);
+    if (permissionId) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: securityVolunteerRole.id,
+            permissionId,
+          },
+        },
+        update: {},
+        create: { roleId: securityVolunteerRole.id, permissionId },
+      });
+    }
+  }
+
+  // Web Dev Head permissions (RBAC administration + technical/site configuration)
+  const webDevPermActions = [
+    'role.view',
+    'role.assign',
+    'role.revoke',
+    'user.view',
+    'user.update',
+    'audit.view',
+    'sponsor.create',
+    'sponsor.update',
+    'sponsor.delete',
+    'venue.view',
+    'sport.view',
+    'task.view',
+    'task.create',
+    'task.update',
+    'volunteer.view.department',
+  ];
+  for (const action of webDevPermActions) {
+    const permId = permMap.get(action);
+    if (permId) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: webDevHeadRole.id,
+            permissionId: permId,
+          },
+        },
+        update: {},
+        create: { roleId: webDevHeadRole.id, permissionId: permId },
+      });
+    }
+  }
+
   // Volunteer permissions
   const volunteerPermActions = [
     'match.view',
@@ -269,6 +553,8 @@ async function main() {
     'fixture.view',
     'team.view',
     'venue.view',
+    'task.view',
+    'task.update',
   ];
   for (const action of volunteerPermActions) {
     const permId = permMap.get(action);
@@ -285,6 +571,40 @@ async function main() {
       });
     }
   }
+
+  // Sports Volunteer permissions — ground-level sports duty. Deliberately no
+  // score.update/result.submit: scoring authority for this role comes only from
+  // being assigned as a MatchOfficial on a specific match (see ScoringService.
+  // verifyScoringAuthority and OperationsTasksService's match-linked task flow),
+  // never sport-wide.
+  const sportsVolunteerPermActions = [
+    'match.view',
+    'score.view',
+    'standings.view',
+    'task.view',
+    'task.update',
+  ];
+  for (const action of sportsVolunteerPermActions) {
+    const permId = permMap.get(action);
+    if (permId) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: sportsVolunteerRole.id,
+            permissionId: permId,
+          },
+        },
+        update: {},
+        create: { roleId: sportsVolunteerRole.id, permissionId: permId },
+      });
+    }
+  }
+
+  if (
+    process.argv.includes('--roles-only') ||
+    process.env.NODE_ENV === 'production'
+  )
+    return;
 
   // Seed Convoquer'26 Event
   const event = await prisma.event.upsert({
@@ -327,6 +647,11 @@ async function main() {
     },
     { name: 'Athletics', description: 'Track and field athletics events' },
     { name: 'Chess', description: 'Classical & rapid chess tournament' },
+    { name: 'Squash', description: 'Singles squash tournament' },
+    {
+      name: 'Weightlifting',
+      description: 'Snatch and Clean & Jerk weightlifting competition',
+    },
   ];
 
   for (const sport of confirmedSports) {
@@ -361,6 +686,8 @@ async function main() {
     },
     { name: 'Basketball Court', location: 'Outdoor Sports Enclave' },
     { name: 'Volleyball Court', location: 'Outdoor Sports Enclave' },
+    { name: 'Squash Court', location: 'Student Activity Centre (SAC)' },
+    { name: 'Weightlifting Hall', location: 'Student Activity Centre (SAC)' },
   ];
 
   for (const venue of campusVenues) {
@@ -504,7 +831,10 @@ async function main() {
 
     for (const ath of athletes) {
       let part = await prisma.participant.findFirst({
-        where: { eventId: event.id, rollNumber: ath.rollNumber },
+        where: {
+          eventId: event.id,
+          rollNumberHash: seedBlindIndex(ath.rollNumber),
+        },
       });
       if (!part) {
         part = await prisma.participant.create({
@@ -512,7 +842,8 @@ async function main() {
             eventId: event.id,
             instituteId: ath.instituteId,
             name: ath.name,
-            rollNumber: ath.rollNumber,
+            rollNumber: seedEncrypt(ath.rollNumber),
+            rollNumberHash: seedBlindIndex(ath.rollNumber),
             gender: ath.gender,
             category: 'ATHLETE',
             gatePassNumber: ath.gatePassNumber,
@@ -562,7 +893,7 @@ async function main() {
         data: {
           eventId: event.id,
           name: aud.name,
-          contactNumber: aud.contactNumber,
+          contactNumber: seedEncrypt(aud.contactNumber),
           category: aud.category,
           gatePassNumber: aud.gatePassNumber,
           isCheckedIn: aud.isCheckedIn,
@@ -606,19 +937,42 @@ async function main() {
       });
     }
 
-    // Retrieve football teams for seeding
-    const teamIITJ = await prisma.team.findFirst({
+    const smvduInst = institutesMap.get('SMVDU');
+    const gcetInst = institutesMap.get('GCET Jammu');
+
+    let teamIITJ = await prisma.team.findFirst({
       where: { eventId: event.id, name: { contains: 'IIT Jammu' } },
     });
-    const teamNIT = await prisma.team.findFirst({
+    let teamNIT = await prisma.team.findFirst({
       where: { eventId: event.id, name: { contains: 'NIT Srinagar' } },
     });
-    const teamSMVDU = await prisma.team.findFirst({
+    let teamSMVDU = await prisma.team.findFirst({
       where: { eventId: event.id, name: { contains: 'SMVDU' } },
     });
-    const teamGCET = await prisma.team.findFirst({
+    if (!teamSMVDU && smvduInst) {
+      teamSMVDU = await prisma.team.create({
+        data: {
+          eventId: event.id,
+          instituteId: smvduInst.id,
+          sportId: footballSport.id,
+          name: 'SMVDU Football',
+        },
+      });
+    }
+
+    let teamGCET = await prisma.team.findFirst({
       where: { eventId: event.id, name: { contains: 'GCET' } },
     });
+    if (!teamGCET && gcetInst) {
+      teamGCET = await prisma.team.create({
+        data: {
+          eventId: event.id,
+          instituteId: gcetInst.id,
+          sportId: footballSport.id,
+          name: 'GCET Football',
+        },
+      });
+    }
 
     if (teamIITJ && teamNIT && teamSMVDU && teamGCET) {
       // Configure Tournament Seeding:
@@ -725,7 +1079,7 @@ async function main() {
 
       // Assign Lead Referee / Scorekeeper to matches
       const leadUser = await prisma.user.findFirst({
-        where: { email: 'convener@iitjammu.ac.in' },
+        where: { emailHash: seedBlindIndex('convener@iitjammu.ac.in') },
       });
       if (leadUser && m1 && m2) {
         await prisma.matchOfficial.upsert({

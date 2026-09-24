@@ -1,10 +1,13 @@
+import type { Prisma } from '@prisma/client';
 import {
   Injectable,
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
+import { RbacService } from '../rbac/rbac.service.js';
 import {
   CreateMatchDto,
   UpdateMatchDto,
@@ -12,11 +15,123 @@ import {
   AssignOfficialDto,
   GenerateKnockoutBracketDto,
   GenerateRoundRobinDto,
+  GenerateSwissRoundDto,
 } from './dto/fixtures.dto.js';
 
 @Injectable()
 export class MatchesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private generationTransactionActive = false;
+
+  private async sportScoringMode(
+    sportId: string,
+    override?: 'LIVE' | 'RESULT_ONLY',
+  ) {
+    const sport = await this.prisma.sport.findUnique({
+      where: { id: sportId },
+    });
+    return override ?? sport?.scoringMode ?? 'LIVE';
+  }
+
+  private async generationCapacity(dto: {
+    simultaneousMatches?: number;
+    defaultVenueId?: string;
+  }) {
+    const capacity = dto.simultaneousMatches ?? 1;
+    if (!Number.isInteger(capacity) || capacity < 1 || capacity > 64)
+      throw new BadRequestException(
+        'Simultaneous matches must be between 1 and 64',
+      );
+    if (dto.defaultVenueId) {
+      const venue = await this.prisma.venue.findUnique({
+        where: { id: dto.defaultVenueId },
+      });
+      if (capacity > (venue?.simultaneousMatches ?? 1))
+        throw new BadRequestException(
+          'Simultaneous matches exceed this venue capacity. Update the venue capacity or reduce this setting.',
+        );
+    }
+    return capacity;
+  }
+
+  private async generateTransaction<T>(
+    tournamentId: string,
+    venueId: string | undefined,
+    run: (service: MatchesService) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Tournament" WHERE "id" = ${tournamentId} FOR UPDATE`;
+        await tx.$queryRaw`SELECT s."id" FROM "Sport" s JOIN "Tournament" t ON t."sportId" = s."id" WHERE t."id" = ${tournamentId} FOR SHARE OF s`;
+        if (venueId)
+          await tx.$queryRaw`SELECT "id" FROM "Venue" WHERE "id" = ${venueId} FOR UPDATE`;
+        const service = new MatchesService(
+          tx as PrismaService,
+          this.rbacService,
+        );
+        service.generationTransactionActive = true;
+        return run(service);
+      },
+      { timeout: 30000 },
+    );
+  }
+
+  private async validateField(
+    tournament: { sportId: string; eventId: string },
+    ids: string[],
+    venueId?: string,
+  ) {
+    if (new Set(ids).size !== ids.length || ids.length < 2 || ids.length > 128)
+      throw new BadRequestException('Choose 2–128 unique teams');
+    const teams = await this.prisma.team.findMany({
+      where: { id: { in: ids } },
+    });
+    if (
+      teams.length !== ids.length ||
+      teams.some(
+        (t) =>
+          t.sportId !== tournament.sportId || t.eventId !== tournament.eventId,
+      )
+    )
+      throw new BadRequestException(
+        'Teams must belong to the tournament sport and event',
+      );
+    if (venueId) {
+      const venue = await this.prisma.venue.findUnique({
+        where: { id: venueId },
+      });
+      if (!venue || venue.eventId !== tournament.eventId)
+        throw new BadRequestException(
+          'Venue must belong to the tournament event',
+        );
+    }
+  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rbacService: RbacService,
+  ) {}
+
+  /**
+   * Object-level authorization: verifies the acting user's 'competition.manage'
+   * permission actually covers the given sport/event, deriving the scope from the
+   * database record itself rather than trusting any client-supplied scope value.
+   * Mirrors ScoringService.verifyScoringAuthority.
+   */
+  private async verifyCompetitionAuthority(
+    userId: string,
+    sportId?: string | null,
+    eventId?: string | null,
+  ) {
+    const allowed = await this.rbacService.hasPermission(
+      userId,
+      'competition.manage',
+      { sportId: sportId ?? undefined, eventId: eventId ?? undefined },
+    );
+    if (!allowed) {
+      throw new ForbiddenException(
+        'You are not authorized to manage competition data for this sport',
+      );
+    }
+  }
 
   // ===================================
   // QUERY MATCHES
@@ -89,7 +204,7 @@ export class MatchesService {
         winnerTeam: { select: { id: true, name: true } },
         officials: {
           include: {
-            user: { select: { id: true, name: true, email: true } },
+            user: { select: { id: true, name: true } },
           },
         },
       },
@@ -113,7 +228,7 @@ export class MatchesService {
           include: {
             institute: true,
             members: {
-              include: { participant: true },
+              include: { participant: { select: { id: true, name: true } } },
             },
           },
         },
@@ -121,7 +236,7 @@ export class MatchesService {
           include: {
             institute: true,
             members: {
-              include: { participant: true },
+              include: { participant: { select: { id: true, name: true } } },
             },
           },
         },
@@ -132,7 +247,6 @@ export class MatchesService {
               select: {
                 id: true,
                 name: true,
-                email: true,
                 profilePhotoUrl: true,
               },
             },
@@ -193,9 +307,46 @@ export class MatchesService {
       });
 
       if (venueConflict) {
-        throw new ConflictException(
-          `Scheduling conflict: Venue "${venueConflict.venue?.name || venueId}" already has Match "${venueConflict.matchNumber || venueConflict.id}" scheduled between ${venueConflict.scheduledStartTime.toISOString()} and ${venueConflict.scheduledEndTime?.toISOString() || 'TBD'}`,
-        );
+        const venue = await this.prisma.venue.findUnique({
+          where: { id: venueId },
+        });
+        const capacity = venue?.simultaneousMatches ?? 1;
+        let peak = 1;
+        if (capacity > 1) {
+          const overlaps = await this.prisma.match.findMany({
+            where: {
+              venueId,
+              ...(excludeMatchId ? { id: { not: excludeMatchId } } : {}),
+              status: { notIn: ['CANCELLED', 'ABANDONED', 'BYE'] },
+              scheduledStartTime: { lt: effectiveEndTime },
+            },
+          });
+          const edges: Array<[number, number]> = [];
+          for (const match of overlaps) {
+            const from = Math.max(
+              startTime.getTime(),
+              match.scheduledStartTime.getTime(),
+            );
+            const to = Math.min(
+              effectiveEndTime.getTime(),
+              match.scheduledEndTime?.getTime() ??
+                match.scheduledStartTime.getTime() + 90 * 60000,
+            );
+            if (from < to) edges.push([from, 1], [to, -1]);
+          }
+          let count = 0;
+          peak = 0;
+          for (const [, delta] of edges.sort(
+            (a, b) => a[0] - b[0] || a[1] - b[1],
+          )) {
+            count += delta;
+            peak = Math.max(peak, count);
+          }
+        }
+        if (peak >= capacity)
+          throw new ConflictException(
+            `Scheduling conflict: Venue "${venueConflict.venue?.name || venueId}" has reached its capacity of ${capacity} simultaneous match(es)`,
+          );
       }
     }
 
@@ -244,12 +395,31 @@ export class MatchesService {
   // MATCH MANAGEMENT
   // ===================================
 
-  async createMatch(dto: CreateMatchDto) {
+  async createMatch(
+    dto: CreateMatchDto,
+    userId: string,
+  ): Promise<
+    Prisma.MatchGetPayload<{
+      include: { teamA: true; teamB: true; venue: true };
+    }>
+  > {
+    if (!this.generationTransactionActive)
+      return this.generateTransaction(
+        dto.tournamentId,
+        dto.venueId,
+        (service) => service.createMatch(dto, userId),
+      );
     const tournament = await this.prisma.tournament.findUnique({
       where: { id: dto.tournamentId },
     });
     if (!tournament)
       throw new NotFoundException(`Tournament "${dto.tournamentId}" not found`);
+
+    await this.verifyCompetitionAuthority(
+      userId,
+      tournament.sportId,
+      tournament.eventId,
+    );
 
     const startTime = new Date(dto.scheduledStartTime);
     const endTime = dto.scheduledEndTime
@@ -276,6 +446,10 @@ export class MatchesService {
         scheduledStartTime: startTime,
         scheduledEndTime: endTime,
         scoreDetails: dto.scoreDetails,
+        scoringMode: await this.sportScoringMode(
+          tournament.sportId,
+          dto.scoringMode,
+        ),
       },
       include: {
         teamA: true,
@@ -285,9 +459,55 @@ export class MatchesService {
     });
   }
 
-  async updateMatch(id: string, dto: UpdateMatchDto) {
-    const existing = await this.prisma.match.findUnique({ where: { id } });
+  async updateMatch(id: string, dto: UpdateMatchDto, userId: string) {
+    const existing = await this.prisma.match.findUnique({
+      where: { id },
+      include: { tournament: true },
+    });
     if (!existing) throw new NotFoundException(`Match "${id}" not found`);
+
+    if (
+      dto.winnerTeamId !== undefined ||
+      dto.teamAScore !== undefined ||
+      dto.teamBScore !== undefined ||
+      dto.scoreDetails !== undefined
+    ) {
+      throw new BadRequestException(
+        'Scores and winners must use the scoring and result approval workflow',
+      );
+    }
+    if (
+      dto.status &&
+      !['SCHEDULED', 'READY', 'CANCELLED'].includes(dto.status)
+    ) {
+      throw new BadRequestException(
+        'Use the scoring workflow to start or end a match',
+      );
+    }
+    if (
+      !['SCHEDULED', 'READY', 'RESCHEDULED'].includes(existing.status) &&
+      Object.keys(dto).some((key) => key !== 'isTelecast')
+    ) {
+      throw new BadRequestException(
+        'Started or completed fixtures cannot be changed here',
+      );
+    }
+    if (
+      existing.nextMatchId &&
+      (dto.teamAId !== undefined ||
+        dto.teamBId !== undefined ||
+        dto.stageId !== undefined)
+    ) {
+      throw new BadRequestException(
+        'Generated bracket teams and stages cannot be reassigned',
+      );
+    }
+
+    await this.verifyCompetitionAuthority(
+      userId,
+      existing.tournament?.sportId,
+      existing.tournament?.eventId,
+    );
 
     const startTime = dto.scheduledStartTime
       ? new Date(dto.scheduledStartTime)
@@ -325,7 +545,13 @@ export class MatchesService {
       });
     }
 
-    return this.prisma.match.update({
+    // NOTE: teamAScore / teamBScore / scoreDetails are intentionally NOT
+    // accepted here. Live score mutation must go through ScoringService
+    // (POST /api/matches/:id/score-events, PATCH /api/matches/:id/score-manual),
+    // which enforces match-state validation, transactional updates, audit
+    // logging and realtime broadcast. Allowing raw score writes through this
+    // generic admin endpoint would bypass all of that (score integrity).
+    const updated = await this.prisma.match.update({
       where: { id },
       data: {
         stageId: dto.stageId,
@@ -333,13 +559,12 @@ export class MatchesService {
         matchNumber: dto.matchNumber,
         teamAId: dto.teamAId,
         teamBId: dto.teamBId,
-        teamAScore: dto.teamAScore,
-        teamBScore: dto.teamBScore,
         winnerTeamId: dto.winnerTeamId,
         status: dto.status,
+        isTelecast: dto.isTelecast,
+        scoringMode: dto.scoringMode,
         scheduledStartTime: dto.scheduledStartTime ? startTime : undefined,
         scheduledEndTime: dto.scheduledEndTime ? endTime : undefined,
-        scoreDetails: dto.scoreDetails,
       },
       include: {
         teamA: true,
@@ -348,11 +573,52 @@ export class MatchesService {
         winnerTeam: true,
       },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'match.update',
+        resource: 'Match',
+        resourceId: id,
+        previousState: {
+          stageId: existing.stageId,
+          venueId: existing.venueId,
+          teamAId: existing.teamAId,
+          teamBId: existing.teamBId,
+          winnerTeamId: existing.winnerTeamId,
+          status: existing.status,
+        },
+        newState: {
+          stageId: updated.stageId,
+          venueId: updated.venueId,
+          teamAId: updated.teamAId,
+          teamBId: updated.teamBId,
+          winnerTeamId: updated.winnerTeamId,
+          status: updated.status,
+        },
+      },
+    });
+
+    return updated;
   }
 
-  async rescheduleMatch(id: string, dto: RescheduleMatchDto, userId?: string) {
-    const match = await this.prisma.match.findUnique({ where: { id } });
+  async rescheduleMatch(id: string, dto: RescheduleMatchDto, userId: string) {
+    const match = await this.prisma.match.findUnique({
+      where: { id },
+      include: { tournament: true },
+    });
     if (!match) throw new NotFoundException(`Match "${id}" not found`);
+    if (!['SCHEDULED', 'READY', 'RESCHEDULED'].includes(match.status)) {
+      throw new BadRequestException(
+        'Only an unstarted fixture can be rescheduled',
+      );
+    }
+
+    await this.verifyCompetitionAuthority(
+      userId,
+      match.tournament?.sportId,
+      match.tournament?.eventId,
+    );
 
     const startTime = new Date(dto.scheduledStartTime);
     const endTime = dto.scheduledEndTime
@@ -414,11 +680,22 @@ export class MatchesService {
   // OFFICIALS / REFEREES / SCOREKEEPERS
   // ===================================
 
-  async assignOfficial(matchId: string, dto: AssignOfficialDto) {
+  async assignOfficial(
+    matchId: string,
+    dto: AssignOfficialDto,
+    actingUserId: string,
+  ) {
     const match = await this.prisma.match.findUnique({
       where: { id: matchId },
+      include: { tournament: true },
     });
     if (!match) throw new NotFoundException(`Match "${matchId}" not found`);
+
+    await this.verifyCompetitionAuthority(
+      actingUserId,
+      match.tournament?.sportId,
+      match.tournament?.eventId,
+    );
 
     const user = await this.prisma.user.findUnique({
       where: { id: dto.userId },
@@ -451,10 +728,26 @@ export class MatchesService {
     });
   }
 
-  async removeOfficial(matchId: string, userId: string) {
+  async removeOfficial(
+    matchId: string,
+    officialUserId: string,
+    actingUserId: string,
+  ) {
+    const match = await this.prisma.match.findUnique({
+      where: { id: matchId },
+      include: { tournament: true },
+    });
+    if (!match) throw new NotFoundException(`Match "${matchId}" not found`);
+
+    await this.verifyCompetitionAuthority(
+      actingUserId,
+      match.tournament?.sportId,
+      match.tournament?.eventId,
+    );
+
     const existing = await this.prisma.matchOfficial.findUnique({
       where: {
-        matchId_userId: { matchId, userId },
+        matchId_userId: { matchId, userId: officialUserId },
       },
     });
 
@@ -480,6 +773,7 @@ export class MatchesService {
   async generateKnockoutBracket(
     tournamentId: string,
     dto: GenerateKnockoutBracketDto,
+    userId: string,
   ) {
     const tournament = await this.prisma.tournament.findUnique({
       where: { id: tournamentId },
@@ -487,6 +781,12 @@ export class MatchesService {
     });
     if (!tournament)
       throw new NotFoundException(`Tournament "${tournamentId}" not found`);
+
+    await this.verifyCompetitionAuthority(
+      userId,
+      tournament.sportId,
+      tournament.eventId,
+    );
 
     // Determine teams: prioritize passed seeds/teamIds or stored seeds
     let orderedTeams: Array<{ id: string; seedNumber: number; name?: string }> =
@@ -519,101 +819,197 @@ export class MatchesService {
       );
     }
 
-    // Determine nearest power of 2 bracket size (e.g., 2, 4, 8, 16)
-    let bracketSize = 2;
-    while (bracketSize < orderedTeams.length) {
-      bracketSize *= 2;
+    const ids = orderedTeams.map((t) => t.id);
+    const numbers = orderedTeams.map((t) => t.seedNumber);
+    if (
+      ids.length > 128 ||
+      new Set(ids).size !== ids.length ||
+      new Set(numbers).size !== numbers.length ||
+      numbers.some((n) => !Number.isInteger(n) || n < 1 || n > ids.length)
+    ) {
+      throw new BadRequestException(
+        'Use unique teams and consecutive seeds from 1 to the number of teams (maximum 128)',
+      );
     }
-
-    // Standard bracket pairing order algorithm (Binary bit reversal fold)
-    // Ensures:
-    // - Seed 1 is in Top half
-    // - Seed 2 is in Bottom half
-    // - They meet ONLY in the Finals!
-    const seedPositions = this.calculateBracketSeedOrder(bracketSize);
-
-    // Create a stage for the opening knockout round (e.g. Quarterfinals / Semifinals)
-    const stageName =
-      dto.stageName ||
-      (bracketSize === 2
-        ? 'Final'
-        : bracketSize === 4
-          ? 'Semifinals'
-          : bracketSize === 8
-            ? 'Quarterfinals'
-            : `Round of ${bracketSize}`);
-
-    const stage = await this.prisma.tournamentStage.create({
-      data: {
-        tournamentId,
-        name: stageName,
-        sequence: 1,
-        stageType: 'KNOCKOUT',
+    const duration = dto.matchDurationMinutes ?? 90;
+    const interval = dto.breakMinutes ?? 30;
+    if (
+      duration < 1 ||
+      interval < 0 ||
+      !Number.isFinite(Date.parse(dto.startTime))
+    ) {
+      throw new BadRequestException(
+        'A valid start time and positive match duration are required',
+      );
+    }
+    return this.prisma.$transaction(
+      async (tx) => {
+        // Serialize generation for this tournament and reservations of the shared venue.
+        await tx.$queryRaw`SELECT "id" FROM "Tournament" WHERE "id" = ${tournamentId} FOR UPDATE`;
+        await tx.$queryRaw`SELECT s."id" FROM "Sport" s JOIN "Tournament" t ON t."sportId" = s."id" WHERE t."id" = ${tournamentId} FOR SHARE OF s`;
+        if (await tx.match.count({ where: { tournamentId } })) {
+          throw new ConflictException(
+            'Fixtures already exist for this tournament',
+          );
+        }
+        const teams = await tx.team.findMany({
+          where: { id: { in: ids } },
+          include: { institute: true },
+        });
+        if (
+          teams.length !== ids.length ||
+          teams.some(
+            (t) =>
+              t.sportId !== tournament.sportId ||
+              t.institute.eventId !== tournament.eventId,
+          )
+        ) {
+          throw new BadRequestException(
+            'All seeded teams must belong to this tournament sport and event',
+          );
+        }
+        if (dto.defaultVenueId) {
+          await tx.$queryRaw`SELECT "id" FROM "Venue" WHERE "id" = ${dto.defaultVenueId} FOR UPDATE`;
+          const venue = await tx.venue.findUnique({
+            where: { id: dto.defaultVenueId },
+          });
+          if (!venue || venue.eventId !== tournament.eventId)
+            throw new BadRequestException('Venue belongs to a different event');
+        }
+        const size = 2 ** Math.ceil(Math.log2(ids.length));
+        const order = this.calculateBracketSeedOrder(size);
+        const seeds = new Map(orderedTeams.map((t) => [t.seedNumber, t.id]));
+        const stages = [];
+        const rounds: Array<
+          Array<{ id: string; teamAId: string | null; teamBId: string | null }>
+        > = [];
+        const matches = [];
+        const capacity = await new MatchesService(
+          tx as PrismaService,
+          this.rbacService,
+        ).generationCapacity(dto);
+        let timeSlot = 0;
+        for (let slots = size, round = 0; slots >= 2; slots /= 2, round++) {
+          const stage = await tx.tournamentStage.create({
+            data: {
+              tournamentId,
+              sequence: round + 1,
+              stageType: 'KNOCKOUT',
+              name:
+                round === 0 && dto.stageName
+                  ? dto.stageName
+                  : slots === 2
+                    ? 'Final'
+                    : slots === 4
+                      ? 'Semifinals'
+                      : slots === 8
+                        ? 'Quarterfinals'
+                        : `Round of ${slots}`,
+            },
+          });
+          stages.push(stage);
+          rounds.push([]);
+          for (let position = 0; position < slots / 2; position++) {
+            const teamAId =
+              round === 0 ? (seeds.get(order[position * 2]) ?? null) : null;
+            const teamBId =
+              round === 0 ? (seeds.get(order[position * 2 + 1]) ?? null) : null;
+            const startTime = new Date(
+              Date.parse(dto.startTime) +
+                (timeSlot + Math.floor(position / capacity)) *
+                  (duration + interval) *
+                  60000,
+            );
+            const endTime = new Date(startTime.getTime() + duration * 60000);
+            await new MatchesService(
+              tx as PrismaService,
+              this.rbacService,
+            ).checkSchedulingConflicts({
+              startTime,
+              endTime,
+              venueId: dto.defaultVenueId,
+              teamAId: teamAId ?? undefined,
+              teamBId: teamBId ?? undefined,
+            });
+            const match = await tx.match.create({
+              data: {
+                tournamentId,
+                stageId: stage.id,
+                venueId: dto.defaultVenueId,
+                matchNumber: `R${round + 1}-M${position + 1}`,
+                teamAId,
+                teamBId,
+                scheduledStartTime: startTime,
+                scheduledEndTime: endTime,
+                status: 'SCHEDULED',
+                scoringMode: await this.sportScoringMode(
+                  tournament.sportId,
+                  dto.scoringMode,
+                ),
+              },
+              include: { teamA: true, teamB: true, venue: true },
+            });
+            rounds[round].push(match);
+            matches.push({
+              matchNumber: match.matchNumber,
+              seedMatchup:
+                round === 0
+                  ? `Seed ${order[position * 2]} vs Seed ${order[position * 2 + 1]}`
+                  : 'Winners of previous round',
+              match,
+            });
+          }
+          timeSlot += Math.ceil(slots / 2 / capacity);
+        }
+        for (let r = 0; r < rounds.length - 1; r++) {
+          for (let i = 0; i < rounds[r].length; i++) {
+            const match = rounds[r][i];
+            const next = rounds[r + 1][Math.floor(i / 2)];
+            await tx.match.update({
+              where: { id: match.id },
+              data: {
+                nextMatchId: next.id,
+                nextMatchSlot: i % 2 === 0 ? 'A' : 'B',
+              },
+            });
+            // Only opening-round empty slots are byes; later empty slots await a result.
+            if (r === 0 && (!match.teamAId || !match.teamBId)) {
+              const winner = match.teamAId || match.teamBId;
+              await tx.match.update({
+                where: { id: match.id },
+                data: { status: 'BYE', winnerTeamId: winner },
+              });
+              await tx.match.update({
+                where: { id: next.id },
+                data: { [i % 2 === 0 ? 'teamAId' : 'teamBId']: winner },
+              });
+            }
+          }
+        }
+        await tx.auditLog.create({
+          data: {
+            userId,
+            action: 'bracket.generate',
+            resource: 'Tournament',
+            resourceId: tournamentId,
+            newState: {
+              bracketSize: size,
+              seeds: orderedTeams,
+              matchCount: matches.length,
+            },
+          },
+        });
+        return {
+          message:
+            'Complete seeded knockout bracket generated. Winners advance on result publication.',
+          stage: stages[0],
+          stages,
+          bracketSize: size,
+          matches,
+        };
       },
-    });
-
-    // Map seeded teams to their bracket seed slots
-    const seedToTeamMap = new Map<number, string>();
-    for (const t of orderedTeams) {
-      seedToTeamMap.set(t.seedNumber, t.id);
-    }
-
-    const matchDuration = dto.matchDurationMinutes || 90;
-    const breakMinutes = dto.breakMinutes || 30;
-    const baseStartTime = new Date(dto.startTime);
-
-    const matchesCreated = [];
-    const totalMatches = bracketSize / 2;
-
-    for (let m = 0; m < totalMatches; m++) {
-      const seedA = seedPositions[m * 2];
-      const seedB = seedPositions[m * 2 + 1];
-
-      const teamAId = seedToTeamMap.get(seedA) || null;
-      const teamBId = seedToTeamMap.get(seedB) || null;
-
-      const matchStart = new Date(
-        baseStartTime.getTime() +
-          m * (matchDuration + breakMinutes) * 60 * 1000,
-      );
-      const matchEnd = new Date(
-        matchStart.getTime() + matchDuration * 60 * 1000,
-      );
-
-      const matchNumber = `${tournament.name.substring(0, 4).toUpperCase()}-M0${m + 1}`;
-
-      const createdMatch = await this.prisma.match.create({
-        data: {
-          tournamentId,
-          stageId: stage.id,
-          venueId: dto.defaultVenueId,
-          matchNumber,
-          teamAId,
-          teamBId,
-          scheduledStartTime: matchStart,
-          scheduledEndTime: matchEnd,
-          status: 'SCHEDULED',
-        },
-        include: {
-          teamA: { select: { id: true, name: true } },
-          teamB: { select: { id: true, name: true } },
-          venue: true,
-        },
-      });
-
-      matchesCreated.push({
-        matchNumber,
-        seedMatchup: `Seed ${seedA} vs Seed ${seedB}`,
-        match: createdMatch,
-      });
-    }
-
-    return {
-      message: `Knockout bracket generated for ${bracketSize} slots with guaranteed top-seed separation before Finals`,
-      stage,
-      bracketSize,
-      matches: matchesCreated,
-    };
+      { timeout: 30000 },
+    );
   }
 
   /**
@@ -648,18 +1044,38 @@ export class MatchesService {
    * Generates a complete round-robin schedule (Berger tables / polygon method)
    * where every team plays every other team once.
    */
-  async generateRoundRobin(tournamentId: string, dto: GenerateRoundRobinDto) {
+  async generateRoundRobin(
+    tournamentId: string,
+    dto: GenerateRoundRobinDto,
+    userId: string,
+  ): Promise<any> {
+    if (!this.generationTransactionActive)
+      return this.generateTransaction(
+        tournamentId,
+        dto.defaultVenueId,
+        (service) => service.generateRoundRobin(tournamentId, dto, userId),
+      );
     const tournament = await this.prisma.tournament.findUnique({
       where: { id: tournamentId },
     });
     if (!tournament)
       throw new NotFoundException(`Tournament "${tournamentId}" not found`);
 
+    await this.verifyCompetitionAuthority(
+      userId,
+      tournament.sportId,
+      tournament.eventId,
+    );
+
     if (dto.teamIds.length < 2) {
       throw new BadRequestException(
         'At least 2 teams required for round-robin schedule',
       );
     }
+
+    await this.validateField(tournament, dto.teamIds, dto.defaultVenueId);
+    if (await this.prisma.match.count({ where: { tournamentId } }))
+      throw new ConflictException('Fixtures already exist for this tournament');
 
     const stage = await this.prisma.tournamentStage.create({
       data: {
@@ -681,11 +1097,11 @@ export class MatchesService {
     const matchesPerRound = n / 2;
 
     const matchDuration = dto.matchDurationMinutes || 90;
-    const breakMinutes = dto.breakMinutes || 30;
+    const breakMinutes = dto.breakMinutes ?? 30;
     const baseStartTime = new Date(dto.startTime);
 
     const createdMatches = [];
-    let matchCounter = 1;
+    const capacity = await this.generationCapacity(dto);
 
     for (let round = 0; round < rounds; round++) {
       for (let i = 0; i < matchesPerRound; i++) {
@@ -696,12 +1112,23 @@ export class MatchesService {
 
         const matchStart = new Date(
           baseStartTime.getTime() +
-            (matchCounter - 1) * (matchDuration + breakMinutes) * 60 * 1000,
+            (round * Math.ceil(Math.floor(n / 2) / capacity) +
+              Math.floor(i / capacity)) *
+              (matchDuration + breakMinutes) *
+              60 *
+              1000,
         );
         const matchEnd = new Date(
           matchStart.getTime() + matchDuration * 60 * 1000,
         );
 
+        await this.checkSchedulingConflicts({
+          startTime: matchStart,
+          endTime: matchEnd,
+          venueId: dto.defaultVenueId,
+          teamAId: teamA,
+          teamBId: teamB,
+        });
         const match = await this.prisma.match.create({
           data: {
             tournamentId,
@@ -713,6 +1140,10 @@ export class MatchesService {
             scheduledStartTime: matchStart,
             scheduledEndTime: matchEnd,
             status: 'SCHEDULED',
+            scoringMode: await this.sportScoringMode(
+              tournament.sportId,
+              dto.scoringMode,
+            ),
           },
           include: {
             teamA: { select: { id: true, name: true } },
@@ -721,7 +1152,6 @@ export class MatchesService {
         });
 
         createdMatches.push(match);
-        matchCounter++;
       }
 
       // Rotate array for next round (keep index 0 fixed)
@@ -733,6 +1163,274 @@ export class MatchesService {
       stage,
       totalMatches: createdMatches.length,
       matches: createdMatches,
+    };
+  }
+
+  // =========================================================================
+  // AUTOMATED SWISS SYSTEM PAIRING (Chess, etc — best-of-N rounds without a
+  // full round-robin or knockout bracket)
+  // =========================================================================
+
+  /**
+   * Generates the next Swiss round for a tournament. Round 1 requires
+   * `teamIds` and pairs the top half of the field against the bottom half
+   * (standard Swiss seeding). Every later round is derived automatically from
+   * standings in prior SWISS stages of this tournament: teams are grouped by
+   * score (1 pt win, 0.5 pt draw) and paired within score groups, greedily
+   * avoiding repeat pairings. An odd field gets one bye, given to the
+   * lowest-scoring team that hasn't already had one.
+   */
+  async generateSwissRound(
+    tournamentId: string,
+    dto: GenerateSwissRoundDto,
+    userId: string,
+  ): Promise<any> {
+    if (!this.generationTransactionActive)
+      return this.generateTransaction(
+        tournamentId,
+        dto.defaultVenueId,
+        (service) => service.generateSwissRound(tournamentId, dto, userId),
+      );
+    const tournament = await this.prisma.tournament.findUnique({
+      where: { id: tournamentId },
+    });
+    if (!tournament)
+      throw new NotFoundException(`Tournament "${tournamentId}" not found`);
+
+    await this.verifyCompetitionAuthority(
+      userId,
+      tournament.sportId,
+      tournament.eventId,
+    );
+
+    const priorStages = await this.prisma.tournamentStage.findMany({
+      where: { tournamentId, stageType: 'SWISS' },
+      orderBy: { sequence: 'asc' },
+      include: {
+        matches: {
+          include: { result: true },
+        },
+      },
+    });
+    if (
+      priorStages.some((stage) =>
+        stage.matches.some(
+          (match) =>
+            match.teamAId &&
+            match.teamBId &&
+            match.result?.status !== 'PUBLISHED',
+        ),
+      )
+    ) {
+      throw new ConflictException(
+        'Publish all results in the previous Swiss round before generating the next round',
+      );
+    }
+    const roundNumber = priorStages.length + 1;
+
+    let teamIds: string[];
+    let pairing: [string, string][];
+    let byeTeamId: string | undefined;
+
+    if (roundNumber === 1) {
+      if (!dto.teamIds || dto.teamIds.length < 2) {
+        throw new BadRequestException(
+          'At least 2 teams required to start a Swiss tournament (round 1).',
+        );
+      }
+      teamIds = [...dto.teamIds];
+      if (teamIds.length % 2 !== 0) {
+        byeTeamId = teamIds.pop();
+      }
+      const half = teamIds.length / 2;
+      pairing = teamIds
+        .slice(0, half)
+        .map((a, i) => [a, teamIds[half + i]] as [string, string]);
+    } else {
+      // Reconstruct the field and each team's score + prior-opponent set from history.
+      const scores = new Map<string, number>();
+      const opponents = new Map<string, Set<string>>();
+      const byes = new Set<string>();
+
+      for (const stage of priorStages) {
+        for (const m of stage.matches) {
+          const a = m.teamAId;
+          const b = m.teamBId;
+          if (!a && !b) continue;
+          if (a && !b) {
+            byes.add(a);
+            scores.set(a, (scores.get(a) || 0) + 1);
+            continue;
+          }
+          if (!a) continue;
+          if (!b) continue;
+
+          if (!opponents.has(a)) opponents.set(a, new Set());
+          if (!opponents.has(b)) opponents.set(b, new Set());
+          opponents.get(a)!.add(b);
+          opponents.get(b)!.add(a);
+
+          if (!scores.has(a)) scores.set(a, 0);
+          if (!scores.has(b)) scores.set(b, 0);
+
+          const result = m.result;
+          if (result?.status === 'PUBLISHED' && result.winnerTeamId) {
+            scores.set(
+              result.winnerTeamId,
+              (scores.get(result.winnerTeamId) || 0) + 1,
+            );
+          } else if (result?.status === 'PUBLISHED' && !result.winnerTeamId) {
+            scores.set(a, (scores.get(a) || 0) + 0.5);
+            scores.set(b, (scores.get(b) || 0) + 0.5);
+          }
+        }
+      }
+
+      teamIds = Array.from(scores.keys());
+      if (teamIds.length < 2) {
+        throw new BadRequestException(
+          'Could not determine the Swiss field from prior rounds — no completed pairings found.',
+        );
+      }
+
+      // Standings order: highest score first (ties broken by team id for determinism).
+      const standings = [...teamIds].sort(
+        (a, b) =>
+          (scores.get(b) || 0) - (scores.get(a) || 0) || a.localeCompare(b),
+      );
+
+      let field = standings;
+      if (field.length % 2 !== 0) {
+        // Lowest-ranked team that hasn't had a bye yet gets this round's bye.
+        for (let i = field.length - 1; i >= 0; i--) {
+          if (!byes.has(field[i])) {
+            byeTeamId = field[i];
+            break;
+          }
+        }
+        byeTeamId = byeTeamId || field[field.length - 1];
+        field = field.filter((id) => id !== byeTeamId);
+      }
+
+      // Greedy pairing: walk standings order, pair each unpaired team with the
+      // nearest-ranked unpaired team it hasn't already faced.
+      pairing = [];
+      const paired = new Set<string>();
+      for (let i = 0; i < field.length; i++) {
+        const teamA = field[i];
+        if (paired.has(teamA)) continue;
+        let opponent: string | undefined;
+        for (let j = i + 1; j < field.length; j++) {
+          const candidate = field[j];
+          if (paired.has(candidate)) continue;
+          if (!opponents.get(teamA)?.has(candidate)) {
+            opponent = candidate;
+            break;
+          }
+        }
+        // Fall back to the next unpaired team even on a repeat pairing (small fields
+        // can exhaust fresh opponents in later rounds).
+        if (!opponent) {
+          for (let j = i + 1; j < field.length; j++) {
+            if (!paired.has(field[j])) {
+              opponent = field[j];
+              break;
+            }
+          }
+        }
+        if (opponent) {
+          pairing.push([teamA, opponent]);
+          paired.add(teamA);
+          paired.add(opponent);
+        }
+      }
+    }
+
+    await this.validateField(
+      tournament,
+      Array.from(new Set([...teamIds, ...(byeTeamId ? [byeTeamId] : [])])),
+      dto.defaultVenueId,
+    );
+    const stage = await this.prisma.tournamentStage.create({
+      data: {
+        tournamentId,
+        name: `Swiss Round ${roundNumber}`,
+        sequence: roundNumber,
+        stageType: 'SWISS',
+      },
+    });
+
+    const matchDuration = dto.matchDurationMinutes || 60;
+    const breakMinutes = dto.breakMinutes ?? 15;
+    const baseStartTime = new Date(dto.startTime);
+
+    const capacity = await this.generationCapacity(dto);
+    const createdMatches = [];
+    for (let i = 0; i < pairing.length; i++) {
+      const [teamA, teamB] = pairing[i];
+      const matchStart = new Date(
+        baseStartTime.getTime() +
+          Math.floor(i / capacity) * (matchDuration + breakMinutes) * 60 * 1000,
+      );
+      const matchEnd = new Date(
+        matchStart.getTime() + matchDuration * 60 * 1000,
+      );
+
+      await this.checkSchedulingConflicts({
+        startTime: matchStart,
+        endTime: matchEnd,
+        venueId: dto.defaultVenueId,
+        teamAId: teamA,
+        teamBId: teamB,
+      });
+      const match = await this.prisma.match.create({
+        data: {
+          tournamentId,
+          stageId: stage.id,
+          venueId: dto.defaultVenueId,
+          matchNumber: `SW-R${roundNumber}-M${i + 1}`,
+          teamAId: teamA,
+          teamBId: teamB,
+          scheduledStartTime: matchStart,
+          scheduledEndTime: matchEnd,
+          status: 'SCHEDULED',
+          scoringMode: await this.sportScoringMode(
+            tournament.sportId,
+            dto.scoringMode,
+          ),
+        },
+        include: {
+          teamA: { select: { id: true, name: true } },
+          teamB: { select: { id: true, name: true } },
+        },
+      });
+      createdMatches.push(match);
+    }
+
+    if (byeTeamId) {
+      // Recorded as a single-team "match" (teamB null) so it counts as a win in future score tallies.
+      await this.prisma.match.create({
+        data: {
+          tournamentId,
+          stageId: stage.id,
+          matchNumber: `SW-R${roundNumber}-BYE`,
+          teamAId: byeTeamId,
+          scheduledStartTime: baseStartTime,
+          status: 'COMPLETED',
+          actualStartTime: baseStartTime,
+          actualEndTime: baseStartTime,
+          winnerTeamId: byeTeamId,
+        },
+      });
+    }
+
+    return {
+      message: `Swiss round ${roundNumber} generated with ${createdMatches.length} pairing(s)${byeTeamId ? ' and 1 bye' : ''}.`,
+      stage,
+      roundNumber,
+      totalMatches: createdMatches.length,
+      matches: createdMatches,
+      byeTeamId,
     };
   }
 }

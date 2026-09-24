@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import {
@@ -53,11 +54,6 @@ export class TeamsService {
               select: {
                 id: true,
                 name: true,
-                rollNumber: true,
-                gender: true,
-                photographUrl: true,
-                category: true,
-                isCheckedIn: true,
               },
             },
           },
@@ -84,6 +80,10 @@ export class TeamsService {
     if (!institute)
       throw new NotFoundException(`Institute "${dto.instituteId}" not found`);
     if (!sport) throw new NotFoundException(`Sport "${dto.sportId}" not found`);
+    if (institute.eventId !== dto.eventId || sport.eventId !== dto.eventId)
+      throw new BadRequestException(
+        'Team, institute and sport must belong to the same event',
+      );
 
     const existing = await this.prisma.team.findFirst({
       where: {
@@ -138,6 +138,13 @@ export class TeamsService {
     if (!participant)
       throw new NotFoundException(
         `Participant "${dto.participantId}" not found`,
+      );
+    if (
+      participant.eventId !== team.eventId ||
+      participant.instituteId !== team.instituteId
+    )
+      throw new BadRequestException(
+        'Participant must belong to the team institute and event',
       );
 
     return this.prisma.teamMember.upsert({

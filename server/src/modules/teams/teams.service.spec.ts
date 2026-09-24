@@ -12,6 +12,7 @@ describe('Teams, Institutes & Participants Services', () => {
 
   beforeEach(() => {
     prismaMock = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
       institute: {
         findMany: vi.fn(),
         findUnique: vi.fn(),
@@ -50,6 +51,12 @@ describe('Teams, Institutes & Participants Services', () => {
       },
       auditLog: {
         create: vi.fn(),
+      },
+      gateMovement: {
+        create: vi.fn(),
+      },
+      venue: {
+        findUnique: vi.fn(),
       },
       $transaction: vi.fn(async (cb) => cb(prismaMock)),
     };
@@ -118,8 +125,14 @@ describe('Teams, Institutes & Participants Services', () => {
   describe('TeamsService', () => {
     it('should create a team when valid event, institute, and sport are provided', async () => {
       prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
-      prismaMock.institute.findUnique.mockResolvedValue({ id: 'inst-1' });
-      prismaMock.sport.findUnique.mockResolvedValue({ id: 'sport-1' });
+      prismaMock.institute.findUnique.mockResolvedValue({
+        id: 'inst-1',
+        eventId: 'event-1',
+      });
+      prismaMock.sport.findUnique.mockResolvedValue({
+        id: 'sport-1',
+        eventId: 'event-1',
+      });
       prismaMock.team.create.mockResolvedValue({
         id: 'team-1',
         name: 'IIT Jammu Football Men',
@@ -231,10 +244,12 @@ describe('Teams, Institutes & Participants Services', () => {
         contactNumber: '9876543210',
         category: 'AUDIENCE',
         instituteName: 'SMVDU',
+        photographUrl: 'data:image/jpeg;base64,abc123',
+        idDocumentUrl: 'data:image/jpeg;base64,def456',
       });
 
       expect(res.attendee.name).toBe('Ananya Verma');
-      expect(res.attendee.isCheckedIn).toBe(true);
+      expect(res.attendee.isCheckedIn).toBe(false);
       expect(res.attendee.gatePassNumber).toMatch(/^CQ26-AUD-/);
     });
 
@@ -267,11 +282,17 @@ describe('Teams, Institutes & Participants Services', () => {
     });
 
     it('should perform security check-in for registered participant', async () => {
+      prismaMock.venue.findUnique.mockResolvedValue({
+        id: 'venue-1',
+        eventId: 'event-1',
+      });
       prismaMock.participant.findFirst.mockResolvedValue({
         id: 'p-1',
         name: 'Rahul Sharma',
         gatePassNumber: 'CQ26-P-ABCD12',
         isCheckedIn: false,
+        eventId: 'event-1',
+        currentVenueId: null,
       });
 
       prismaMock.participant.update.mockResolvedValue({
@@ -283,13 +304,19 @@ describe('Teams, Institutes & Participants Services', () => {
       });
 
       const checkInRes = await participantsService.checkInParticipant(
-        { gatePassNumber: 'CQ26-P-ABCD12' },
+        { gatePassNumber: 'CQ26-P-ABCD12', venueId: 'venue-1' },
         'security-guard-1',
       );
 
       expect(checkInRes.status).toBe('CHECK_IN_SUCCESS');
-      expect(checkInRes.message).toContain('Verified & Checked In');
+      expect(checkInRes.message).toContain('entered successfully');
       expect(checkInRes.participant.isCheckedIn).toBe(true);
+      expect(prismaMock.gateMovement.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          direction: 'ENTRY',
+          venueId: 'venue-1',
+        }),
+      });
       expect(prismaMock.auditLog.create).toHaveBeenCalled();
     });
 
@@ -334,19 +361,19 @@ describe('Teams, Institutes & Participants Services', () => {
             contactNumber: '9998887776',
             category: 'ATHLETE',
           },
-          {
-            name: '', // Missing name -> should fail row
-            college: 'IIT Delhi',
-          },
         ],
       });
 
-      expect(summary.totalRows).toBe(2);
+      expect(summary.totalRows).toBe(1);
       expect(summary.importedCount).toBe(1);
-      expect(summary.errors).toHaveLength(1);
-      expect(summary.errors[0].error).toContain(
-        'Name and College are required',
-      );
+      expect(summary.errors).toHaveLength(0);
+      await expect(
+        participantsService.bulkImport({
+          eventId: 'event-1',
+          rows: [{ name: '', college: 'IIT Delhi' }],
+        }),
+      ).rejects.toThrow('Row 1');
+      expect(prismaMock.participant.create).toHaveBeenCalledTimes(1);
     });
   });
 });

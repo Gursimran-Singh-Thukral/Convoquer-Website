@@ -7,6 +7,7 @@ Comprehensive specification of all pages, layouts, component hierarchies, visual
 ## 1. Design System & Visual Identity
 
 ### 1.1 Official Color Scheme: "Golden Hour"
+
 Convoquer'26 is visually anchored by the **"Golden Hour"** identity — evoking collegiate sports championship dusk, dramatic stadium floodlights against evening skies, and the golden glory of podium triumph.
 
 - **Primary Colors**:

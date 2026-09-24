@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <defs>
+    <linearGradient id="cardBg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141c14"/>
+      <stop offset="50%" stop-color="#1b291d"/>
+      <stop offset="100%" stop-color="#0f1610"/>
+    </linearGradient>
+    <linearGradient id="emeraldAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="10" y="10" width="780" height="480" rx="24" fill="url(#cardBg2)" stroke="rgba(52,211,153,0.4)" stroke-width="2"/>
+
+  <!-- Top Ribbon -->
+  <path d="M 10 34 Q 10 10 34 10 L 766 10 Q 790 10 790 34 L 790 90 L 10 90 Z" fill="#064e3b"/>
+  <rect x="10" y="88" width="780" height="4" fill="url(#emeraldAccent)"/>
+
+  <circle cx="56" cy="50" r="26" fill="#064e3b" stroke="#34d399" stroke-width="1.5"/>
+  <text x="56" y="56" fill="#34d399" font-family="sans-serif" font-size="16" font-weight="900" text-anchor="middle">GOV</text>
+
+  <text x="96" y="44" fill="#FFFFFF" font-family="sans-serif" font-size="19" font-weight="800" letter-spacing="1">GOVERNMENT OF INDIA • IDENTITY ACCREDITATION</text>
+  <text x="96" y="66" fill="#A7F3D0" font-family="sans-serif" font-size="12" font-weight="600" letter-spacing="2">SPECTATOR &amp; AUDIENCE SECURITY CLEARANCE PASS</text>
+
+  <!-- Photo Box -->
+  <rect x="50" y="130" width="170" height="220" rx="12" fill="#06120b" stroke="#10b981" stroke-width="2"/>
+  <circle cx="135" cy="205" r="46" fill="#1b3826"/>
+  <path d="M 75 330 C 75 265, 195 265, 195 330 Z" fill="#1b3826"/>
+  <text x="135" y="340" fill="#6ee7b7" font-family="sans-serif" font-size="12" text-anchor="middle" font-weight="700">IDENTITY PHOTO</text>
+
+  <!-- Card Details -->
+  <text x="260" y="150" fill="#6ee7b7" font-family="sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">NAME OF SPECTATOR / HOLDER</text>
+  <text x="260" y="180" fill="#FFFFFF" font-family="sans-serif" font-size="22" font-weight="800">PRIYA GUPTA</text>
+
+  <text x="260" y="225" fill="#6ee7b7" font-family="sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">INSTITUTE / AFFILIATION</text>
+  <text x="260" y="250" fill="#A7F3D0" font-family="sans-serif" font-size="16" font-weight="700">University of Jammu</text>
+
+  <text x="260" y="295" fill="#6ee7b7" font-family="sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">AADHAAR / REGISTRATION NUMBER</text>
+  <text x="260" y="320" fill="#FFFFFF" font-family="monospace" font-size="18" font-weight="700">XXXX-XXXX-4589 (VERIFIED)</text>
+
+  <text x="260" y="365" fill="#6ee7b7" font-family="sans-serif" font-size="11" font-weight="700" letter-spacing="1.5">CAMPUS ENTRY CLEARANCE</text>
+  <rect x="260" y="377" width="160" height="28" rx="6" fill="#047857" stroke="#34d399" stroke-width="1"/>
+  <text x="340" y="396" fill="#FFFFFF" font-family="sans-serif" font-size="12" font-weight="800" text-anchor="middle">GATE 1 - NORTH GROUND</text>
+
+  <!-- Barcode / Hologram at Right -->
+  <g transform="translate(630, 130)">
+    <rect x="0" y="0" width="120" height="120" rx="10" fill="#06120b" stroke="#10b981"/>
+    <rect x="15" y="15" width="28" height="28" fill="#34d399"/>
+    <rect x="75" y="15" width="28" height="28" fill="#34d399"/>
+    <rect x="15" y="75" width="28" height="28" fill="#34d399"/>
+    <rect x="50" y="45" width="20" height="30" fill="#FFFFFF"/>
+    <text x="60" y="136" fill="#A7F3D0" font-family="monospace" font-size="10" text-anchor="middle">GOV-VERIFY</text>
+  </g>
+
+  <circle cx="690" cy="340" r="42" fill="none" stroke="#34d399" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="690" y="338" fill="#34d399" font-family="sans-serif" font-size="9" font-weight="900" text-anchor="middle">SECURITY DESK</text>
+  <text x="690" y="350" fill="#FFFFFF" font-family="sans-serif" font-size="8" font-weight="700" text-anchor="middle">PASS CLEARED</text>
+
+  <line x1="50" y1="440" x2="750" y2="440" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <text x="50" y="465" fill="#6ee7b7" font-family="monospace" font-size="11">IIT JAMMU CAMPUS SECURITY PROTOCOL // NOT FOR SALE // KEEP VISIBLE AT ALL TIMES</text>
+</svg>

@@ -14,8 +14,6 @@ import type { Request } from 'express';
 import { TournamentsService } from './tournaments.service.js';
 import { MatchesService } from './matches.service.js';
 import { SessionGuard } from '../../common/guards/session.guard.js';
-import { PermissionsGuard } from '../../common/guards/permissions.guard.js';
-import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 import {
   CreateTournamentDto,
   UpdateTournamentDto,
@@ -28,8 +26,17 @@ import {
   AssignOfficialDto,
   GenerateKnockoutBracketDto,
   GenerateRoundRobinDto,
+  GenerateSwissRoundDto,
 } from './dto/fixtures.dto.js';
 
+// Deliberately no PermissionsGuard/@RequirePermissions on the mutating routes
+// below: they address an existing tournament/stage/match by :id, and
+// authority depends on which sport/event that record actually belongs to —
+// not something PermissionsGuard's static decorator can derive.
+// TournamentsService/MatchesService#verifyCompetitionAuthority() is the real
+// check on every one of these: it loads the record, derives its actual
+// sportId/eventId, and authorizes a correctly-scoped 'competition.manage'
+// grant. Mirrors ScoringService.verifyScoringAuthority.
 @Controller('api')
 export class FixturesController {
   constructor(
@@ -55,20 +62,30 @@ export class FixturesController {
   }
 
   @Post('tournaments')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
-  async createTournament(@Body() dto: CreateTournamentDto) {
-    return this.tournamentsService.createTournament(dto);
+  @UseGuards(SessionGuard)
+  async createTournament(
+    @Body() dto: CreateTournamentDto,
+    @Req() req: Request,
+  ) {
+    const userId = (req as any).user.id;
+    return this.tournamentsService.createTournament(dto, userId);
   }
 
   @Patch('tournaments/:id')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
+  @UseGuards(SessionGuard)
   async updateTournament(
     @Param('id') id: string,
     @Body() dto: UpdateTournamentDto,
+    @Req() req: Request,
   ) {
-    return this.tournamentsService.updateTournament(id, dto);
+    const userId = (req as any).user.id;
+    return this.tournamentsService.updateTournament(id, dto, userId);
+  }
+
+  @Delete('tournaments/:id')
+  @UseGuards(SessionGuard)
+  async deleteTournament(@Param('id') id: string, @Req() req: Request) {
+    return this.tournamentsService.deleteTournament(id, (req as any).user.id);
   }
 
   // ===================================
@@ -76,10 +93,14 @@ export class FixturesController {
   // ===================================
 
   @Post('tournaments/:id/seeds')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
-  async setSeeds(@Param('id') tournamentId: string, @Body() dto: SetSeedsDto) {
-    return this.tournamentsService.setSeeds(tournamentId, dto);
+  @UseGuards(SessionGuard)
+  async setSeeds(
+    @Param('id') tournamentId: string,
+    @Body() dto: SetSeedsDto,
+    @Req() req: Request,
+  ) {
+    const userId = (req as any).user.id;
+    return this.tournamentsService.setSeeds(tournamentId, dto, userId);
   }
 
   @Get('tournaments/:id/seeds')
@@ -92,20 +113,25 @@ export class FixturesController {
   // ===================================
 
   @Post('tournaments/:id/stages')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
+  @UseGuards(SessionGuard)
   async createStage(
     @Param('id') tournamentId: string,
     @Body() dto: CreateStageDto,
+    @Req() req: Request,
   ) {
-    return this.tournamentsService.createStage(tournamentId, dto);
+    const userId = (req as any).user.id;
+    return this.tournamentsService.createStage(tournamentId, dto, userId);
   }
 
   @Patch('stages/:id')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
-  async updateStage(@Param('id') id: string, @Body() dto: UpdateStageDto) {
-    return this.tournamentsService.updateStage(id, dto);
+  @UseGuards(SessionGuard)
+  async updateStage(
+    @Param('id') id: string,
+    @Body() dto: UpdateStageDto,
+    @Req() req: Request,
+  ) {
+    const userId = (req as any).user.id;
+    return this.tournamentsService.updateStage(id, dto, userId);
   }
 
   // ===================================
@@ -113,23 +139,45 @@ export class FixturesController {
   // ===================================
 
   @Post('tournaments/:id/generate-bracket')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
+  @UseGuards(SessionGuard)
   async generateKnockoutBracket(
     @Param('id') tournamentId: string,
     @Body() dto: GenerateKnockoutBracketDto,
+    @Req() req: Request,
   ) {
-    return this.matchesService.generateKnockoutBracket(tournamentId, dto);
+    const userId = (req as any).user.id;
+    return this.matchesService.generateKnockoutBracket(
+      tournamentId,
+      dto,
+      userId,
+    );
   }
 
   @Post('tournaments/:id/generate-round-robin')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
+  @UseGuards(SessionGuard)
   async generateRoundRobin(
     @Param('id') tournamentId: string,
     @Body() dto: GenerateRoundRobinDto,
+    @Req() req: Request,
   ) {
-    return this.matchesService.generateRoundRobin(tournamentId, dto);
+    const userId = (req as any).user.id;
+    return this.matchesService.generateRoundRobin(tournamentId, dto, userId);
+  }
+
+  /**
+   * Generates the next Swiss round (chess, etc). Round 1 needs `teamIds`;
+   * every later round is derived automatically from standings in prior Swiss
+   * stages of this tournament — see MatchesService.generateSwissRound.
+   */
+  @Post('tournaments/:id/generate-swiss-round')
+  @UseGuards(SessionGuard)
+  async generateSwissRound(
+    @Param('id') tournamentId: string,
+    @Body() dto: GenerateSwissRoundDto,
+    @Req() req: Request,
+  ) {
+    const userId = (req as any).user.id;
+    return this.matchesService.generateSwissRound(tournamentId, dto, userId);
   }
 
   // ===================================
@@ -163,28 +211,31 @@ export class FixturesController {
   }
 
   @Post('matches')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
-  async createMatch(@Body() dto: CreateMatchDto) {
-    return this.matchesService.createMatch(dto);
+  @UseGuards(SessionGuard)
+  async createMatch(@Body() dto: CreateMatchDto, @Req() req: Request) {
+    const userId = (req as any).user.id;
+    return this.matchesService.createMatch(dto, userId);
   }
 
   @Patch('matches/:id')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
-  async updateMatch(@Param('id') id: string, @Body() dto: UpdateMatchDto) {
-    return this.matchesService.updateMatch(id, dto);
+  @UseGuards(SessionGuard)
+  async updateMatch(
+    @Param('id') id: string,
+    @Body() dto: UpdateMatchDto,
+    @Req() req: Request,
+  ) {
+    const userId = (req as any).user.id;
+    return this.matchesService.updateMatch(id, dto, userId);
   }
 
   @Patch('matches/:id/reschedule')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
+  @UseGuards(SessionGuard)
   async rescheduleMatch(
     @Param('id') id: string,
     @Body() dto: RescheduleMatchDto,
     @Req() req: Request,
   ) {
-    const userId = (req as any).user?.id;
+    const userId = (req as any).user.id;
     return this.matchesService.rescheduleMatch(id, dto, userId);
   }
 
@@ -193,22 +244,28 @@ export class FixturesController {
   // ===================================
 
   @Post('matches/:id/officials')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
+  @UseGuards(SessionGuard)
   async assignOfficial(
     @Param('id') matchId: string,
     @Body() dto: AssignOfficialDto,
+    @Req() req: Request,
   ) {
-    return this.matchesService.assignOfficial(matchId, dto);
+    const actingUserId = (req as any).user.id;
+    return this.matchesService.assignOfficial(matchId, dto, actingUserId);
   }
 
   @Delete('matches/:id/officials/:userId')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('competition.manage')
+  @UseGuards(SessionGuard)
   async removeOfficial(
     @Param('id') matchId: string,
-    @Param('userId') userId: string,
+    @Param('userId') officialUserId: string,
+    @Req() req: Request,
   ) {
-    return this.matchesService.removeOfficial(matchId, userId);
+    const actingUserId = (req as any).user.id;
+    return this.matchesService.removeOfficial(
+      matchId,
+      officialUserId,
+      actingUserId,
+    );
   }
 }

@@ -9,11 +9,18 @@ import {
 
 describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
   let prismaMock: any;
+  let rbacMock: any;
   let tournamentsService: TournamentsService;
   let matchesService: MatchesService;
+  const actingUserId = 'user-coordinator';
 
   beforeEach(() => {
+    rbacMock = {
+      hasPermission: vi.fn().mockResolvedValue(true),
+    };
+
     prismaMock = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
       tournament: {
         findMany: vi.fn(),
         findUnique: vi.fn(),
@@ -27,10 +34,12 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
       },
       tournamentStage: {
         findUnique: vi.fn(),
+        findMany: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
       },
       match: {
+        count: vi.fn().mockResolvedValue(0),
         findMany: vi.fn(),
         findUnique: vi.fn(),
         findFirst: vi.fn(),
@@ -44,6 +53,9 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
         delete: vi.fn(),
       },
       team: {
+        findMany: vi.fn(({ where }) =>
+          Promise.resolve(where.id.in.map((id) => ({ id, institute: {} }))),
+        ),
         findUnique: vi.fn(),
       },
       venue: {
@@ -64,8 +76,8 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
       $transaction: vi.fn(async (cb) => cb(prismaMock)),
     };
 
-    tournamentsService = new TournamentsService(prismaMock);
-    matchesService = new MatchesService(prismaMock);
+    tournamentsService = new TournamentsService(prismaMock, rbacMock);
+    matchesService = new MatchesService(prismaMock, rbacMock);
   });
 
   // ===================================
@@ -96,19 +108,25 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
 
     it('should create a tournament when event and sport exist', async () => {
       prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
-      prismaMock.sport.findUnique.mockResolvedValue({ id: 'sport-1' });
+      prismaMock.sport.findUnique.mockResolvedValue({
+        id: 'sport-1',
+        eventId: 'event-1',
+      });
       prismaMock.tournament.create.mockResolvedValue({
         id: 'tourn-1',
         name: 'Inter-College Football Championship',
         format: 'KNOCKOUT',
       });
 
-      const tourn = await tournamentsService.createTournament({
-        eventId: 'event-1',
-        sportId: 'sport-1',
-        name: 'Inter-College Football Championship',
-        format: 'KNOCKOUT',
-      });
+      const tourn = await tournamentsService.createTournament(
+        {
+          eventId: 'event-1',
+          sportId: 'sport-1',
+          name: 'Inter-College Football Championship',
+          format: 'KNOCKOUT',
+        },
+        actingUserId,
+      );
 
       expect(tourn.id).toBe('tourn-1');
       expect(tourn.name).toBe('Inter-College Football Championship');
@@ -118,12 +136,16 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
       prismaMock.tournament.findUnique.mockResolvedValue({ id: 'tourn-1' });
 
       await expect(
-        tournamentsService.setSeeds('tourn-1', {
-          seeds: [
-            { teamId: 'team-1', seedNumber: 1 },
-            { teamId: 'team-2', seedNumber: 1 }, // Duplicate seed 1
-          ],
-        }),
+        tournamentsService.setSeeds(
+          'tourn-1',
+          {
+            seeds: [
+              { teamId: 'team-1', seedNumber: 1 },
+              { teamId: 'team-2', seedNumber: 1 }, // Duplicate seed 1
+            ],
+          },
+          actingUserId,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -140,12 +162,16 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
         }),
       );
 
-      const res = await tournamentsService.setSeeds('tourn-1', {
-        seeds: [
-          { teamId: 'team-1', seedNumber: 1, notes: 'Defending Champion' },
-          { teamId: 'team-2', seedNumber: 2, notes: 'Runner Up' },
-        ],
-      });
+      const res = await tournamentsService.setSeeds(
+        'tourn-1',
+        {
+          seeds: [
+            { teamId: 'team-1', seedNumber: 1, notes: 'Defending Champion' },
+            { teamId: 'team-2', seedNumber: 2, notes: 'Runner Up' },
+          ],
+        },
+        actingUserId,
+      );
 
       expect(res.seeds).toHaveLength(2);
       expect(res.seeds[0].seedNumber).toBe(1);
@@ -166,15 +192,18 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
         ...data,
       }));
 
-      const match = await matchesService.createMatch({
-        tournamentId: 'tourn-1',
-        venueId: 'venue-1',
-        teamAId: 'team-1',
-        teamBId: 'team-2',
-        matchNumber: 'FB-01',
-        scheduledStartTime: '2026-10-02T10:00:00Z',
-        scheduledEndTime: '2026-10-02T11:30:00Z',
-      });
+      const match = await matchesService.createMatch(
+        {
+          tournamentId: 'tourn-1',
+          venueId: 'venue-1',
+          teamAId: 'team-1',
+          teamBId: 'team-2',
+          matchNumber: 'FB-01',
+          scheduledStartTime: '2026-10-02T10:00:00Z',
+          scheduledEndTime: '2026-10-02T11:30:00Z',
+        },
+        actingUserId,
+      );
 
       expect(match.id).toBe('match-1');
       expect(match.matchNumber).toBe('FB-01');
@@ -192,14 +221,17 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
       });
 
       await expect(
-        matchesService.createMatch({
-          tournamentId: 'tourn-1',
-          venueId: 'venue-1',
-          teamAId: 'team-1',
-          teamBId: 'team-2',
-          scheduledStartTime: '2026-10-02T10:00:00Z',
-          scheduledEndTime: '2026-10-02T11:30:00Z',
-        }),
+        matchesService.createMatch(
+          {
+            tournamentId: 'tourn-1',
+            venueId: 'venue-1',
+            teamAId: 'team-1',
+            teamBId: 'team-2',
+            scheduledStartTime: '2026-10-02T10:00:00Z',
+            scheduledEndTime: '2026-10-02T11:30:00Z',
+          },
+          actingUserId,
+        ),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -216,20 +248,24 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
         });
 
       await expect(
-        matchesService.createMatch({
-          tournamentId: 'tourn-1',
-          venueId: 'venue-free',
-          teamAId: 'team-1',
-          teamBId: 'team-2',
-          scheduledStartTime: '2026-10-02T10:00:00Z',
-          scheduledEndTime: '2026-10-02T11:30:00Z',
-        }),
+        matchesService.createMatch(
+          {
+            tournamentId: 'tourn-1',
+            venueId: 'venue-free',
+            teamAId: 'team-1',
+            teamBId: 'team-2',
+            scheduledStartTime: '2026-10-02T10:00:00Z',
+            scheduledEndTime: '2026-10-02T11:30:00Z',
+          },
+          actingUserId,
+        ),
       ).rejects.toThrow(ConflictException);
     });
 
     it('should reschedule match and write audit log', async () => {
       prismaMock.match.findUnique.mockResolvedValue({
         id: 'match-1',
+        status: 'SCHEDULED',
         venueId: 'venue-1',
         teamAId: 'team-1',
         teamBId: 'team-2',
@@ -275,10 +311,14 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
         role: 'REFEREE',
       });
 
-      const official = await matchesService.assignOfficial('match-1', {
-        userId: 'user-ref',
-        role: 'REFEREE',
-      });
+      const official = await matchesService.assignOfficial(
+        'match-1',
+        {
+          userId: 'user-ref',
+          role: 'REFEREE',
+        },
+        actingUserId,
+      );
 
       expect(official.role).toBe('REFEREE');
     });
@@ -310,12 +350,21 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
         ...data,
       }));
 
-      const res = await matchesService.generateKnockoutBracket('tourn-1', {
-        startTime: '2026-10-02T09:00:00Z',
-      });
+      const res = await matchesService.generateKnockoutBracket(
+        'tourn-1',
+        {
+          startTime: '2026-10-02T09:00:00Z',
+        },
+        actingUserId,
+      );
 
       expect(res.bracketSize).toBe(4);
-      expect(res.matches).toHaveLength(2); // 2 semifinal matches
+      expect(res.matches).toHaveLength(3); // 2 semifinals and the linked final
+      expect(prismaMock.match.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { nextMatchId: 'match-R2-M1', nextMatchSlot: 'A' },
+        }),
+      );
 
       const match1 = res.matches[0];
       const match2 = res.matches[1];
@@ -355,6 +404,9 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
     });
 
     it('should generate round robin fixtures for all team pairs', async () => {
+      prismaMock.team.findMany.mockResolvedValue(
+        [1, 2, 3, 4].map((n) => ({ id: `team-${n}` })),
+      );
       prismaMock.tournament.findUnique.mockResolvedValue({ id: 'tourn-rr' });
       prismaMock.tournamentStage.create.mockResolvedValue({
         id: 'stage-rr',
@@ -365,14 +417,110 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
         ...data,
       }));
 
-      const res = await matchesService.generateRoundRobin('tourn-rr', {
-        teamIds: ['team-1', 'team-2', 'team-3', 'team-4'],
-        startTime: '2026-10-02T09:00:00Z',
-      });
+      const res = await matchesService.generateRoundRobin(
+        'tourn-rr',
+        {
+          teamIds: ['team-1', 'team-2', 'team-3', 'team-4'],
+          startTime: '2026-10-02T09:00:00Z',
+        },
+        actingUserId,
+      );
 
       // For 4 teams in round-robin: 4 * 3 / 2 = 6 total matches
       expect(res.totalMatches).toBe(6);
       expect(res.matches).toHaveLength(6);
+    });
+  });
+
+  describe('Swiss System Pairing', () => {
+    it('pairs round 1 as top half vs bottom half, with a bye for an odd field', async () => {
+      prismaMock.tournament.findUnique.mockResolvedValue({ id: 'tourn-swiss' });
+      prismaMock.tournamentStage.findMany.mockResolvedValue([]); // no prior Swiss stages -> round 1
+      prismaMock.tournamentStage.create.mockResolvedValue({
+        id: 'stage-swiss-1',
+        name: 'Swiss Round 1',
+        sequence: 1,
+      });
+      prismaMock.match.create.mockImplementation(({ data }: any) => ({
+        id: `m-${data.matchNumber}`,
+        ...data,
+      }));
+
+      const res = await matchesService.generateSwissRound(
+        'tourn-swiss',
+        {
+          teamIds: ['t1', 't2', 't3', 't4', 't5'],
+          startTime: '2026-10-02T09:00:00Z',
+        },
+        actingUserId,
+      );
+
+      expect(res.roundNumber).toBe(1);
+      // 5 teams -> 1 bye, 4 paired -> 2 matches
+      expect(res.totalMatches).toBe(2);
+      expect(res.byeTeamId).toBe('t5');
+      // Top half (t1, t2) vs bottom half (t3, t4)
+      expect(res.matches[0].teamAId).toBe('t1');
+      expect(res.matches[0].teamBId).toBe('t3');
+      expect(res.matches[1].teamAId).toBe('t2');
+      expect(res.matches[1].teamBId).toBe('t4');
+    });
+
+    it('derives round 2 pairings from round 1 results and avoids a rematch', async () => {
+      prismaMock.tournament.findUnique.mockResolvedValue({ id: 'tourn-swiss' });
+      // Round 1 history: t1 beat t3, t2 beat t4 -> standings t1=1, t2=1, t3=0, t4=0
+      prismaMock.tournamentStage.findMany.mockResolvedValue([
+        {
+          id: 'stage-swiss-1',
+          stageType: 'SWISS',
+          sequence: 1,
+          matches: [
+            {
+              teamAId: 't1',
+              teamBId: 't3',
+              status: 'COMPLETED',
+              winnerTeamId: 't1',
+              teamAScore: 1,
+              teamBScore: 0,
+              result: { status: 'PUBLISHED', winnerTeamId: 't1' },
+            },
+            {
+              teamAId: 't2',
+              teamBId: 't4',
+              status: 'COMPLETED',
+              winnerTeamId: 't2',
+              teamAScore: 1,
+              teamBScore: 0,
+              result: { status: 'PUBLISHED', winnerTeamId: 't2' },
+            },
+          ],
+        },
+      ]);
+      prismaMock.tournamentStage.create.mockResolvedValue({
+        id: 'stage-swiss-2',
+        name: 'Swiss Round 2',
+        sequence: 2,
+      });
+      prismaMock.match.create.mockImplementation(({ data }: any) => ({
+        id: `m-${data.matchNumber}`,
+        ...data,
+      }));
+
+      const res = await matchesService.generateSwissRound(
+        'tourn-swiss',
+        { startTime: '2026-10-03T09:00:00Z' },
+        actingUserId,
+      );
+
+      expect(res.roundNumber).toBe(2);
+      expect(res.totalMatches).toBe(2);
+      // t1 and t2 are tied on top (1 pt each) and haven't played each other -> paired together.
+      const pairs = res.matches.map((m: any) => [m.teamAId, m.teamBId].sort());
+      expect(pairs).toContainEqual(['t1', 't2'].sort());
+      expect(pairs).toContainEqual(['t3', 't4'].sort());
+      // No repeat of round 1's pairings.
+      expect(pairs).not.toContainEqual(['t1', 't3'].sort());
+      expect(pairs).not.toContainEqual(['t2', 't4'].sort());
     });
   });
 });

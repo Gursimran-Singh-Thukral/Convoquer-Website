@@ -17,9 +17,10 @@ import { RequirePermissions } from '../../common/decorators/require-permissions.
 
 export class AssignRoleDto {
   role!: string;
+  volunteerId?: string;
   sportId?: string;
   eventId?: string;
-  departmentId?: string;
+  department?: string;
   expiresAt?: string;
 }
 
@@ -45,6 +46,13 @@ export class RbacController {
   @RequirePermissions('role.view')
   async getPermissions() {
     return this.rbacService.getPermissions();
+  }
+
+  @Get('rbac/assignment-options')
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermissions('role.assign')
+  async getAssignmentOptions() {
+    return this.rbacService.getAssignmentOptions();
   }
 
   /**
@@ -75,14 +83,15 @@ export class RbacController {
     const currentUserId = (req as any).user.id;
     const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : undefined;
 
-    return this.rbacService.assignRole(
+    return this.rbacService.assignRoleWithVolunteerScopes(
       currentUserId,
       targetUserId,
       dto.role,
       {
+        volunteerId: dto.volunteerId,
         sportId: dto.sportId,
         eventId: dto.eventId,
-        departmentId: dto.departmentId,
+        department: dto.department,
         expiresAt,
       },
       req.ip,

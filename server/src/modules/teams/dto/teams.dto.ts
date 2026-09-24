@@ -49,6 +49,8 @@ export class UpdateParticipantDto {
   dateOfBirth?: string | Date;
   contactNumber?: string;
   category?: string;
+  isFlagged?: boolean;
+  flagReason?: string;
 }
 
 export class RegisterOnSpotAttendeeDto {
@@ -59,12 +61,21 @@ export class RegisterOnSpotAttendeeDto {
   instituteName?: string;
   rollNumber?: string;
   gender?: string;
+  /** Data URL (or hosted URL) of a photograph taken/uploaded at the kiosk. Required. */
+  photographUrl!: string;
+  /** Data URL (or hosted URL) of a scanned government/college ID. Required. */
+  idDocumentUrl!: string;
 }
 
 export class SecurityCheckInDto {
   participantId?: string;
   gatePassNumber?: string;
+  venueId?: string;
   notes?: string;
+}
+
+export class SecurityMovementDto extends SecurityCheckInDto {
+  direction!: 'ENTRY' | 'EXIT';
 }
 
 export class AddTeamMemberDto {
@@ -92,4 +103,5 @@ export class BulkImportParticipantRow {
 export class BulkImportDto {
   eventId!: string;
   rows!: BulkImportParticipantRow[];
+  dryRun?: boolean;
 }

@@ -7,6 +7,7 @@ import {
   Param,
   Query,
   Body,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { EventsService } from './events.service.js';
@@ -46,18 +47,39 @@ export class CompetitionController {
     return this.eventsService.getEventByIdOrSlug(idOrSlug);
   }
 
+  /**
+   * Public homepage hero stats: Elite Universities / Carded Athletes /
+   * Olympic Disciplines / Podium Medals. No auth required — same audience as
+   * the rest of the public marketing site.
+   */
+  @Get('stats/homepage')
+  async getHomepageStats(@Query('eventId') eventId?: string) {
+    return this.eventsService.getHomepageStats(eventId);
+  }
+
   @Post('events')
   @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('sport.create')
-  async createEvent(@Body() dto: CreateEventDto) {
-    return this.eventsService.createEvent(dto);
+  @RequirePermissions('event.create')
+  async createEvent(@Body() dto: CreateEventDto, @Req() req: any) {
+    return this.eventsService.createEvent(dto, req.user.id);
   }
 
   @Patch('events/:id')
   @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('sport.update')
-  async updateEvent(@Param('id') id: string, @Body() dto: UpdateEventDto) {
-    return this.eventsService.updateEvent(id, dto);
+  @RequirePermissions('event.update')
+  async updateEvent(
+    @Param('id') id: string,
+    @Body() dto: UpdateEventDto,
+    @Req() req: any,
+  ) {
+    return this.eventsService.updateEvent(id, dto, req.user.id);
+  }
+
+  @Delete('events/:id')
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermissions('event.delete')
+  async deleteEvent(@Param('id') id: string, @Req() req: any) {
+    return this.eventsService.deleteEvent(id, req.user.id);
   }
 
   // ===================================

@@ -11,7 +11,16 @@ export class PrismaService
   constructor() {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const adapter = new PrismaPg(pool);
-    super({ adapter });
+    super({
+      adapter,
+      // Belt-and-suspenders: these are internal lookup/identity plumbing
+      // (blind-index hash, Google's internal subject id), never something
+      // any API response should carry — omit them globally so no future
+      // query path can accidentally leak them, regardless of `select`.
+      omit: {
+        user: { emailHash: true, googleSubjectId: true },
+      },
+    });
   }
 
   async onModuleInit() {

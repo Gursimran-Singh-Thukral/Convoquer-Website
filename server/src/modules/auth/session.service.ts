@@ -32,7 +32,10 @@ export class SessionService {
   }
 
   async validateSession(token: string): Promise<any> {
-    if (!token || !token.includes('.')) {
+    if (
+      typeof token !== 'string' ||
+      !/^[0-9a-f-]{36}\.[0-9a-f]{64}$/i.test(token)
+    ) {
       throw new UnauthorizedException('Invalid session token format');
     }
 
@@ -51,7 +54,10 @@ export class SessionService {
       throw new UnauthorizedException('Session has been revoked');
     }
 
-    if (new Date() > session.expiresAt) {
+    if (
+      new Date() >= session.expiresAt ||
+      Date.now() - session.lastSeenAt.getTime() > 24 * 60 * 60 * 1000
+    ) {
       throw new UnauthorizedException('Session has expired');
     }
 

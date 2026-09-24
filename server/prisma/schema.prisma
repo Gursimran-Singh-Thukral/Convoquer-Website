@@ -12,7 +12,10 @@ datasource db {
 
 model User {
   id              String    @id @default(uuid())
-  email           String    @unique
+  // Encrypted at rest (AES-256-GCM) — never queried directly. `emailHash` is
+  // the HMAC blind index used for lookups/uniqueness instead.
+  email           String
+  emailHash       String    @unique
   name            String
   profilePhotoUrl String?
   googleSubjectId String    @unique
@@ -21,10 +24,14 @@ model User {
   updatedAt       DateTime  @updatedAt
   lastLoginAt     DateTime?
 
-  sessions       Session[]
-  userRoles      UserRole[]
-  auditLogs      AuditLog[]      @relation("AuditLogUser")
-  matchOfficials MatchOfficial[]
+  sessions         Session[]
+  userRoles        UserRole[]
+  auditLogs        AuditLog[]      @relation("AuditLogUser")
+  matchOfficials   MatchOfficial[]
+  submittedResults Result[]        @relation("ResultSubmitter")
+  approvedResults  Result[]        @relation("ResultApprover")
+  volunteerProfile Volunteer?
+  gateMovements    GateMovement[]  @relation("GateMovementRecorder")
 }
 
 model Role {
@@ -136,9 +143,11 @@ model Event {
   teams        Team[]
   participants Participant[]
   tournaments  Tournament[]
+  medals       Medal[]
 }
 
 model Sport {
+  scoringMode String   @default("LIVE")
   id          String   @id @default(uuid())
   eventId     String
   name        String
@@ -150,19 +159,31 @@ model Sport {
   event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   teams       Team[]
   tournaments Tournament[]
+  medals      Medal[]
 }
 
 model Venue {
-  id        String   @id @default(uuid())
-  eventId   String
-  name      String
-  location  String?
-  status    String   @default("ACTIVE")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  eventId             String
+  name                String
+  location            String?
+  status              String   @default("ACTIVE")
+  // Position of this venue on the custom interactive campus map, as a
+  // percentage (0-100) of the map canvas width/height. Null until an
+  // organizer places the pin — the campus isn't fully mapped on Google Maps.
+  latitude            Float?
+  longitude           Float?
+  simultaneousMatches Int      @default(1)
+  mapX                Float?
+  mapY                Float?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  matches Match[]
+  event               Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  matches             Match[]
+  presentParticipants Participant[]
+  gateMovements       GateMovement[]
+  checkedInVolunteers Volunteer[]
 }
 
 model Institute {
@@ -180,6 +201,7 @@ model Institute {
   event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   teams        Team[]
   participants Participant[]
+  medals       Medal[]
 }
 
 model Team {
@@ -200,6 +222,8 @@ model Team {
   matchesAsTeamB  Match[]              @relation("MatchTeamB")
   matchesWon      Match[]              @relation("MatchWinner")
   tournamentSeeds TournamentTeamSeed[]
+  scoreEvents     ScoreEvent[]
+  resultsWon      Result[]
 }
 
 model Participant {
@@ -208,29 +232,48 @@ model Participant {
   instituteId    String?
   name           String
   photographUrl  String?
+  // Scanned/photographed government or college ID (Aadhaar, college ID card),
+  // required for on-spot gate pass self-registration — see ParticipantsService.registerOnSpotAttendee.
+  idDocumentUrl  String?
+  // Encrypted at rest (AES-256-GCM). `rollNumberHash` is the HMAC blind
+  // index used for exact-match lookups (uniqueness checks, bulk import).
   rollNumber     String?
+  rollNumberHash String?
   gender         String?
   dateOfBirth    DateTime?
+  // Encrypted at rest (AES-256-GCM); no blind index — only searched via
+  // app-level decrypt-then-filter (see ParticipantsService.securitySearch).
   contactNumber  String?
   category       String    @default("ATHLETE") // ATHLETE, AUDIENCE, GUEST, OFFICIAL
   isCheckedIn    Boolean   @default(false)
   checkedInAt    DateTime?
+  currentVenueId String?
   gatePassNumber String?   @unique
+  // Security-desk flagging — persisted so a flag survives past the gate
+  // officer's own session and is visible to the whole security team.
+  isFlagged      Boolean   @default(false)
+  flagReason     String?
+  flaggedAt      DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  institute   Institute?   @relation(fields: [instituteId], references: [id], onDelete: SetNull)
-  teamMembers TeamMember[]
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  institute     Institute?     @relation(fields: [instituteId], references: [id], onDelete: SetNull)
+  teamMembers   TeamMember[]
+  scoreEvents   ScoreEvent[]
+  currentVenue  Venue?         @relation(fields: [currentVenueId], references: [id], onDelete: SetNull)
+  gateMovements GateMovement[]
+
+  @@index([rollNumberHash])
 }
 
 model TeamMember {
-  id            String      @id @default(uuid())
+  id            String   @id @default(uuid())
   teamId        String
   participantId String
-  role          String      @default("PLAYER") // PLAYER, CAPTAIN, SUBSTITUTE
+  role          String   @default("PLAYER") // PLAYER, CAPTAIN, SUBSTITUTE
   jerseyNumber  Int?
-  createdAt     DateTime    @default(now())
+  createdAt     DateTime @default(now())
 
   team        Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
@@ -261,14 +304,15 @@ model Tournament {
   stages  TournamentStage[]
   matches Match[]
   seeds   TournamentTeamSeed[]
+  medals  Medal[]
 }
 
 model TournamentTeamSeed {
   id           String   @id @default(uuid())
   tournamentId String
   teamId       String
-  seedNumber   Int      // 1, 2, 3, etc. Top 2 seeds placed on opposite halves so they cannot meet before Finals
-  notes        String?  // e.g. "Defending Champion", "Pool A Seed 1"
+  seedNumber   Int // 1, 2, 3, etc. Top 2 seeds placed on opposite halves so they cannot meet before Finals
+  notes        String? // e.g. "Defending Champion", "Pool A Seed 1"
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -282,7 +326,7 @@ model TournamentTeamSeed {
 model TournamentStage {
   id           String   @id @default(uuid())
   tournamentId String
-  name         String   // e.g. "Quarterfinals", "Semifinals", "Final", "Group A"
+  name         String // e.g. "Quarterfinals", "Semifinals", "Final", "Group A"
   sequence     Int      @default(1)
   stageType    String   @default("KNOCKOUT") // KNOCKOUT, ROUND_ROBIN
   status       String   @default("PENDING") // PENDING, ONGOING, COMPLETED
@@ -294,32 +338,47 @@ model TournamentStage {
 }
 
 model Match {
+  nextMatchId        String?
+  nextMatchSlot      String?
+  nextMatch          Match?    @relation("BracketProgression", fields: [nextMatchId], references: [id], onDelete: SetNull)
+  previousMatches    Match[]   @relation("BracketProgression")
   id                 String    @id @default(uuid())
   tournamentId       String
   stageId            String?
   venueId            String?
-  matchNumber        String?   // e.g. "FB-M01", "CRIC-SF1"
+  matchNumber        String? // e.g. "FB-M01", "CRIC-SF1"
   teamAId            String?
   teamBId            String?
   teamAScore         Int?
   teamBScore         Int?
   winnerTeamId       String?
-  status             String    @default("SCHEDULED") // SCHEDULED, LIVE, COMPLETED, ABANDONED, CANCELLED, RESCHEDULED
+  status             String    @default("SCHEDULED") // SCHEDULED, LIVE, PAUSED, COMPLETED, ABANDONED, CANCELLED, RESCHEDULED
+  currentPeriod      String? // e.g. "1st Half", "Set 2", "Q3", "14.2 Overs"
+  // Whether this match is being broadcast on the public Live Arena feed. Matches
+  // default to not telecast — an organizer must explicitly flag one for it to
+  // appear on /live, even while its status is LIVE.
+  scoringMode        String    @default("LIVE")
+  isTelecast         Boolean   @default(false)
   scheduledStartTime DateTime
   scheduledEndTime   DateTime?
   actualStartTime    DateTime?
   actualEndTime      DateTime?
-  scoreDetails       Json?     // Extra score breakdown: halves, quarters, sets, overs, bonus
+  scoreDetails       Json? // Extra score breakdown: halves, quarters, sets, overs, bonus
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  tournament Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  stage      TournamentStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
-  venue      Venue?           @relation(fields: [venueId], references: [id], onDelete: SetNull)
-  teamA      Team?            @relation("MatchTeamA", fields: [teamAId], references: [id], onDelete: SetNull)
-  teamB      Team?            @relation("MatchTeamB", fields: [teamBId], references: [id], onDelete: SetNull)
-  winnerTeam Team?            @relation("MatchWinner", fields: [winnerTeamId], references: [id], onDelete: SetNull)
-  officials  MatchOfficial[]
+  tournament  Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  stage       TournamentStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  venue       Venue?           @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  teamA       Team?            @relation("MatchTeamA", fields: [teamAId], references: [id], onDelete: SetNull)
+  teamB       Team?            @relation("MatchTeamB", fields: [teamBId], references: [id], onDelete: SetNull)
+  winnerTeam  Team?            @relation("MatchWinner", fields: [winnerTeamId], references: [id], onDelete: SetNull)
+  officials       MatchOfficial[]
+  scoreEvents     ScoreEvent[]
+  result          Result?
+  operationsTasks OperationsTask[]
+
+  @@unique([nextMatchId, nextMatchSlot])
 }
 
 model MatchOfficial {
@@ -335,3 +394,222 @@ model MatchOfficial {
   @@unique([matchId, userId])
 }
 
+// ===================================
+// LIVE SCORING & SCORE EVENTS
+// ===================================
+
+model ScoreEvent {
+  id             String    @id @default(uuid())
+  matchId        String
+  sequenceNumber Int
+  requestId      String?
+  teamId         String?
+  participantId  String?
+  eventType      String // SPORT-SPECIFIC: GOAL, POINTS, RUNS, WICKET, FOUL, etc.
+  points         Int       @default(0)
+  metadata       Json? // minute, over, setNumber, subType, etc.
+  isReversed     Boolean   @default(false)
+  reversalReason String?
+  reversedAt     DateTime?
+  reversedBy     String?
+  createdBy      String?
+  createdAt      DateTime  @default(now())
+
+  match       Match        @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  team        Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  participant Participant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+
+  @@unique([matchId, sequenceNumber])
+  @@unique([matchId, requestId])
+}
+
+// ===================================
+// OFFICIAL RESULTS & OUTCOMES
+// ===================================
+
+model Result {
+  id              String    @id @default(uuid())
+  matchId         String    @unique
+  status          String    @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, PUBLISHED, REJECTED
+  winnerTeamId    String?
+  finalScoreA     Int
+  finalScoreB     Int
+  scoreDetails    Json? // Extra breakdown: sets, overs, bonus, penalties
+  submittedBy     String?
+  submittedAt     DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  publishedAt     DateTime?
+  rejectionReason String?
+  overrideReason  String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  match      Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  winnerTeam Team? @relation(fields: [winnerTeamId], references: [id], onDelete: SetNull)
+  submitter  User? @relation("ResultSubmitter", fields: [submittedBy], references: [id], onDelete: SetNull)
+  approver   User? @relation("ResultApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
+}
+
+// ===================================
+// MEDAL TALLY & AWARDS
+// ===================================
+
+model Medal {
+  id           String   @id @default(uuid())
+  eventId      String
+  sportId      String
+  tournamentId String?
+  instituteId  String
+  type         String // GOLD, SILVER, BRONZE
+  awardedAt    DateTime @default(now())
+  awardedBy    String?
+  notes        String?
+
+  event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sport      Sport       @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  tournament Tournament? @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
+  institute  Institute   @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, type])
+}
+
+model Sponsor {
+  id          String   @id @default(uuid())
+  name        String
+  role        String
+  tier        String   @default("OFFICIAL_PARTNER")
+  color       String   @default("text-[#FFD700]")
+  logoUrl     String?
+  websiteUrl  String?
+  description String?
+  orderIndex  Int      @default(0)
+  addedBy     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Volunteer {
+  id            String   @id @default(uuid())
+  volunteerCode String   @unique
+  name          String
+  email         String
+  userId        String?  @unique
+  contactNumber String?
+  // A volunteer belongs to exactly one department — it doubles as their ground-level
+  // role scope (see RbacService.assignRoleWithVolunteerScopes / GROUND_ROLE_BY_DEPARTMENT).
+  department    String
+  shift         String   @default("MORNING")
+  venueId       String?
+  venueName     String?
+  // Volunteer's own self check-in — where they've reported being right now, distinct
+  // from venueId (their assigned duty station). Lets a Convener/Co-Convener/dept
+  // Head see live "where is this volunteer" without GPS tracking.
+  currentVenueId String?
+  checkedInAt    DateTime?
+  status        String   @default("ACTIVE")
+  assignedBy    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user            User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  currentVenue    Venue?                   @relation(fields: [currentVenueId], references: [id], onDelete: SetNull)
+  taskAssignments OperationsTaskAssignee[]
+}
+
+model OperationsTask {
+  id         String   @id @default(uuid())
+  title      String
+  department String?
+  // Optional link to a specific match this task concerns (e.g. a scoring duty) —
+  // assigning/removing an assignee on a match-linked task keeps MatchOfficial in
+  // sync (see OperationsTasksService), which is what actually grants scoring
+  // authority for that match.
+  matchId    String?
+  // Denormalized from match.tournament.sportId at creation time, so sport-scoped
+  // list filtering doesn't need to join through match/tournament.
+  sportId    String?
+  priority   String   @default("STANDARD")
+  status     String   @default("STANDBY")
+  assignedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  match     Match?                   @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  assignees OperationsTaskAssignee[]
+}
+
+model OperationsTaskAssignee {
+  id          String   @id @default(uuid())
+  taskId      String
+  volunteerId String
+  assignedAt  DateTime @default(now())
+
+  task      OperationsTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  volunteer Volunteer      @relation(fields: [volunteerId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, volunteerId])
+}
+
+model GateMovement {
+  id            String   @id @default(uuid())
+  participantId String
+  venueId       String?
+  direction     String
+  recordedBy    String?
+  recordedAt    DateTime @default(now())
+
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  venue       Venue?      @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  recorder    User?       @relation("GateMovementRecorder", fields: [recordedBy], references: [id], onDelete: SetNull)
+
+  @@index([participantId, recordedAt])
+  @@index([venueId, recordedAt])
+}
+
+model Announcement {
+  id          String   @id @default(uuid())
+  heading     String
+  description String
+  targets     String[]
+  createdBy   String?
+  createdAt   DateTime @default(now())
+}
+
+model MediaAsset {
+  id              String    @id @default(uuid())
+  slot            String
+  title           String
+  category        String
+  caption         String    @default("")
+  imageUrl        String
+  aspect          String    @default("standard")
+  status          String    @default("PENDING")
+  submittedBy     String?
+  submittedAt     DateTime  @default(now())
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+}
+
+model SiteSettings {
+  id        String   @id @default("site")
+  logoUrl   String?
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model ContentEntry {
+  id        String   @id @default(uuid())
+  kind      String
+  title     String
+  body      String
+  linkUrl   String?
+  status    String   @default("DRAFT")
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, status])
+}

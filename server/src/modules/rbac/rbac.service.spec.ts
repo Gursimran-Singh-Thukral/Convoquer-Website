@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RbacService } from './rbac.service.js';
 import { PermissionsGuard } from '../../common/guards/permissions.guard.js';
 import { Reflector } from '@nestjs/core';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
+import { blindIndex } from '../../common/crypto/field-crypto.js';
 
 describe('RbacService & PermissionsGuard', () => {
   let rbacService: RbacService;
@@ -15,12 +20,15 @@ describe('RbacService & PermissionsGuard', () => {
       userRole: {
         findMany: vi.fn(),
         findUnique: vi.fn(),
-        upsert: vi.fn(),
+        findFirst: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
         delete: vi.fn(),
       },
       role: {
         findFirst: vi.fn(),
         findMany: vi.fn(),
+        findUniqueOrThrow: vi.fn(),
       },
       permission: {
         findMany: vi.fn(),
@@ -28,8 +36,15 @@ describe('RbacService & PermissionsGuard', () => {
       user: {
         findUnique: vi.fn(),
       },
+      volunteer: {
+        findUnique: vi.fn(),
+        update: vi.fn(),
+      },
       auditLog: {
         create: vi.fn(),
+      },
+      matchOfficial: {
+        count: vi.fn().mockResolvedValue(0),
       },
     };
 
@@ -227,7 +242,8 @@ describe('RbacService & PermissionsGuard', () => {
         id: 'role-vol',
         name: 'VOLUNTEER',
       });
-      prismaMock.userRole.upsert.mockResolvedValue({
+      prismaMock.userRole.findFirst.mockResolvedValue(null);
+      prismaMock.userRole.create.mockResolvedValue({
         id: 'ur-new',
         userId: 'target-1',
         roleId: 'role-vol',
@@ -246,6 +262,300 @@ describe('RbacService & PermissionsGuard', () => {
           }),
         }),
       );
+    });
+
+    it('assigns an unscoped (global) role without a null-comparison error', async () => {
+      // Regression test: Prisma's composite-unique `where` shorthand rejects an
+      // explicit `null` for nullable key fields, so assignRole must look the
+      // existing row up via findFirst (equals: null) rather than upsert() by
+      // composite key. This previously threw PrismaClientValidationError for
+      // every unscoped assignment (the common case — e.g. granting CONVENER).
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'target-2',
+        email: 'convener@iitjammu.ac.in',
+      });
+      prismaMock.role.findFirst.mockResolvedValue({
+        id: 'role-convener',
+        name: 'CONVENER',
+      });
+      prismaMock.userRole.findFirst.mockResolvedValue(null);
+      prismaMock.userRole.create.mockResolvedValue({
+        id: 'ur-global',
+        userId: 'target-2',
+        roleId: 'role-convener',
+      });
+      prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-2' });
+
+      await rbacService.assignRole(null, 'target-2', 'CONVENER', {});
+
+      expect(prismaMock.userRole.findFirst).toHaveBeenCalledWith({
+        where: {
+          userId: 'target-2',
+          roleId: 'role-convener',
+          eventId: { equals: null },
+          departmentId: { equals: null },
+          sportId: { equals: null },
+        },
+      });
+      expect(prismaMock.userRole.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: 'target-2',
+          roleId: 'role-convener',
+          eventId: null,
+          departmentId: null,
+          sportId: null,
+        }),
+      });
+    });
+
+    it('updates an existing unscoped assignment instead of creating a duplicate', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'target-3',
+        email: 'media@iitjammu.ac.in',
+      });
+      prismaMock.role.findFirst.mockResolvedValue({
+        id: 'role-media',
+        name: 'MEDIA_HEAD',
+      });
+      prismaMock.userRole.findFirst.mockResolvedValue({
+        id: 'ur-existing',
+        userId: 'target-3',
+        roleId: 'role-media',
+      });
+      prismaMock.userRole.update.mockResolvedValue({
+        id: 'ur-existing',
+        userId: 'target-3',
+        roleId: 'role-media',
+      });
+      prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-3' });
+
+      await rbacService.assignRole('convener-1', 'target-3', 'MEDIA_HEAD');
+
+      expect(prismaMock.userRole.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'ur-existing' } }),
+      );
+      expect(prismaMock.userRole.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('assignRoleWithVolunteerScopes — ground role inference & head departments', () => {
+    const ROLES: Record<string, { id: string; name: string }> = {
+      'role-volunteer': { id: 'role-volunteer', name: 'VOLUNTEER' },
+      VOLUNTEER: { id: 'role-volunteer', name: 'VOLUNTEER' },
+      'role-security-vol': {
+        id: 'role-security-vol',
+        name: 'SECURITY_VOLUNTEER',
+      },
+      SECURITY_VOLUNTEER: {
+        id: 'role-security-vol',
+        name: 'SECURITY_VOLUNTEER',
+      },
+      'role-security-head': { id: 'role-security-head', name: 'SECURITY_HEAD' },
+      SECURITY_HEAD: { id: 'role-security-head', name: 'SECURITY_HEAD' },
+    };
+
+    function mockLinkedVolunteer(department: string) {
+      const volunteer = {
+        id: 'vol-1',
+        email: 'ground@iitjammu.ac.in',
+        department,
+      };
+      prismaMock.volunteer.findUnique.mockResolvedValue(volunteer);
+      prismaMock.user.findUnique.mockResolvedValue({
+        emailHash: blindIndex(volunteer.email),
+      });
+      return volunteer;
+    }
+
+    beforeEach(() => {
+      // Both assignRoleWithVolunteerScopes and the assignRole() it calls into
+      // look roles up by id-or-name — resolve either from the same fixed table
+      // so a role resolved by name earlier is found again correctly by id later.
+      prismaMock.role.findFirst.mockImplementation(async ({ where }: any) => {
+        const key = where.OR[0].id ?? where.OR[1]?.name;
+        return ROLES[key] ?? ROLES[where.OR[1]?.name] ?? null;
+      });
+      prismaMock.role.findUniqueOrThrow.mockImplementation(
+        async ({ where }: any) => ROLES[where.name],
+      );
+      prismaMock.userRole.create.mockResolvedValue({ id: 'ur-new' });
+      prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-x' });
+    });
+
+    it('infers SECURITY_VOLUNTEER when the generic VOLUNTEER role is picked with department "Security"', async () => {
+      mockLinkedVolunteer('Security');
+
+      await rbacService.assignRoleWithVolunteerScopes(
+        'admin-1',
+        'target-1',
+        'VOLUNTEER',
+        { volunteerId: 'vol-1', department: 'Security' },
+      );
+
+      expect(prismaMock.role.findUniqueOrThrow).toHaveBeenCalledWith({
+        where: { name: 'SECURITY_VOLUNTEER' },
+      });
+      expect(prismaMock.userRole.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ roleId: 'role-security-vol' }),
+        }),
+      );
+      expect(prismaMock.volunteer.update).toHaveBeenCalledWith({
+        where: { id: 'vol-1' },
+        data: { userId: 'target-1', department: 'Security' },
+      });
+    });
+
+    it('falls back to the generic VOLUNTEER role for a department with no dedicated ground role', async () => {
+      mockLinkedVolunteer('Hospitality');
+
+      await rbacService.assignRoleWithVolunteerScopes(
+        'admin-1',
+        'target-1',
+        'VOLUNTEER',
+        { volunteerId: 'vol-1', department: 'Hospitality' },
+      );
+
+      expect(prismaMock.role.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(prismaMock.userRole.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ roleId: 'role-volunteer' }),
+        }),
+      );
+    });
+
+    it("forces a Head role's canonical department onto the volunteer, overriding whatever they had before", async () => {
+      mockLinkedVolunteer('Media'); // previously a Media volunteer
+
+      await rbacService.assignRoleWithVolunteerScopes(
+        'admin-1',
+        'target-1',
+        'SECURITY_HEAD',
+        { volunteerId: 'vol-1' },
+      );
+
+      expect(prismaMock.volunteer.update).toHaveBeenCalledWith({
+        where: { id: 'vol-1' },
+        data: { userId: 'target-1', department: 'Security' },
+      });
+      expect(prismaMock.userRole.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ roleId: 'role-security-head' }),
+        }),
+      );
+    });
+
+    it('rejects an unrecognized department', async () => {
+      prismaMock.role.findFirst.mockResolvedValue({
+        id: 'role-volunteer',
+        name: 'VOLUNTEER',
+      });
+
+      await expect(
+        rbacService.assignRoleWithVolunteerScopes(
+          'admin-1',
+          'target-1',
+          'VOLUNTEER',
+          { volunteerId: 'vol-1', department: 'Not A Real Department' },
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects a ground-role assignment with no volunteer selected', async () => {
+      prismaMock.role.findFirst.mockResolvedValue({
+        id: 'role-volunteer',
+        name: 'VOLUNTEER',
+      });
+
+      await expect(
+        rbacService.assignRoleWithVolunteerScopes(
+          'admin-1',
+          'target-1',
+          'VOLUNTEER',
+          {},
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('bootstrapFirstConvenerIfNeeded', () => {
+    beforeEach(() => {
+      prismaMock.role.findUnique = vi.fn();
+    });
+
+    it('grants CONVENER when the email matches and no CONVENER exists yet', async () => {
+      process.env.CONVENER_BOOTSTRAP_EMAIL = 'first.admin@iitjammu.ac.in';
+      prismaMock.userRole.findFirst.mockResolvedValueOnce(null); // no existing CONVENER
+      prismaMock.role.findUnique.mockResolvedValue({
+        id: 'role-convener',
+        name: 'CONVENER',
+      });
+      prismaMock.role.findFirst.mockResolvedValue({
+        id: 'role-convener',
+        name: 'CONVENER',
+      });
+      prismaMock.user.findUnique.mockResolvedValue({ id: 'user-new' });
+      prismaMock.userRole.findFirst.mockResolvedValueOnce(null); // assignRole's own existing-assignment lookup
+      prismaMock.userRole.create.mockResolvedValue({ id: 'ur-bootstrap' });
+      prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-bootstrap' });
+
+      await rbacService.bootstrapFirstConvenerIfNeeded(
+        'user-new',
+        'First.Admin@iitjammu.ac.in',
+      );
+
+      expect(prismaMock.userRole.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'user-new',
+            roleId: 'role-convener',
+          }),
+        }),
+      );
+
+      delete process.env.CONVENER_BOOTSTRAP_EMAIL;
+    });
+
+    it('does nothing when the email does not match', async () => {
+      process.env.CONVENER_BOOTSTRAP_EMAIL = 'first.admin@iitjammu.ac.in';
+
+      await rbacService.bootstrapFirstConvenerIfNeeded(
+        'user-x',
+        'someone.else@iitjammu.ac.in',
+      );
+
+      expect(prismaMock.userRole.findFirst).not.toHaveBeenCalled();
+      expect(prismaMock.userRole.create).not.toHaveBeenCalled();
+
+      delete process.env.CONVENER_BOOTSTRAP_EMAIL;
+    });
+
+    it('does nothing when a CONVENER already exists, even for the bootstrap email', async () => {
+      process.env.CONVENER_BOOTSTRAP_EMAIL = 'first.admin@iitjammu.ac.in';
+      prismaMock.userRole.findFirst.mockResolvedValueOnce({
+        id: 'ur-existing-convener',
+      });
+
+      await rbacService.bootstrapFirstConvenerIfNeeded(
+        'user-new',
+        'first.admin@iitjammu.ac.in',
+      );
+
+      expect(prismaMock.userRole.create).not.toHaveBeenCalled();
+
+      delete process.env.CONVENER_BOOTSTRAP_EMAIL;
+    });
+
+    it('does nothing when CONVENER_BOOTSTRAP_EMAIL is unset', async () => {
+      delete process.env.CONVENER_BOOTSTRAP_EMAIL;
+
+      await rbacService.bootstrapFirstConvenerIfNeeded(
+        'user-new',
+        'anyone@iitjammu.ac.in',
+      );
+
+      expect(prismaMock.userRole.findFirst).not.toHaveBeenCalled();
+      expect(prismaMock.userRole.create).not.toHaveBeenCalled();
     });
   });
 });

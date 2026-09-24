@@ -34,28 +34,12 @@ export class PermissionsGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required');
     }
 
-    // Extract scope parameters from URL params or query if present
-    const sportId =
-      request.params?.sportId ||
-      request.query?.sportId ||
-      request.body?.sportId;
-    const eventId =
-      request.params?.eventId ||
-      request.query?.eventId ||
-      request.body?.eventId;
-    const departmentId =
-      request.params?.departmentId ||
-      request.query?.departmentId ||
-      request.body?.departmentId;
-
-    const scope = {
-      sportId: typeof sportId === 'string' ? sportId : undefined,
-      eventId: typeof eventId === 'string' ? eventId : undefined,
-      departmentId: typeof departmentId === 'string' ? departmentId : undefined,
-    };
-
     // User must satisfy all listed permissions
     for (const permission of requiredPermissions) {
+      const scope = await this.rbacService.resolveRequestScope(
+        request,
+        permission,
+      );
       const hasPerm = await this.rbacService.hasPermission(
         user.id,
         permission,

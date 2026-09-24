@@ -68,6 +68,9 @@ export class SportsService {
         eventId: dto.eventId,
         name: dto.name,
         description: dto.description,
+        scoringMode:
+          dto.scoringMode ??
+          (dto.name.trim().toLowerCase() === 'chess' ? 'RESULT_ONLY' : 'LIVE'),
         status: dto.status || 'ACTIVE',
       },
       include: { event: true },
@@ -91,26 +94,39 @@ export class SportsService {
       }
     }
 
-    return this.prisma.sport.update({
-      where: { id },
-      data: {
-        name: dto.name,
-        description: dto.description,
-        status: dto.status,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Sport" WHERE "id" = ${id} FOR UPDATE`;
+      const sport = await tx.sport.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          description: dto.description,
+          status: dto.status,
+          scoringMode: dto.scoringMode,
+        },
+      });
+      if (dto.scoringMode)
+        await tx.match.updateMany({
+          where: {
+            tournament: { sportId: id },
+            status: { in: ['SCHEDULED', 'READY', 'RESCHEDULED'] },
+          },
+          data: { scoringMode: dto.scoringMode },
+        });
+      return sport;
     });
   }
 
   async deleteSport(id: string) {
     const existing = await this.prisma.sport.findUnique({
       where: { id },
-      include: { _count: { select: { teams: true } } },
+      include: { _count: { select: { teams: true, tournaments: true } } },
     });
     if (!existing) {
       throw new NotFoundException(`Sport with id "${id}" not found`);
     }
 
-    if (existing._count.teams > 0) {
+    if (existing._count.teams > 0 || existing._count.tournaments > 0) {
       // Soft-delete if registered teams exist
       return this.prisma.sport.update({
         where: { id },

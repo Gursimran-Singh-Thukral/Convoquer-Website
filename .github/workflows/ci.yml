@@ -1,0 +1,18 @@
+name: Validation
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate --workspace server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/convoquer_ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

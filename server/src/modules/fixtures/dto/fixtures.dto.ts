@@ -42,6 +42,7 @@ export class UpdateStageDto {
 }
 
 export class CreateMatchDto {
+  scoringMode?: 'LIVE' | 'RESULT_ONLY';
   tournamentId!: string;
   stageId?: string;
   venueId?: string;
@@ -54,6 +55,7 @@ export class CreateMatchDto {
 }
 
 export class UpdateMatchDto {
+  scoringMode?: 'LIVE' | 'RESULT_ONLY';
   stageId?: string;
   venueId?: string;
   matchNumber?: string;
@@ -63,6 +65,7 @@ export class UpdateMatchDto {
   teamBScore?: number;
   winnerTeamId?: string;
   status?: string;
+  isTelecast?: boolean;
   scheduledStartTime?: string;
   scheduledEndTime?: string;
   scoreDetails?: Record<string, any>;
@@ -87,7 +90,9 @@ export class GenerateKnockoutBracketDto {
   defaultVenueId?: string;
   startTime!: string; // ISO date string
   matchDurationMinutes?: number; // default: 90
-  breakMinutes?: number; // default: 30
+  breakMinutes?: number;
+  simultaneousMatches?: number;
+  scoringMode?: 'LIVE' | 'RESULT_ONLY'; // default: 30
 }
 
 export class GenerateRoundRobinDto {
@@ -97,4 +102,17 @@ export class GenerateRoundRobinDto {
   startTime!: string;
   matchDurationMinutes?: number;
   breakMinutes?: number;
+  simultaneousMatches?: number;
+  scoringMode?: 'LIVE' | 'RESULT_ONLY';
+}
+
+export class GenerateSwissRoundDto {
+  /** Required only for round 1 — every subsequent round derives the field from prior Swiss stages. */
+  teamIds?: string[];
+  defaultVenueId?: string;
+  startTime!: string;
+  matchDurationMinutes?: number;
+  breakMinutes?: number;
+  simultaneousMatches?: number;
+  scoringMode?: 'LIVE' | 'RESULT_ONLY';
 }

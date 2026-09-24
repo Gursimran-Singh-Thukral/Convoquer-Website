@@ -1,5 +1,22 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
+import { blindIndex } from '../../common/crypto/field-crypto.js';
+import {
+  CANONICAL_DEPARTMENTS,
+  GROUND_ROLE_BY_DEPARTMENT,
+  HEAD_ROLE_DEPARTMENT,
+} from '../../common/department.js';
+
+const GROUND_ROLE_NAMES = [
+  'VOLUNTEER',
+  'SECURITY_VOLUNTEER',
+  'SPORTS_VOLUNTEER',
+  'MEDIA_TEAM',
+];
 
 export interface UserPermissionEntry {
   action: string;
@@ -7,12 +24,20 @@ export interface UserPermissionEntry {
   sportIds: string[];
   eventIds: string[];
   departmentIds: string[];
+  grants?: { sportId?: string; eventId?: string; departmentId?: string }[];
 }
 
 export interface UserEffectiveAuth {
   userId: string;
   roles: string[];
   permissions: Record<string, UserPermissionEntry>;
+  /**
+   * Whether this user is a MatchOfficial (e.g. a scorekeeper) on at least one
+   * match. Lets a role with no sport-wide score.update grant (e.g. a Sports
+   * Volunteer only tasked to score one specific match) still see the Scorer
+   * nav link — see OrganizerNavRail.tsx.
+   */
+  hasOfficialAssignments: boolean;
 }
 
 @Injectable()
@@ -63,12 +88,18 @@ export class RbacService {
             sportIds: [],
             eventIds: [],
             departmentIds: [],
+            grants: [],
           };
         }
 
         if (isGlobal) {
           permissionsMap[action].isGlobal = true;
         } else {
+          permissionsMap[action].grants!.push({
+            sportId: ur.sportId || undefined,
+            eventId: ur.eventId || undefined,
+            departmentId: ur.departmentId || undefined,
+          });
           if (
             ur.sportId &&
             !permissionsMap[action].sportIds.includes(ur.sportId)
@@ -91,10 +122,15 @@ export class RbacService {
       }
     }
 
+    const officialCount = await this.prisma.matchOfficial.count({
+      where: { userId },
+    });
+
     return {
       userId,
       roles: activeRoles,
       permissions: permissionsMap,
+      hasOfficialAssignments: officialCount > 0,
     };
   }
 
@@ -118,7 +154,17 @@ export class RbacService {
       return true;
     }
 
-    // If a scope is required, check if user has matching scoped assignment
+    // All restrictions on one assignment must match together. Flattening them
+    // into independent OR lists grants an event-scoped coordinator every sport.
+    if (entry.grants) {
+      return entry.grants.some((grant) =>
+        Object.entries(grant).every(
+          ([key, value]) =>
+            !value || scope?.[key as keyof typeof scope] === value,
+        ),
+      );
+    }
+    // Compatibility for callers with legacy permission snapshots.
     if (scope?.sportId && entry.sportIds.includes(scope.sportId)) {
       return true;
     }
@@ -145,9 +191,216 @@ export class RbacService {
     return requiredRoles.some((r) => effective.roles.includes(r));
   }
 
+  /** Derive scope from persisted targets; never authorize an ID using a query-string claim. */
+  async resolveRequestScope(request: any, action: string) {
+    const path = String(request.route?.path || request.path || '');
+    if (
+      /^(role|user|audit|session|media|sponsor|volunteer|announcement|task)\./.test(
+        action,
+      )
+    )
+      return {};
+    const id = request.params?.id || request.params?.teamId;
+    const resource = path
+      .split('/')
+      .find((part: string) =>
+        [
+          'sports',
+          'teams',
+          'venues',
+          'events',
+          'institutes',
+          'participants',
+        ].includes(part),
+      );
+    if (id && resource) {
+      let record: any;
+      if (resource === 'sports')
+        record = await this.prisma.sport.findUnique({ where: { id } });
+      if (resource === 'teams')
+        record = await this.prisma.team.findUnique({ where: { id } });
+      if (resource === 'venues')
+        record = await this.prisma.venue.findUnique({ where: { id } });
+      if (resource === 'events')
+        record = await this.prisma.event.findUnique({ where: { id } });
+      if (resource === 'institutes')
+        record = await this.prisma.institute.findUnique({ where: { id } });
+      if (resource === 'participants')
+        record = await this.prisma.participant.findUnique({ where: { id } });
+      if (!record) throw new NotFoundException('Resource not found');
+      return {
+        eventId: resource === 'events' ? record.id : record.eventId,
+        sportId: resource === 'sports' ? record.id : record.sportId,
+      };
+    }
+    if (path.includes('security/check-in')) {
+      const body = request.body || {};
+      if (!body.participantId && !body.gatePassNumber)
+        throw new BadRequestException('Participant or pass is required');
+      const record = await this.prisma.participant.findFirst({
+        where: body.participantId
+          ? { id: body.participantId }
+          : { gatePassNumber: body.gatePassNumber },
+      });
+      if (!record) throw new NotFoundException('Participant not found');
+      return { eventId: record.eventId };
+    }
+    const values = request.method === 'GET' ? request.query : request.body;
+    const sportId = values?.sportId;
+    const eventId = values?.eventId;
+    // These are the same filters/foreign keys used by the downstream operation.
+    if (
+      sportId &&
+      (resource === 'teams' || path.includes('pending-approvals'))
+    ) {
+      const sport = await this.prisma.sport.findUnique({
+        where: { id: sportId },
+      });
+      if (!sport || (eventId && sport.eventId !== eventId))
+        throw new BadRequestException('Invalid event/sport combination');
+      return { sportId: sport.id, eventId: sport.eventId };
+    }
+    return {
+      eventId:
+        typeof eventId === 'string' &&
+        (resource ||
+          path.includes('security') ||
+          path.includes('pending-approvals'))
+          ? eventId
+          : undefined,
+    };
+  }
+
+  /**
+   * Production bootstrap: without this, a fresh deployment has no CONVENER
+   * and therefore no account can ever be granted `role.assign` — every RBAC
+   * endpoint requires a permission nobody holds yet. If CONVENER_BOOTSTRAP_EMAIL
+   * is set and matches the signing-in user, and no CONVENER exists anywhere
+   * in the system yet, grant it automatically. Safe to call on every login:
+   * it no-ops the moment a CONVENER exists, so it can't be used to re-grant
+   * or escalate after initial setup, and it deliberately does not depend on
+   * the caller already having any permission (there's nobody to have one).
+   */
+  async bootstrapFirstConvenerIfNeeded(
+    userId: string,
+    email: string,
+  ): Promise<void> {
+    const bootstrapEmail =
+      process.env.CONVENER_BOOTSTRAP_EMAIL?.trim().toLowerCase();
+    if (!bootstrapEmail || email.trim().toLowerCase() !== bootstrapEmail)
+      return;
+
+    const anyConvener = await this.prisma.userRole.findFirst({
+      where: { role: { name: 'CONVENER' } },
+    });
+    if (anyConvener) return;
+
+    const convenerRole = await this.prisma.role.findUnique({
+      where: { name: 'CONVENER' },
+    });
+    if (!convenerRole) return;
+
+    await this.assignRole(null, userId, convenerRole.id);
+  }
+
   /**
    * Assigns a role to a user and writes to the audit log.
+   *
+   * Two distinct modes, both going through this one entry point:
+   *  - Head role (e.g. SECURITY_HEAD, SPORTS_COORDINATOR): `roleIdOrName` names
+   *    the actual role to grant. Its department is enforced from
+   *    HEAD_ROLE_DEPARTMENT, not chosen by the caller — a volunteer has exactly
+   *    one department, so assigning a Head role overwrites it to match.
+   *  - Ground volunteer: `roleIdOrName` is the literal 'VOLUNTEER' placeholder;
+   *    the actual role granted (SECURITY_VOLUNTEER/MEDIA_TEAM/SPORTS_VOLUNTEER/
+   *    plain VOLUNTEER) is inferred purely from `scope.department` via
+   *    GROUND_ROLE_BY_DEPARTMENT. The caller never names a ground role directly.
    */
+  async assignRoleWithVolunteerScopes(
+    assignerUserId: string,
+    targetUserId: string,
+    roleIdOrName: string,
+    scope: {
+      volunteerId?: string;
+      sportId?: string;
+      eventId?: string;
+      department?: string;
+      expiresAt?: Date;
+    },
+    ipAddress?: string,
+  ) {
+    const role = await this.prisma.role.findFirst({
+      where: { OR: [{ id: roleIdOrName }, { name: roleIdOrName }] },
+    });
+    if (!role) throw new NotFoundException(`Role "${roleIdOrName}" not found`);
+    if (role.name === 'SPORTS_COORDINATOR' && !scope.sportId)
+      throw new BadRequestException(
+        'A sports coordinator must be assigned to a specific sport.',
+      );
+    if (GROUND_ROLE_NAMES.includes(role.name) && !scope.volunteerId)
+      throw new BadRequestException(
+        'Select a volunteer record when assigning a volunteer role.',
+      );
+
+    let department = scope.department?.trim() || undefined;
+    if (department && !CANONICAL_DEPARTMENTS.includes(department))
+      throw new BadRequestException(
+        `"${department}" is not a recognized department.`,
+      );
+
+    let resolvedRole = role;
+    if (scope.volunteerId) {
+      const [volunteer, user] = await Promise.all([
+        this.prisma.volunteer.findUnique({ where: { id: scope.volunteerId } }),
+        this.prisma.user.findUnique({
+          where: { id: targetUserId },
+          select: { emailHash: true },
+        }),
+      ]);
+      if (!volunteer || !user)
+        throw new NotFoundException('Volunteer or user account not found.');
+      if (blindIndex(volunteer.email) !== user.emailHash)
+        throw new BadRequestException(
+          'The selected volunteer email does not match the selected login account.',
+        );
+
+      department =
+        HEAD_ROLE_DEPARTMENT[role.name] || department || volunteer.department;
+
+      if (role.name === 'VOLUNTEER') {
+        const groundRoleName =
+          GROUND_ROLE_BY_DEPARTMENT[department.toLowerCase()];
+        if (groundRoleName)
+          resolvedRole = await this.prisma.role.findUniqueOrThrow({
+            where: { name: groundRoleName },
+          });
+      }
+
+      await this.prisma.volunteer.update({
+        where: { id: volunteer.id },
+        data: { userId: targetUserId, department },
+      });
+    }
+
+    // Department membership belongs to the linked Volunteer profile. Applying a
+    // department restriction to UserRole would also restrict unrelated sport,
+    // participant and media permissions whose resources have no department key.
+    // Task services enforce these profile departments on every read/write.
+    return [
+      await this.assignRole(
+        assignerUserId,
+        targetUserId,
+        resolvedRole.id,
+        {
+          sportId: scope.sportId,
+          eventId: scope.eventId,
+          expiresAt: scope.expiresAt,
+        },
+        ipAddress,
+      ),
+    ];
+  }
+
   async assignRole(
     assignerUserId: string | null,
     targetUserId: string,
@@ -178,30 +431,41 @@ export class RbacService {
       throw new NotFoundException(`Role "${roleIdOrName}" not found`);
     }
 
-    const userRole = await this.prisma.userRole.upsert({
+    // Prisma's composite-unique `where` shorthand rejects explicit `null` for
+    // nullable key fields (it requires a defined value), so a plain `upsert()`
+    // against `userId_roleId_eventId_departmentId_sportId` throws whenever the
+    // assignment is unscoped (the common case: global roles like CONVENER).
+    // Look the existing assignment up manually instead, matching nulls with
+    // `equals: null`, which Prisma's regular `where` filters do support.
+    const existing = await this.prisma.userRole.findFirst({
       where: {
-        userId_roleId_eventId_departmentId_sportId: {
-          userId: targetUserId,
-          roleId: role.id,
-          eventId: scope?.eventId ?? (null as any),
-          departmentId: scope?.departmentId ?? (null as any),
-          sportId: scope?.sportId ?? (null as any),
-        },
-      },
-      update: {
-        assignedBy: assignerUserId,
-        expiresAt: scope?.expiresAt ?? null,
-      },
-      create: {
         userId: targetUserId,
         roleId: role.id,
-        eventId: scope?.eventId ?? null,
-        departmentId: scope?.departmentId ?? null,
-        sportId: scope?.sportId ?? null,
-        assignedBy: assignerUserId,
-        expiresAt: scope?.expiresAt ?? null,
+        eventId: scope?.eventId ?? { equals: null },
+        departmentId: scope?.departmentId ?? { equals: null },
+        sportId: scope?.sportId ?? { equals: null },
       },
     });
+
+    const userRole = existing
+      ? await this.prisma.userRole.update({
+          where: { id: existing.id },
+          data: {
+            assignedBy: assignerUserId,
+            expiresAt: scope?.expiresAt ?? null,
+          },
+        })
+      : await this.prisma.userRole.create({
+          data: {
+            userId: targetUserId,
+            roleId: role.id,
+            eventId: scope?.eventId ?? null,
+            departmentId: scope?.departmentId ?? null,
+            sportId: scope?.sportId ?? null,
+            assignedBy: assignerUserId,
+            expiresAt: scope?.expiresAt ?? null,
+          },
+        });
 
     // Write to AuditLog for traceability
     await this.prisma.auditLog.create({
@@ -290,5 +554,26 @@ export class RbacService {
     return this.prisma.permission.findMany({
       orderBy: { action: 'asc' },
     });
+  }
+
+  async getAssignmentOptions() {
+    const [volunteers, sports, events] = await Promise.all([
+      this.prisma.volunteer.findMany({ orderBy: { name: 'asc' } }),
+      this.prisma.sport.findMany({
+        where: { status: 'ACTIVE' },
+        select: { id: true, name: true, eventId: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.event.findMany({
+        select: { id: true, name: true, status: true },
+        orderBy: { startDate: 'desc' },
+      }),
+    ]);
+    return {
+      volunteers,
+      sports,
+      events,
+      departments: CANONICAL_DEPARTMENTS,
+    };
   }
 }

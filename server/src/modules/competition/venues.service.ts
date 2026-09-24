@@ -2,9 +2,21 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import { CreateVenueDto, UpdateVenueDto } from './dto/competition.dto.js';
+
+function validateMapCoords(mapX?: number | null, mapY?: number | null) {
+  for (const [key, val] of [
+    ['mapX', mapX],
+    ['mapY', mapY],
+  ] as const) {
+    if (val !== undefined && val !== null && (val < 0 || val > 100)) {
+      throw new BadRequestException(`${key} must be between 0 and 100`);
+    }
+  }
+}
 
 @Injectable()
 export class VenuesService {
@@ -55,12 +67,26 @@ export class VenuesService {
       );
     }
 
+    validateMapCoords(dto.mapX, dto.mapY);
+    if (
+      (dto.latitude != null) !== (dto.longitude != null) ||
+      (dto.latitude === undefined) !== (dto.longitude === undefined)
+    )
+      throw new BadRequestException(
+        'Provide both latitude and longitude, or clear both',
+      );
+
     return this.prisma.venue.create({
       data: {
         eventId: dto.eventId,
         name: dto.name,
         location: dto.location,
         status: dto.status || 'ACTIVE',
+        latitude: dto.latitude,
+        longitude: dto.longitude,
+        simultaneousMatches: dto.simultaneousMatches,
+        mapX: dto.mapX,
+        mapY: dto.mapY,
       },
       include: { event: true },
     });
@@ -83,12 +109,26 @@ export class VenuesService {
       }
     }
 
+    validateMapCoords(dto.mapX, dto.mapY);
+    if (
+      (dto.latitude != null) !== (dto.longitude != null) ||
+      (dto.latitude === undefined) !== (dto.longitude === undefined)
+    )
+      throw new BadRequestException(
+        'Provide both latitude and longitude, or clear both',
+      );
+
     return this.prisma.venue.update({
       where: { id },
       data: {
         name: dto.name,
         location: dto.location,
         status: dto.status,
+        latitude: dto.latitude,
+        longitude: dto.longitude,
+        simultaneousMatches: dto.simultaneousMatches,
+        mapX: dto.mapX,
+        mapY: dto.mapY,
       },
     });
   }
@@ -99,6 +139,12 @@ export class VenuesService {
       throw new NotFoundException(`Venue with id "${id}" not found`);
     }
 
+    if (await this.prisma.match.count({ where: { venueId: id } })) {
+      return this.prisma.venue.update({
+        where: { id },
+        data: { status: 'INACTIVE' },
+      });
+    }
     await this.prisma.venue.delete({ where: { id } });
     return { success: true, message: `Venue "${existing.name}" deleted` };
   }
