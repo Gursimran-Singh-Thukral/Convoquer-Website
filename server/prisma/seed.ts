@@ -9,9 +9,8 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 // Mirrors server/src/common/crypto/field-crypto.ts's blindIndex(). Duplicated
-// (rather than imported) because this script runs standalone via
-// `node --experimental-strip-types`, which can't resolve the app's compiled
-// `.js` import specifiers against source `.ts` files outside a build step.
+// (rather than imported) so this script stays standalone (run via `tsx`)
+// and doesn't pull the Nest app's module graph into a seed run.
 function seedEncryptionKey(): Buffer {
   const raw = process.env.FIELD_ENCRYPTION_KEY;
   return raw
