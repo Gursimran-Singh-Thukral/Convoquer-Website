@@ -58,6 +58,7 @@ interface AssignmentOptions {
     name: string;
     email: string;
     department: string;
+    departments?: string[];
     userId?: string | null;
   }>;
   sports: Array<{ id: string; name: string; eventId: string }>;
@@ -163,7 +164,8 @@ export default function RbacManagerPage() {
   const [newRole, setNewRole] = useState('');
   const [newScopeSportId, setNewScopeSportId] = useState('');
   const [newScopeEventId, setNewScopeEventId] = useState('');
-  const [selectedVolunteerId, setSelectedVolunteerId] = useState('');
+  const [selectedVolunteerIds, setSelectedVolunteerIds] = useState<string[]>([]);
+  const [volunteerSearch, setVolunteerSearch] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [assignmentOptions, setAssignmentOptions] = useState<AssignmentOptions>({
     volunteers: [],
@@ -245,6 +247,16 @@ export default function RbacManagerPage() {
   // The assign-role modal's Role Tier dropdown only ever offers Head roles —
   // ground-level roles are granted from the department picked in Volunteer mode.
   const headRolesByHierarchy = rolesByHierarchy.filter((r) => HEAD_ROLE_NAMES.includes(r.name));
+  const normalizedVolunteerSearch = volunteerSearch.trim().toLowerCase();
+  const filteredAssignmentVolunteers = assignmentOptions.volunteers.filter((volunteer) => {
+    if (!normalizedVolunteerSearch) return true;
+    return [
+      volunteer.name,
+      volunteer.email,
+      volunteer.department,
+      ...(volunteer.departments || []),
+    ].some((value) => value?.toLowerCase().includes(normalizedVolunteerSearch));
+  });
 
   const filteredUsers = users.filter((u) => {
     if (filterRole !== 'ALL' && !u.userRoles.some((ur) => ur.role.name === filterRole))
@@ -274,12 +286,20 @@ export default function RbacManagerPage() {
 
   const handleAssignRole = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedVolunteerId) return;
+    if (!selectedVolunteerIds.length) return;
     if (assignMode === 'HEAD' && !newRole) return;
     if (assignMode === 'VOLUNTEER' && !selectedDepartment) return;
 
-    const volunteer = assignmentOptions.volunteers.find((v) => v.id === selectedVolunteerId);
-    if (!volunteer) return;
+    const selectedVolunteers = assignmentOptions.volunteers.filter((volunteer) =>
+      selectedVolunteerIds.includes(volunteer.id),
+    );
+    if (selectedVolunteers.length !== selectedVolunteerIds.length) {
+      showNotification(
+        'error',
+        'One or more selected volunteers are no longer available. Refresh and try again.',
+      );
+      return;
+    }
 
     setAssignSubmitting(true);
     try {
@@ -298,32 +318,54 @@ export default function RbacManagerPage() {
       // Volunteer record and it activates automatically the moment they do
       // (see RbacService.linkPendingVolunteerRole) — no need to wait for them
       // to log in before you can set this up.
-      let pending = false;
-      if (volunteer.userId) {
-        await apiPost(`/users/${volunteer.userId}/roles`, {
-          role: roleToAssign,
-          volunteerId: selectedVolunteerId,
-          ...scope,
-        });
-      } else {
-        const result = await apiPost<{ pending: boolean }>(
-          `/volunteers/${selectedVolunteerId}/role`,
-          { role: roleToAssign, ...scope },
+      const results = await Promise.allSettled(
+        selectedVolunteers.map(async (volunteer) => {
+          if (volunteer.userId) {
+            await apiPost(`/users/${volunteer.userId}/roles`, {
+              role: roleToAssign,
+              volunteerId: volunteer.id,
+              ...scope,
+            });
+            return { pending: false };
+          }
+          const result = await apiPost<{ pending: boolean }>(`/volunteers/${volunteer.id}/role`, {
+            role: roleToAssign,
+            ...scope,
+          });
+          return { pending: result.pending };
+        }),
+      );
+      const failed = results.filter(
+        (result): result is PromiseRejectedResult => result.status === 'rejected',
+      );
+      const assigned = results.filter(
+        (result): result is PromiseFulfilledResult<{ pending: boolean }> =>
+          result.status === 'fulfilled',
+      );
+      const pendingCount = results.filter(
+        (result) => result.status === 'fulfilled' && result.value.pending,
+      ).length;
+
+      if (failed.length) {
+        const firstReason = failed[0].reason;
+        showNotification(
+          'error',
+          `${assigned.length} of ${selectedVolunteers.length} volunteers were assigned. ${failed.length} failed: ${firstReason instanceof ApiError ? firstReason.message : 'assignment request failed'}`,
         );
-        pending = result.pending;
+        await Promise.all([loadUsers(searchQuery), loadRoles()]);
+        return;
       }
 
       setIsProvisionModalOpen(false);
       setNewScopeSportId('');
       setNewScopeEventId('');
-      setSelectedVolunteerId('');
+      setSelectedVolunteerIds([]);
+      setVolunteerSearch('');
       setSelectedDepartment('');
       setShowAdvancedScope(false);
       showNotification(
         'success',
-        pending
-          ? `Queued "${roleToAssign}" for ${volunteer.name} — it activates automatically the moment they first log in.`
-          : `Assigned "${roleToAssign}" to ${volunteer.name}.`,
+        `Assigned "${roleToAssign}" to ${assigned.length} volunteer${assigned.length === 1 ? '' : 's'}.${pendingCount ? ` ${pendingCount} assignment${pendingCount === 1 ? '' : 's'} will activate on first login.` : ''}`,
       );
       await Promise.all([loadUsers(searchQuery), loadRoles()]);
     } catch (err) {
@@ -670,9 +712,9 @@ export default function RbacManagerPage() {
                 </button>
               </div>
               <p className="text-xs text-zinc-500">
-                Select a volunteer and grant either a Head role or a ground-level department. They
-                don&apos;t need to have signed in yet — an assignment for someone who hasn&apos;t
-                logged in queues automatically and activates the moment they do.
+                Select one or more volunteers and grant either a Head role or a ground-level
+                department. They don&apos;t need to have signed in yet — an assignment for someone
+                who hasn&apos;t logged in queues automatically and activates the moment they do.
               </p>
 
               {/* Mode toggle — the Role Tier dropdown only ever assigns a Head role; a
@@ -697,27 +739,85 @@ export default function RbacManagerPage() {
 
               <form onSubmit={handleAssignRole} className="space-y-3 text-xs">
                 <div>
-                  <label className="font-bold uppercase text-zinc-400 block mb-1">Volunteer</label>
-                  <select
-                    required
-                    value={selectedVolunteerId}
-                    onChange={(e) => {
-                      const volunteer = assignmentOptions.volunteers.find(
-                        (item) => item.id === e.target.value,
-                      );
-                      setSelectedVolunteerId(e.target.value);
-                      setSelectedDepartment(volunteer?.department || '');
-                    }}
-                    className="w-full bg-[#0f0d10] border border-white/15 p-2.5 rounded-lg text-white font-mono"
-                  >
-                    <option value="">Select a volunteer</option>
-                    {assignmentOptions.volunteers.map((volunteer) => (
-                      <option key={volunteer.id} value={volunteer.id}>
-                        {volunteer.name} ({volunteer.email}) —{' '}
-                        {volunteer.userId ? 'logged in' : 'not logged in yet'}
-                      </option>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold uppercase text-zinc-400">Volunteers</label>
+                    <span className="text-[10px] text-[#FFD700]">
+                      {selectedVolunteerIds.length} selected
+                    </span>
+                  </div>
+                  <input
+                    type="search"
+                    value={volunteerSearch}
+                    onChange={(event) => setVolunteerSearch(event.target.value)}
+                    placeholder="Search by name, email, or department"
+                    aria-label="Search volunteers"
+                    className="w-full mb-2 bg-[#0f0d10] border border-white/15 p-2.5 rounded-lg text-white placeholder:text-zinc-600"
+                  />
+                  <div className="flex gap-3 mb-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedVolunteerIds((current) => [
+                          ...new Set([
+                            ...current,
+                            ...filteredAssignmentVolunteers.map((volunteer) => volunteer.id),
+                          ]),
+                        ])
+                      }
+                      className="text-[10px] uppercase font-bold text-[#FFD700] hover:text-white"
+                    >
+                      Select results
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedVolunteerIds([])}
+                      className="text-[10px] uppercase font-bold text-zinc-400 hover:text-white"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                  <div className="max-h-52 overflow-y-auto rounded-lg border border-white/15 bg-[#0f0d10] divide-y divide-white/5">
+                    {filteredAssignmentVolunteers.map((volunteer) => (
+                      <label
+                        key={volunteer.id}
+                        className="flex items-start gap-3 p-2.5 hover:bg-white/5 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedVolunteerIds.includes(volunteer.id)}
+                          onChange={(event) => {
+                            setSelectedVolunteerIds((current) =>
+                              event.target.checked
+                                ? [...current, volunteer.id]
+                                : current.filter((id) => id !== volunteer.id),
+                            );
+                            if (
+                              event.target.checked &&
+                              selectedVolunteerIds.length === 0 &&
+                              assignMode === 'VOLUNTEER'
+                            ) {
+                              setSelectedDepartment(volunteer.department || '');
+                            }
+                          }}
+                          className="mt-0.5"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-white font-semibold">{volunteer.name}</span>
+                          <span className="block text-[10px] text-zinc-500 truncate">
+                            {volunteer.email} —{' '}
+                            {volunteer.userId ? 'logged in' : 'activates on first login'}
+                          </span>
+                        </span>
+                      </label>
                     ))}
-                  </select>
+                    {!filteredAssignmentVolunteers.length && (
+                      <p className="p-3 text-zinc-500">
+                        {assignmentOptions.volunteers.length
+                          ? 'No volunteers match your search.'
+                          : 'No volunteers are available.'}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {assignMode === 'HEAD' ? (
@@ -853,11 +953,14 @@ export default function RbacManagerPage() {
                     disabled={
                       assignSubmitting ||
                       roles.length === 0 ||
+                      selectedVolunteerIds.length === 0 ||
                       (assignMode === 'VOLUNTEER' && !selectedDepartment)
                     }
                     className="px-5 py-2 rounded-lg bg-[#FFD700] text-black font-bold uppercase tracking-wider shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {assignSubmitting ? 'Assigning…' : 'Assign Role'}
+                    {assignSubmitting
+                      ? 'Assigning…'
+                      : `Assign Role${selectedVolunteerIds.length > 1 ? ` to ${selectedVolunteerIds.length}` : ''}`}
                   </button>
                 </div>
               </form>
