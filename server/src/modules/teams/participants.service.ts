@@ -580,15 +580,25 @@ export class ParticipantsService {
               }
             }
 
-            // 3. Find or create Team if sport and institute are known
+            // 3. Find or create Team if sport and institute are known.
+            // Most sports field exactly one team per institute, so the row's
+            // `team` label is normally blank and institute+sport alone
+            // identifies the team. Some sports (e.g. E-Sports, with separate
+            // BGMI/Free Fire/Valorant rosters) let one institute field
+            // several teams in the same sport — `team` disambiguates those,
+            // so it's included in both the lookup and the generated name.
             let team: any = null;
             if (sport && institute) {
-              const teamName = `${institute.shortName || institute.name} ${sport.name}`;
+              const squad = row.team?.trim();
+              const teamName = squad
+                ? `${institute.shortName || institute.name} ${sport.name} (${squad})`
+                : `${institute.shortName || institute.name} ${sport.name}`;
               team = await tx.team.findFirst({
                 where: {
                   eventId: dto.eventId,
                   instituteId: institute.id,
                   sportId: sport.id,
+                  name: teamName,
                 },
               });
               if (!team) {

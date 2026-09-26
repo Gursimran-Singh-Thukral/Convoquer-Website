@@ -67,13 +67,17 @@ function ImportContent() {
           again does not duplicate participants.
         </p>
         <p className="text-zinc-400">
-          Required headers: name, college, rollNumber. Optional: sport, gender, contactNumber, role,
-          category. Each sport creates or reuses the institute’s team.
+          Required headers: name, college, rollNumber. Optional: sport, team, gender, contactNumber,
+          role, category. Each sport creates or reuses the institute’s team — a participant with the
+          same college and roll number in a different sport row is added to that sport’s team too,
+          not duplicated. Leave team blank unless a college fields more than one team in the same
+          sport (e.g. separate E-Sports rosters); fill it with a short label (e.g. &quot;Squad
+          A&quot;) to keep those rosters separate.
         </p>
         <a
           className="underline text-[#FFD700]"
           download="participants-template.csv"
-          href="data:text/csv;charset=utf-8,name%2Ccollege%2CrollNumber%2Csport%2Cgender%2CcontactNumber%2Crole%2Ccategory%0A"
+          href="data:text/csv;charset=utf-8,name%2Ccollege%2CrollNumber%2Csport%2Cteam%2Cgender%2CcontactNumber%2Crole%2Ccategory%0A"
         >
           Download blank template
         </a>
@@ -118,7 +122,7 @@ function ImportContent() {
             <table className="w-full text-left">
               <thead>
                 <tr>
-                  {['Name', 'College', 'Roll number', 'Sport'].map((h) => (
+                  {['Name', 'College', 'Roll number', 'Sport', 'Team'].map((h) => (
                     <th key={h} className="p-2">
                       {h}
                     </th>
@@ -132,6 +136,7 @@ function ImportContent() {
                     <td>{row.college}</td>
                     <td>{row.rollNumber}</td>
                     <td>{row.sport}</td>
+                    <td>{row.team}</td>
                   </tr>
                 ))}
               </tbody>

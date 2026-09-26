@@ -93,6 +93,10 @@ export class BulkImportParticipantRow {
   name!: string;
   college!: string;
   sport?: string;
+  // Distinguishes multiple squads a college fields in the same sport (e.g.
+  // separate E-Sports rosters). Leave blank for sports where a college
+  // fields only one team — the institute+sport pair alone identifies it.
+  team?: string;
   rollNumber?: string;
   gender?: string;
   contactNumber?: string;

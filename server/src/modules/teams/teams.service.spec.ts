@@ -375,5 +375,119 @@ describe('Teams, Institutes & Participants Services', () => {
       ).rejects.toThrow('Row 1');
       expect(prismaMock.participant.create).toHaveBeenCalledTimes(1);
     });
+
+    it('creates separate teams for the same institute and sport when rows carry different team labels (e.g. E-Sports squads)', async () => {
+      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
+      prismaMock.institute.findFirst.mockResolvedValue({
+        id: 'inst-1',
+        name: 'IIT Delhi',
+        shortName: 'IITD',
+      });
+      prismaMock.sport.findFirst.mockResolvedValue({
+        id: 'sport-esports',
+        name: 'E-Sports',
+      });
+      // No existing team matches either squad's generated name yet.
+      prismaMock.team.findFirst.mockResolvedValue(null);
+      let createdTeams = 0;
+      prismaMock.team.create.mockImplementation(({ data }: any) => {
+        createdTeams += 1;
+        return { id: `team-${createdTeams}`, ...data };
+      });
+      prismaMock.participant.findFirst.mockResolvedValue(null);
+      prismaMock.participant.create.mockImplementation(({ data }: any) => ({
+        id: `participant-${data.rollNumber}`,
+        ...data,
+      }));
+
+      const summary = await participantsService.bulkImport({
+        eventId: 'event-1',
+        rows: [
+          {
+            name: 'Player One',
+            college: 'IIT Delhi',
+            rollNumber: '2022CS001',
+            sport: 'E-Sports',
+            team: 'Squad A',
+          },
+          {
+            name: 'Player Two',
+            college: 'IIT Delhi',
+            rollNumber: '2022CS002',
+            sport: 'E-Sports',
+            team: 'Squad B',
+          },
+        ],
+      });
+
+      expect(summary.importedCount).toBe(2);
+      expect(summary.errors).toHaveLength(0);
+      expect(prismaMock.team.create).toHaveBeenCalledTimes(2);
+      expect(prismaMock.team.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ name: 'IITD E-Sports (Squad A)' }),
+        }),
+      );
+      expect(prismaMock.team.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ name: 'IITD E-Sports (Squad B)' }),
+        }),
+      );
+    });
+
+    it('adds the same participant to a second sport team instead of duplicating them', async () => {
+      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
+      prismaMock.institute.findFirst.mockResolvedValue({
+        id: 'inst-1',
+        name: 'IIT Delhi',
+        shortName: 'IITD',
+      });
+      // sport.findFirst is called once in bulkImport's pre-transaction
+      // validation pass and again inside the transaction per row, so key off
+      // the query args instead of a fixed call sequence.
+      prismaMock.sport.findFirst.mockImplementation(({ where }: any) =>
+        where.name === 'Badminton'
+          ? { id: 'sport-badminton', name: 'Badminton' }
+          : { id: 'sport-chess', name: 'Chess' },
+      );
+      prismaMock.team.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      prismaMock.team.create.mockImplementation(({ data }: any) => ({
+        id: `team-${data.sportId}`,
+        ...data,
+      }));
+      const existingParticipant = {
+        id: 'participant-shared',
+        name: 'Dual Athlete',
+      };
+      prismaMock.participant.findFirst
+        .mockResolvedValueOnce(null) // not found for the first (Badminton) row
+        .mockResolvedValueOnce(existingParticipant); // found on the second (Chess) row — same person
+      prismaMock.participant.create.mockResolvedValue(existingParticipant);
+
+      const summary = await participantsService.bulkImport({
+        eventId: 'event-1',
+        rows: [
+          {
+            name: 'Dual Athlete',
+            college: 'IIT Delhi',
+            rollNumber: '2022CS003',
+            sport: 'Badminton',
+          },
+          {
+            name: 'Dual Athlete',
+            college: 'IIT Delhi',
+            rollNumber: '2022CS003',
+            sport: 'Chess',
+          },
+        ],
+      });
+
+      expect(summary.importedCount).toBe(2);
+      expect(summary.errors).toHaveLength(0);
+      expect(prismaMock.participant.create).toHaveBeenCalledTimes(1); // reused on the second row
+      expect(prismaMock.teamMember.upsert).toHaveBeenCalledTimes(2); // linked to both sport teams
+    });
   });
 });

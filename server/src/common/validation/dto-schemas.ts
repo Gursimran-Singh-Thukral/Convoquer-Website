@@ -1168,6 +1168,10 @@ export const dtoSchemas: Record<
       type: 'string',
       required: false,
     },
+    team: {
+      type: 'string',
+      required: false,
+    },
     rollNumber: {
       type: 'string',
       required: false,

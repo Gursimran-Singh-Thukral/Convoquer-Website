@@ -3,6 +3,7 @@ export type ImportRow = {
   college: string;
   rollNumber: string;
   sport?: string;
+  team?: string;
   gender?: string;
   contactNumber?: string;
   role?: string;
@@ -57,7 +58,17 @@ function parseRows(input: string, allowed: string[], required: string[]): Record
 export function parseParticipantCsv(input: string): ImportRow[] {
   return parseRows(
     input,
-    ['name', 'college', 'rollNumber', 'sport', 'gender', 'contactNumber', 'role', 'category'],
+    [
+      'name',
+      'college',
+      'rollNumber',
+      'sport',
+      'team',
+      'gender',
+      'contactNumber',
+      'role',
+      'category',
+    ],
     ['name', 'college', 'rollNumber'],
   ) as ImportRow[];
 }
