@@ -325,7 +325,7 @@ export default function RbacManagerPage() {
           ? `Queued "${roleToAssign}" for ${volunteer.name} — it activates automatically the moment they first log in.`
           : `Assigned "${roleToAssign}" to ${volunteer.name}.`,
       );
-      await loadUsers(searchQuery);
+      await Promise.all([loadUsers(searchQuery), loadRoles()]);
     } catch (err) {
       showNotification('error', err instanceof ApiError ? err.message : 'Failed to assign role.');
     } finally {

@@ -35,6 +35,7 @@ describe('RbacService & PermissionsGuard', () => {
       },
       user: {
         findUnique: vi.fn(),
+        findFirst: vi.fn(),
       },
       volunteer: {
         findUnique: vi.fn(),
@@ -481,6 +482,88 @@ describe('RbacService & PermissionsGuard', () => {
           {},
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('assignRoleToVolunteer', () => {
+    it('assigns live instead of queuing when the volunteer already has a login account, even before it is linked', async () => {
+      // This volunteer was never queued via linkPendingVolunteerRole (e.g. a
+      // brand-new manual assignment), so Volunteer.userId is still null even
+      // though they already signed in and have a User row — the assignment
+      // should discover that account by email rather than blindly queuing.
+      const emailHash = blindIndex('already.signed.in@iitjammu.ac.in');
+      prismaMock.volunteer.findUnique.mockResolvedValue({
+        id: 'vol-1',
+        email: 'already.signed.in@iitjammu.ac.in',
+        userId: null,
+        department: null,
+      });
+      prismaMock.user.findFirst.mockResolvedValue({ id: 'user-99' });
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 'user-99',
+        emailHash,
+      });
+      prismaMock.role.findFirst.mockResolvedValue({
+        id: 'role-media',
+        name: 'MEDIA_TEAM',
+      });
+      prismaMock.volunteer.update.mockResolvedValue({});
+      prismaMock.userRole.findFirst.mockResolvedValue(null);
+      prismaMock.userRole.create.mockResolvedValue({ id: 'ur-new' });
+      prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-1' });
+
+      const result = await rbacService.assignRoleToVolunteer(
+        'admin-1',
+        'vol-1',
+        'MEDIA_TEAM',
+        {},
+      );
+
+      expect(result.pending).toBe(false);
+      expect(prismaMock.user.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { emailHash } }),
+      );
+      expect(prismaMock.volunteer.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'user-99' }),
+        }),
+      );
+      expect(prismaMock.userRole.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: 'user-99' }),
+        }),
+      );
+    });
+
+    it('queues the role when no login account exists for the volunteer yet', async () => {
+      prismaMock.volunteer.findUnique.mockResolvedValue({
+        id: 'vol-2',
+        name: 'Fresh Volunteer',
+        email: 'not.yet@iitjammu.ac.in',
+        userId: null,
+        department: null,
+      });
+      prismaMock.user.findFirst.mockResolvedValue(null);
+      prismaMock.role.findFirst.mockResolvedValue({
+        id: 'role-media',
+        name: 'MEDIA_TEAM',
+      });
+      prismaMock.volunteer.update.mockResolvedValue({});
+      prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-2' });
+
+      const result = await rbacService.assignRoleToVolunteer(
+        'admin-1',
+        'vol-2',
+        'MEDIA_TEAM',
+        {},
+      );
+
+      expect(result.pending).toBe(true);
+      expect(prismaMock.volunteer.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ pendingRoleName: 'MEDIA_TEAM' }),
+        }),
+      );
     });
   });
 

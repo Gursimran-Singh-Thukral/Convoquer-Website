@@ -454,10 +454,24 @@ export class RbacService {
     });
     if (!volunteer) throw new NotFoundException('Volunteer not found.');
 
-    if (volunteer.userId) {
+    // Volunteer.userId is normally only linked reactively, the next time this
+    // person logs in (see linkPendingVolunteerRole) — so a volunteer who
+    // already has a login account, just not yet linked to this record, would
+    // otherwise always get queued here even though they could be assigned
+    // live right now. Check for an existing account by email first.
+    const linkedUserId =
+      volunteer.userId ||
+      (
+        await this.prisma.user.findFirst({
+          where: { emailHash: blindIndex(volunteer.email) ?? undefined },
+          select: { id: true },
+        })
+      )?.id;
+
+    if (linkedUserId) {
       const [userRole] = await this.assignRoleWithVolunteerScopes(
         assignerUserId,
-        volunteer.userId,
+        linkedUserId,
         roleIdOrName,
         { ...scope, volunteerId },
         ipAddress,
