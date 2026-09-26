@@ -53,6 +53,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
 
       const user = await this.usersService.findOrCreateFromGoogle(profile);
       await this.rbacService.bootstrapFirstConvenerIfNeeded(user.id, email);
+      await this.rbacService.ensureSoleAdminHasWebDevHead(user.id, email);
       await this.rbacService.linkPendingVolunteerRole(user.id, email);
       done(null, user);
     } catch (error) {

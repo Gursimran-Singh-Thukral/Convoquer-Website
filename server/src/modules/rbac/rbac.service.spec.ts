@@ -564,4 +564,85 @@ describe('RbacService & PermissionsGuard', () => {
       expect(prismaMock.userRole.create).not.toHaveBeenCalled();
     });
   });
+
+  describe('ensureSoleAdminHasWebDevHead', () => {
+    beforeEach(() => {
+      prismaMock.role.findUnique = vi.fn();
+    });
+
+    it('grants WEB_DEV_HEAD when the email matches and it is not already held', async () => {
+      process.env.SOLE_ADMIN_EMAIL = 'admin@iitjammu.ac.in';
+      prismaMock.userRole.findFirst.mockResolvedValueOnce(null); // not already held
+      prismaMock.role.findUnique.mockResolvedValue({
+        id: 'role-webdev',
+        name: 'WEB_DEV_HEAD',
+      });
+      prismaMock.role.findFirst.mockResolvedValue({
+        id: 'role-webdev',
+        name: 'WEB_DEV_HEAD',
+      });
+      prismaMock.user.findUnique.mockResolvedValue({ id: 'user-admin' });
+      prismaMock.userRole.findFirst.mockResolvedValueOnce(null); // assignRole's own existing-assignment lookup
+      prismaMock.userRole.create.mockResolvedValue({ id: 'ur-webdev' });
+      prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-webdev' });
+
+      await rbacService.ensureSoleAdminHasWebDevHead(
+        'user-admin',
+        'Admin@iitjammu.ac.in',
+      );
+
+      expect(prismaMock.userRole.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'user-admin',
+            roleId: 'role-webdev',
+          }),
+        }),
+      );
+
+      delete process.env.SOLE_ADMIN_EMAIL;
+    });
+
+    it('does nothing when the email does not match', async () => {
+      process.env.SOLE_ADMIN_EMAIL = 'admin@iitjammu.ac.in';
+
+      await rbacService.ensureSoleAdminHasWebDevHead(
+        'user-x',
+        'someone.else@iitjammu.ac.in',
+      );
+
+      expect(prismaMock.userRole.findFirst).not.toHaveBeenCalled();
+      expect(prismaMock.userRole.create).not.toHaveBeenCalled();
+
+      delete process.env.SOLE_ADMIN_EMAIL;
+    });
+
+    it('does nothing when the admin already holds WEB_DEV_HEAD', async () => {
+      process.env.SOLE_ADMIN_EMAIL = 'admin@iitjammu.ac.in';
+      prismaMock.userRole.findFirst.mockResolvedValueOnce({
+        id: 'ur-existing-webdev',
+      });
+
+      await rbacService.ensureSoleAdminHasWebDevHead(
+        'user-admin',
+        'admin@iitjammu.ac.in',
+      );
+
+      expect(prismaMock.userRole.create).not.toHaveBeenCalled();
+
+      delete process.env.SOLE_ADMIN_EMAIL;
+    });
+
+    it('does nothing when SOLE_ADMIN_EMAIL is unset', async () => {
+      delete process.env.SOLE_ADMIN_EMAIL;
+
+      await rbacService.ensureSoleAdminHasWebDevHead(
+        'user-admin',
+        'anyone@iitjammu.ac.in',
+      );
+
+      expect(prismaMock.userRole.findFirst).not.toHaveBeenCalled();
+      expect(prismaMock.userRole.create).not.toHaveBeenCalled();
+    });
+  });
 });

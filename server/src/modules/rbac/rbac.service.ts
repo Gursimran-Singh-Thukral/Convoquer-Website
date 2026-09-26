@@ -320,6 +320,45 @@ export class RbacService {
   }
 
   /**
+   * SOLE_ADMIN_EMAIL is the email SoleAdminGuard locks RBAC-admin and
+   * tournament-structure endpoints to, but WEB_DEV_HEAD (the role those
+   * endpoints actually check via PermissionsGuard) still has to be granted
+   * to someone — and nobody can grant it through the RBAC page until at
+   * least one account already holds it. Bootstrapping CONVENER doesn't help,
+   * since CONVENER deliberately excludes RBAC-admin and tournament-structure
+   * permissions. Safe to call on every login: it only ever touches the one
+   * locked-down email and no-ops the moment that account already holds the
+   * role, so it can't be used to re-grant or escalate anyone else.
+   */
+  async ensureSoleAdminHasWebDevHead(
+    userId: string,
+    email: string,
+  ): Promise<void> {
+    const adminEmail = process.env.SOLE_ADMIN_EMAIL?.trim().toLowerCase();
+    if (!adminEmail || email.trim().toLowerCase() !== adminEmail) return;
+
+    const already = await this.prisma.userRole.findFirst({
+      where: { userId, role: { name: 'WEB_DEV_HEAD' } },
+    });
+    if (already) return;
+
+    const role = await this.prisma.role.findUnique({
+      where: { name: 'WEB_DEV_HEAD' },
+    });
+    if (!role) {
+      this.logger.error(
+        'Sole-admin bootstrap skipped: the WEB_DEV_HEAD role does not exist. Run `npm run seed:roles` against this database, then sign in again.',
+      );
+      return;
+    }
+
+    await this.assignRole(null, userId, role.id);
+    this.logger.log(
+      'WEB_DEV_HEAD auto-granted to the configured sole admin email.',
+    );
+  }
+
+  /**
    * The organizing-team import writes each volunteer's real-world position as
    * Volunteer.pendingRoleName/pendingSportIds instead of a live UserRole,
    * because role assignment needs a User row that doesn't exist until they
