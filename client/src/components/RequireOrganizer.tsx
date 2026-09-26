@@ -16,6 +16,15 @@ interface RequireOrganizerProps {
    * When true, access is allowed even if `anyPermission` fails.
    */
   extraAllowed?: boolean;
+  /**
+   * Restricts access to specific role names regardless of what permissions the
+   * viewer otherwise holds — e.g. Sports & Venues management is intentionally
+   * kept to a named few (Web Dev Head, Convener) even though other roles
+   * (Overall Sports Coordinator) also hold venue.create/venue.update for
+   * unrelated reasons. When provided, the viewer must hold at least one of
+   * these roles; `anyPermission` is ignored.
+   */
+  requireRole?: string[];
 }
 
 function FullScreenMessage({ children }: { children: React.ReactNode }) {
@@ -36,15 +45,17 @@ export function RequireOrganizer({
   anyPermission,
   scope,
   extraAllowed,
+  requireRole,
 }: RequireOrganizerProps) {
-  const { isLoading, authenticated, canAccessOrganizer, hasPermission } = useAuth();
+  const { isLoading, authenticated, canAccessOrganizer, hasPermission, hasRole } = useAuth();
   const router = useRouter();
 
-  const permissionOk =
-    !anyPermission ||
-    anyPermission.length === 0 ||
-    anyPermission.some((p) => hasPermission(p, scope)) ||
-    !!extraAllowed;
+  const permissionOk = requireRole
+    ? hasRole(...requireRole)
+    : !anyPermission ||
+      anyPermission.length === 0 ||
+      anyPermission.some((p) => hasPermission(p, scope)) ||
+      !!extraAllowed;
 
   useEffect(() => {
     if (isLoading) return;

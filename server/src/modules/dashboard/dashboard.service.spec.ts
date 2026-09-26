@@ -88,22 +88,22 @@ describe('DashboardService & Role-Adaptive Aggregations', () => {
       expect(ctx.scopedEventId).toBe('event-1');
     });
 
-    it('should detect SECURITY_HEAD as the security persona', async () => {
+    it('should detect HOSPITALITY_SECURITY_HEAD as the security persona', async () => {
       prismaMock.userRole.findMany.mockResolvedValue([
-        { role: { name: 'SECURITY_HEAD' } },
+        { role: { name: 'HOSPITALITY_SECURITY_HEAD' } },
       ]);
 
       const ctx = await dashboardService.getUserRoleContext('user-sec');
-      expect(ctx.primaryRole).toBe('SECURITY_HEAD');
+      expect(ctx.primaryRole).toBe('HOSPITALITY_SECURITY_HEAD');
     });
 
-    it('should keep SECURITY_VOLUNTEER as its own persona, distinct from SECURITY_HEAD', async () => {
+    it('should keep HOSPITALITY_SECURITY_VOLUNTEER as its own persona, distinct from the Head', async () => {
       prismaMock.userRole.findMany.mockResolvedValue([
-        { role: { name: 'SECURITY_VOLUNTEER' } },
+        { role: { name: 'HOSPITALITY_SECURITY_VOLUNTEER' } },
       ]);
 
       const ctx = await dashboardService.getUserRoleContext('user-sec-vol');
-      expect(ctx.primaryRole).toBe('SECURITY_VOLUNTEER');
+      expect(ctx.primaryRole).toBe('HOSPITALITY_SECURITY_VOLUNTEER');
     });
   });
 
@@ -208,7 +208,7 @@ describe('DashboardService & Role-Adaptive Aggregations', () => {
 
       const sec = await dashboardService.getSecurityOverview('event-1');
 
-      expect(sec.persona).toBe('SECURITY_HEAD');
+      expect(sec.persona).toBe('HOSPITALITY_SECURITY_HEAD');
       expect(sec.metrics.totalParticipants).toBe(200);
       expect(sec.metrics.checkedInCount).toBe(150);
       expect(sec.metrics.pendingCheckInCount).toBe(50);
@@ -239,7 +239,7 @@ describe('DashboardService & Role-Adaptive Aggregations', () => {
       const overview =
         await dashboardService.getSecurityVolunteerOverview('event-1');
 
-      expect(overview.persona).toBe('SECURITY_VOLUNTEER');
+      expect(overview.persona).toBe('HOSPITALITY_SECURITY_VOLUNTEER');
       expect(overview.metrics.totalParticipants).toBe(200);
       expect(overview.metrics.checkInRate).toBe(75);
       expect(overview.venueOccupancy).toEqual([
@@ -296,7 +296,7 @@ describe('DashboardService & Role-Adaptive Aggregations', () => {
       const projection =
         await dashboardService.getVenueAudienceProjection('event-1');
 
-      expect(projection.persona).toBe('HOSPITALITY');
+      expect(projection.persona).toBe('HOSPITALITY_SECURITY_HEAD');
       const arena = projection.venues.find((v) => v.venueId === 'venue-arena')!;
       expect(arena.matches).toHaveLength(2);
       // p1+p2 (team-a, shared) + p3 (team-b) + p4 (team-c) = 4 distinct people, not 6.

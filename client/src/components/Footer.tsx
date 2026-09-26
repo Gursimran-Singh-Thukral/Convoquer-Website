@@ -16,9 +16,13 @@ export const Footer: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 rounded bg-[#701A2B] border border-[#D4AF37]/30 flex items-center justify-center shadow-md">
-                <svg className="w-4 h-4 text-[#D4AF37]" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C10.5 4 8.5 6 8.5 8.5C8.5 10.4 10.1 12 12 12C13.9 12 15.5 10.4 15.5 8.5C15.5 6 13.5 4 12 2M12 13.5C9.2 13.5 7 15.7 7 18.5V21C7 21.6 7.4 22 8 22H16C16.6 22 17 21.6 17 21V18.5C17 15.7 14.8 13.5 12 13.5M10 19V17C10 16.4 10.4 16 11 16H13C13.6 16 14 16.4 14 17V19H10Z" />
-                </svg>
+                {/* eslint-disable-next-line @next/next/no-img-element -- static brand art shipped in /public */}
+                <img
+                  src="/brand/convoquer-mark.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="w-6 h-6 object-contain"
+                />
               </div>
               <span className="font-display font-bold text-xl tracking-wider text-white">
                 CONVOQUER<span className="text-[#D4AF37]">&apos;26</span>
@@ -143,8 +147,27 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
+        {/* Organized-by credit */}
+        <div className="pt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 border-t border-white/10">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-gray-500">
+            Organized by
+          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand art shipped in /public */}
+          <img
+            src="/brand/iit-jammu-mark.png"
+            alt="Indian Institute of Technology Jammu"
+            className="h-10 w-auto object-contain"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand art shipped in /public */}
+          <img
+            src="/brand/student-sports-council.png"
+            alt="Student Sports Council, IIT Jammu"
+            className="h-10 w-auto object-contain"
+          />
+        </div>
+
         {/* Bottom copyright */}
-        <div className="mt-8 flex flex-col md:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+        <div className="mt-6 flex flex-col md:flex-row items-center justify-between text-xs text-gray-500 gap-4">
           <p>© 2026 Board of Sports Activities, IIT Jammu. All rights reserved.</p>
           <div className="flex items-center space-x-6 text-[11px] font-mono">
             <Link href="/rules">Rules &amp; Regulations</Link>

@@ -155,18 +155,12 @@ export const Navbar: React.FC<NavbarProps> = ({ activePage: activePageOverride }
             href="/"
           >
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#701A2B] to-[#1B191E] border border-[#D4AF37]/40 flex items-center justify-center shadow-md group-hover:border-[#FFD700] transition-colors overflow-hidden">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- arbitrary uploaded data URL/remote logo, not part of the static build
-                <img src={logoUrl} alt="Convoquer'26 logo" className="w-full h-full object-cover" />
-              ) : (
-                <svg
-                  className="w-6 h-6 text-[#D4AF37] transition-transform group-hover:scale-105"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 2C10.5 4 8.5 6 8.5 8.5C8.5 10.4 10.1 12 12 12C13.9 12 15.5 10.4 15.5 8.5C15.5 6 13.5 4 12 2M12 13.5C9.2 13.5 7 15.7 7 18.5V21C7 21.6 7.4 22 8 22H16C16.6 22 17 21.6 17 21V18.5C17 15.7 14.8 13.5 12 13.5M10 19V17C10 16.4 10.4 16 11 16H13C13.6 16 14 16.4 14 17V19H10Z" />
-                </svg>
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element -- logoUrl is an arbitrary uploaded data URL/remote logo, not part of the static build */}
+              <img
+                src={logoUrl || '/brand/convoquer-mark.png'}
+                alt="Convoquer'26 logo"
+                className={logoUrl ? 'w-full h-full object-cover' : 'w-9 h-9 object-contain p-0.5'}
+              />
             </div>
             <div className="flex flex-col">
               <span className="font-display font-black text-2xl sm:text-3xl tracking-wider text-white leading-none">

@@ -14,7 +14,7 @@ import {
 
 const GROUND_ROLE_NAMES = [
   'VOLUNTEER',
-  'SECURITY_VOLUNTEER',
+  'HOSPITALITY_SECURITY_VOLUNTEER',
   'SPORTS_VOLUNTEER',
   'MEDIA_TEAM',
 ];
@@ -320,20 +320,159 @@ export class RbacService {
   }
 
   /**
+   * The organizing-team import writes each volunteer's real-world position as
+   * Volunteer.pendingRoleName/pendingSportIds instead of a live UserRole,
+   * because role assignment needs a User row that doesn't exist until they
+   * sign in for the first time (see assignRoleWithVolunteerScopes). Called on
+   * every login (like bootstrapFirstConvenerIfNeeded): no-ops unless this
+   * email matches an unlinked volunteer with a role still owed, so it's safe
+   * to call unconditionally and can't re-fire once granted (pending fields
+   * are cleared on success, and the Volunteer is linked to userId).
+   */
+  async linkPendingVolunteerRole(userId: string, email: string): Promise<void> {
+    const candidates = await this.prisma.volunteer.findMany({
+      where: { userId: null, pendingRoleName: { not: null } },
+    });
+    const volunteer = candidates.find(
+      (v) => blindIndex(v.email) === blindIndex(email),
+    );
+    if (!volunteer || !volunteer.pendingRoleName) return;
+
+    try {
+      const sportIds = volunteer.pendingSportIds;
+      if (sportIds.length > 0) {
+        for (const sportId of sportIds) {
+          await this.assignRoleWithVolunteerScopes(
+            null,
+            userId,
+            volunteer.pendingRoleName,
+            {
+              volunteerId: volunteer.id,
+              sportId,
+              department: volunteer.department,
+            },
+          );
+        }
+      } else {
+        await this.assignRoleWithVolunteerScopes(
+          null,
+          userId,
+          volunteer.pendingRoleName,
+          { volunteerId: volunteer.id, department: volunteer.department },
+        );
+      }
+      await this.prisma.volunteer.update({
+        where: { id: volunteer.id },
+        data: { pendingRoleName: null, pendingSportIds: [] },
+      });
+      this.logger.log(
+        `Pending role "${volunteer.pendingRoleName}" auto-granted to ${volunteer.name} on first login.`,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Failed to auto-grant pending role for volunteer ${volunteer.id}: ${err instanceof Error ? err.message : err}`,
+      );
+    }
+  }
+
+  /**
    * Assigns a role to a user and writes to the audit log.
    *
    * Two distinct modes, both going through this one entry point:
-   *  - Head role (e.g. SECURITY_HEAD, SPORTS_COORDINATOR): `roleIdOrName` names
-   *    the actual role to grant. Its department is enforced from
-   *    HEAD_ROLE_DEPARTMENT, not chosen by the caller — a volunteer has exactly
-   *    one department, so assigning a Head role overwrites it to match.
+   *  - Head role (e.g. HOSPITALITY_SECURITY_HEAD, SPORTS_COORDINATOR):
+   *    `roleIdOrName` names the actual role to grant. Its department is
+   *    enforced from HEAD_ROLE_DEPARTMENT, not chosen by the caller — a
+   *    volunteer has exactly one department, so assigning a Head role
+   *    overwrites it to match.
    *  - Ground volunteer: `roleIdOrName` is the literal 'VOLUNTEER' placeholder;
-   *    the actual role granted (SECURITY_VOLUNTEER/MEDIA_TEAM/SPORTS_VOLUNTEER/
-   *    plain VOLUNTEER) is inferred purely from `scope.department` via
+   *    the actual role granted (HOSPITALITY_SECURITY_VOLUNTEER/MEDIA_TEAM/
+   *    SPORTS_VOLUNTEER/plain VOLUNTEER) is inferred purely from `scope.department` via
    *    GROUND_ROLE_BY_DEPARTMENT. The caller never names a ground role directly.
    */
+  /**
+   * The /rbac page's single entry point for assigning a role to a volunteer —
+   * whether or not they've ever logged in. Linked volunteers (userId already
+   * set) go straight through the live assignRoleWithVolunteerScopes path
+   * below. Not-yet-linked volunteers get the role written to
+   * pendingRoleName/pendingSportIds instead of a live UserRole — there is no
+   * User row to attach one to yet — and linkPendingVolunteerRole grants it
+   * automatically the moment they first sign in with a matching email.
+   */
+  async assignRoleToVolunteer(
+    assignerUserId: string | null,
+    volunteerId: string,
+    roleIdOrName: string,
+    scope: {
+      sportId?: string;
+      eventId?: string;
+      department?: string;
+      expiresAt?: Date;
+    },
+    ipAddress?: string,
+  ): Promise<{ pending: boolean; userRole?: unknown }> {
+    const volunteer = await this.prisma.volunteer.findUnique({
+      where: { id: volunteerId },
+    });
+    if (!volunteer) throw new NotFoundException('Volunteer not found.');
+
+    if (volunteer.userId) {
+      const [userRole] = await this.assignRoleWithVolunteerScopes(
+        assignerUserId,
+        volunteer.userId,
+        roleIdOrName,
+        { ...scope, volunteerId },
+        ipAddress,
+      );
+      return { pending: false, userRole };
+    }
+
+    const role = await this.prisma.role.findFirst({
+      where: { OR: [{ id: roleIdOrName }, { name: roleIdOrName }] },
+    });
+    if (!role) throw new NotFoundException(`Role "${roleIdOrName}" not found`);
+    if (role.name === 'SPORTS_COORDINATOR' && !scope.sportId)
+      throw new BadRequestException(
+        'A sports coordinator must be assigned to a specific sport.',
+      );
+
+    let department = scope.department?.trim() || undefined;
+    if (department && !CANONICAL_DEPARTMENTS.includes(department))
+      throw new BadRequestException(
+        `"${department}" is not a recognized department.`,
+      );
+    department =
+      HEAD_ROLE_DEPARTMENT[role.name] || department || volunteer.department;
+
+    await this.prisma.volunteer.update({
+      where: { id: volunteer.id },
+      data: {
+        department,
+        pendingRoleName: role.name,
+        pendingSportIds: scope.sportId ? [scope.sportId] : [],
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: assignerUserId,
+        action: 'role.assign.pending',
+        resource: 'Volunteer',
+        resourceId: volunteer.id,
+        newState: {
+          volunteerName: volunteer.name,
+          volunteerEmail: volunteer.email,
+          roleName: role.name,
+          scope,
+        },
+        ipAddress,
+      },
+    });
+
+    return { pending: true };
+  }
+
   async assignRoleWithVolunteerScopes(
-    assignerUserId: string,
+    assignerUserId: string | null,
     targetUserId: string,
     roleIdOrName: string,
     scope: {

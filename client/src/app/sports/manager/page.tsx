@@ -767,9 +767,13 @@ function SportsVenuesManagerContent() {
   );
 }
 
+// Kept to a named few rather than everyone who happens to hold venue.create/
+// venue.update (e.g. Overall Sports Coordinator, for unrelated reasons) —
+// sports/venues are hardcoded once for the event, so this stays a hotfix tool
+// for the Web Dev Head / Convener, not a general organizer section.
 export default function SportsManagerPage() {
   return (
-    <RequireOrganizer>
+    <RequireOrganizer requireRole={['WEB_DEV_HEAD', 'CONVENER', 'CO_CONVENER']}>
       <SportsVenuesManagerContent />
     </RequireOrganizer>
   );

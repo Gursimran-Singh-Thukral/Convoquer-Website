@@ -233,7 +233,7 @@ function OrganizerDashboardContent() {
   // widget — permission-derived so it automatically covers Sports/Media/Security
   // volunteers alike instead of a hardcoded role-name list.
   const isFieldVolunteer = hasPermission('task.view') && !canCreateTask;
-  const isSecurityVolunteer = hasRole('SECURITY_VOLUNTEER');
+  const isSecurityVolunteer = hasRole('HOSPITALITY_SECURITY_VOLUNTEER');
 
   // Section visibility — each organizer only sees the slices of the dashboard their role
   // actually needs ("neither more nor less info"), gated by real backend permissions
@@ -497,6 +497,7 @@ function OrganizerDashboardContent() {
   const [newTaskTitle, setNewTaskTitle] = useState<string>('');
   const [newTaskDepartment, setNewTaskDepartment] = useState<string>('');
   const [newTaskAssigneeIds, setNewTaskAssigneeIds] = useState<string[]>([]);
+  const [assigneeSearch, setAssigneeSearch] = useState<string>('');
   const [newTaskMatchId, setNewTaskMatchId] = useState<string>('');
   const [taskMatchOptions, setTaskMatchOptions] = useState<
     {
@@ -597,6 +598,7 @@ function OrganizerDashboardContent() {
       setNewTaskDepartment('');
       setNewTaskAssigneeIds([]);
       setNewTaskMatchId('');
+      setAssigneeSearch('');
       showBanner('success', 'Operations task assigned.');
       loadOpsData();
     } catch (err) {
@@ -2457,49 +2459,87 @@ function OrganizerDashboardContent() {
                     <label className="font-display text-xs uppercase text-[#a78a8a] font-bold tracking-wider">
                       Assignees
                     </label>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setNewTaskAssigneeIds((prev) =>
-                          prev.length === volunteerRoster.length
-                            ? []
-                            : volunteerRoster.map((v) => v.id),
-                        )
-                      }
-                      className="text-[10px] font-bold uppercase tracking-wider text-[#FFD700] hover:text-white"
-                    >
-                      {newTaskAssigneeIds.length === volunteerRoster.length &&
-                      volunteerRoster.length > 0
-                        ? 'Clear all'
-                        : 'Select all'}
-                    </button>
+                    {(() => {
+                      const filteredRoster = volunteerRoster.filter((v) => {
+                        const q = assigneeSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        return (
+                          v.name.toLowerCase().includes(q) || v.department.toLowerCase().includes(q)
+                        );
+                      });
+                      const allFilteredSelected =
+                        filteredRoster.length > 0 &&
+                        filteredRoster.every((v) => newTaskAssigneeIds.includes(v.id));
+                      return (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewTaskAssigneeIds((prev) =>
+                              allFilteredSelected
+                                ? prev.filter((id) => !filteredRoster.some((v) => v.id === id))
+                                : Array.from(
+                                    new Set([...prev, ...filteredRoster.map((v) => v.id)]),
+                                  ),
+                            )
+                          }
+                          className="text-[10px] font-bold uppercase tracking-wider text-[#FFD700] hover:text-white"
+                        >
+                          {allFilteredSelected ? 'Clear' : 'Select all'}
+                          {assigneeSearch.trim() ? ' shown' : ''}
+                        </button>
+                      );
+                    })()}
                   </div>
+                  <input
+                    type="text"
+                    value={assigneeSearch}
+                    onChange={(e) => setAssigneeSearch(e.target.value)}
+                    placeholder="Search by name or department..."
+                    className="w-full bg-[#151316] border border-white/15 p-2 rounded-lg text-xs text-white mb-2 focus:border-[#FF4500] focus:outline-none placeholder-white/30 font-sans"
+                  />
                   <div className="max-h-40 overflow-y-auto grid grid-cols-1 gap-1.5 bg-[#151316] border border-white/15 rounded-lg p-2.5">
                     {volunteerRoster.length === 0 ? (
                       <p className="text-[11px] text-[#a78a8a] font-mono py-1">
                         No volunteers in scope.
                       </p>
                     ) : (
-                      volunteerRoster.map((v) => (
-                        <label
-                          key={v.id}
-                          className="flex items-center gap-2 text-xs text-white py-0.5 cursor-pointer select-none"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={newTaskAssigneeIds.includes(v.id)}
-                            onChange={() =>
-                              setNewTaskAssigneeIds((prev) =>
-                                prev.includes(v.id)
-                                  ? prev.filter((id) => id !== v.id)
-                                  : [...prev, v.id],
-                              )
-                            }
-                            className="accent-[#FF4500]"
-                          />
-                          {v.name} ({v.department})
-                        </label>
-                      ))
+                      (() => {
+                        const q = assigneeSearch.trim().toLowerCase();
+                        const filtered = q
+                          ? volunteerRoster.filter(
+                              (v) =>
+                                v.name.toLowerCase().includes(q) ||
+                                v.department.toLowerCase().includes(q),
+                            )
+                          : volunteerRoster;
+                        if (filtered.length === 0) {
+                          return (
+                            <p className="text-[11px] text-[#a78a8a] font-mono py-1">
+                              No volunteers match &quot;{assigneeSearch}&quot;.
+                            </p>
+                          );
+                        }
+                        return filtered.map((v) => (
+                          <label
+                            key={v.id}
+                            className="flex items-center gap-2 text-xs text-white py-0.5 cursor-pointer select-none"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={newTaskAssigneeIds.includes(v.id)}
+                              onChange={() =>
+                                setNewTaskAssigneeIds((prev) =>
+                                  prev.includes(v.id)
+                                    ? prev.filter((id) => id !== v.id)
+                                    : [...prev, v.id],
+                                )
+                              }
+                              className="accent-[#FF4500]"
+                            />
+                            {v.name} ({v.department})
+                          </label>
+                        ));
+                      })()
                     )}
                   </div>
                 </div>

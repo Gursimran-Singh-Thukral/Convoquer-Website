@@ -1353,4 +1353,26 @@ export const dtoSchemas: Record<
       required: false,
     },
   },
+  AssignVolunteerRoleDto: {
+    role: {
+      type: 'string',
+      required: true,
+    },
+    sportId: {
+      type: 'string',
+      required: false,
+    },
+    eventId: {
+      type: 'string',
+      required: false,
+    },
+    department: {
+      type: 'string',
+      required: false,
+    },
+    expiresAt: {
+      type: 'string',
+      required: false,
+    },
+  },
 };

@@ -349,8 +349,8 @@ model Match {
   matchNumber        String? // e.g. "FB-M01", "CRIC-SF1"
   teamAId            String?
   teamBId            String?
-  teamAScore         Int?
-  teamBScore         Int?
+  teamAScore         Float?
+  teamBScore         Float?
   winnerTeamId       String?
   status             String    @default("SCHEDULED") // SCHEDULED, LIVE, PAUSED, COMPLETED, ABANDONED, CANCELLED, RESCHEDULED
   currentPeriod      String? // e.g. "1st Half", "Set 2", "Q3", "14.2 Overs"
@@ -406,7 +406,7 @@ model ScoreEvent {
   teamId         String?
   participantId  String?
   eventType      String // SPORT-SPECIFIC: GOAL, POINTS, RUNS, WICKET, FOUL, etc.
-  points         Int       @default(0)
+  points         Float     @default(0)
   metadata       Json? // minute, over, setNumber, subType, etc.
   isReversed     Boolean   @default(false)
   reversalReason String?
@@ -432,8 +432,8 @@ model Result {
   matchId         String    @unique
   status          String    @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, PUBLISHED, REJECTED
   winnerTeamId    String?
-  finalScoreA     Int
-  finalScoreB     Int
+  finalScoreA     Float
+  finalScoreB     Float
   scoreDetails    Json? // Extra breakdown: sets, overs, bonus, penalties
   submittedBy     String?
   submittedAt     DateTime?
@@ -510,6 +510,13 @@ model Volunteer {
   checkedInAt    DateTime?
   status        String   @default("ACTIVE")
   assignedBy    String?
+  // Role a volunteer is owed but can't be granted yet because they haven't
+  // logged in (no User row exists to attach a UserRole to — see
+  // RbacService.assignRoleWithVolunteerScopes). Set at import time from their
+  // real-world position; RbacService.linkPendingVolunteerRole consumes and
+  // clears these the moment they first sign in with a matching email.
+  pendingRoleName String?
+  pendingSportIds String[] @default([])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

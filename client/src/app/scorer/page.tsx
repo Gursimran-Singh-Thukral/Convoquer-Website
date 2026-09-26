@@ -1519,6 +1519,7 @@ export default function ScorerPage() {
                               }
                               placeholder="0"
                               type="number"
+                              step="any"
                               className="px-2 py-1.5 rounded bg-[#0e0e11] border border-white/10 text-xs text-white placeholder:text-neutral-600 w-20"
                             />
                           </div>
@@ -1589,6 +1590,7 @@ export default function ScorerPage() {
                             </label>
                             <input
                               type="number"
+                              step="any"
                               value={manualForm.teamAScore}
                               onChange={(e) =>
                                 setManualForm((p) => ({ ...p, teamAScore: e.target.value }))
@@ -1602,6 +1604,7 @@ export default function ScorerPage() {
                             </label>
                             <input
                               type="number"
+                              step="any"
                               value={manualForm.teamBScore}
                               onChange={(e) =>
                                 setManualForm((p) => ({ ...p, teamBScore: e.target.value }))

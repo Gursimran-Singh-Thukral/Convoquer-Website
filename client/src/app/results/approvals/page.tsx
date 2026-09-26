@@ -487,6 +487,7 @@ export default function MatchApprovalsPage() {
                       </label>
                       <input
                         type="number"
+                        step="any"
                         value={submitForm.finalScoreA}
                         onChange={(e) =>
                           setSubmitForm((p) => ({ ...p, finalScoreA: e.target.value }))
@@ -500,6 +501,7 @@ export default function MatchApprovalsPage() {
                       </label>
                       <input
                         type="number"
+                        step="any"
                         value={submitForm.finalScoreB}
                         onChange={(e) =>
                           setSubmitForm((p) => ({ ...p, finalScoreB: e.target.value }))
@@ -793,6 +795,7 @@ export default function MatchApprovalsPage() {
                                   </label>
                                   <input
                                     type="number"
+                                    step="any"
                                     required
                                     value={overrideForm.finalScoreA}
                                     onChange={(e) =>
@@ -810,6 +813,7 @@ export default function MatchApprovalsPage() {
                                   </label>
                                   <input
                                     type="number"
+                                    step="any"
                                     required
                                     value={overrideForm.finalScoreB}
                                     onChange={(e) =>

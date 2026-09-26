@@ -6,7 +6,7 @@ const TASKS = [
   {
     id: 'hospitality-task',
     title: 'Refreshments',
-    department: 'Hospitality',
+    department: 'Hospitality & Security',
     matchId: null,
     sportId: null,
     status: 'STANDBY',
@@ -16,26 +16,26 @@ const TASKS = [
         volunteerId: 'hospitality-vol',
         volunteer: {
           id: 'hospitality-vol',
-          name: 'Hospitality Volunteer',
+          name: 'Hospitality & Security Volunteer',
           contactNumber: null,
         },
       },
     ],
   },
   {
-    id: 'security-task',
-    title: 'Gate duty',
-    department: 'Security',
+    id: 'media-task',
+    title: 'Photo coverage',
+    department: 'Media',
     matchId: null,
     sportId: null,
     status: 'STANDBY',
     createdAt: new Date(),
     assignees: [
       {
-        volunteerId: 'security-vol',
+        volunteerId: 'media-vol',
         volunteer: {
-          id: 'security-vol',
-          name: 'Security Volunteer',
+          id: 'media-vol',
+          name: 'Media Volunteer',
           contactNumber: null,
         },
       },
@@ -50,16 +50,16 @@ function setup(
   const volunteers = [
     {
       id: 'hospitality-vol',
-      name: 'Hospitality Volunteer',
-      department: 'Hospitality',
+      name: 'Hospitality & Security Volunteer',
+      department: 'Hospitality & Security',
       status: 'ACTIVE',
       userId: null,
       contactNumber: null,
     },
     {
-      id: 'security-vol',
-      name: 'Security Volunteer',
-      department: 'Security',
+      id: 'media-vol',
+      name: 'Media Volunteer',
+      department: 'Media',
       status: 'ACTIVE',
       userId: null,
       contactNumber: null,
@@ -125,7 +125,7 @@ function setup(
 
 describe('OperationsTasksService department isolation', () => {
   it('shows a head only volunteers and tasks in their own department', async () => {
-    const { service } = setup('HOSPITALITY_HEAD');
+    const { service } = setup('HOSPITALITY_SECURITY_HEAD');
     await expect(service.getAssignableVolunteers('head')).resolves.toEqual([
       expect.objectContaining({ id: 'hospitality-vol' }),
     ]);
@@ -135,10 +135,10 @@ describe('OperationsTasksService department isolation', () => {
   });
 
   it('rejects assigning another department volunteer', async () => {
-    const { service } = setup('HOSPITALITY_HEAD');
+    const { service } = setup('HOSPITALITY_SECURITY_HEAD');
     await expect(
       service.createTask(
-        { title: 'Wrong scope', assigneeIds: ['security-vol'] },
+        { title: 'Wrong scope', assigneeIds: ['media-vol'] },
         'head',
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -149,7 +149,7 @@ describe('OperationsTasksService department isolation', () => {
     // linked Volunteer profile — this must NOT unlock the department-wide OR clause.
     const { service } = setup('VOLUNTEER', {
       id: 'hospitality-vol',
-      department: 'Hospitality',
+      department: 'Hospitality & Security',
     });
     await expect(service.getTasks('plain-vol-user')).resolves.toEqual([
       expect.objectContaining({ id: 'hospitality-task' }),
@@ -159,7 +159,7 @@ describe('OperationsTasksService department isolation', () => {
   it('gives a plain volunteer no assignable roster (assigning tasks is a Head action)', async () => {
     const { service } = setup('VOLUNTEER', {
       id: 'hospitality-vol',
-      department: 'Hospitality',
+      department: 'Hospitality & Security',
     });
     await expect(
       service.getAssignableVolunteers('plain-vol-user'),
@@ -167,24 +167,24 @@ describe('OperationsTasksService department isolation', () => {
   });
 
   it("a Head's own Volunteer.department (set via RBAC role assignment) determines their scope, not just the hardcoded default", async () => {
-    // A SECURITY_HEAD whose own Volunteer profile was checked into "Hospitality"
-    // instead (an unusual but valid admin choice) should see Hospitality, not
-    // the hardcoded Security default.
-    const { service } = setup('SECURITY_HEAD', {
+    // A HOSPITALITY_SECURITY_HEAD whose own Volunteer profile was checked into
+    // "Media" instead (an unusual but valid admin choice) should see Media,
+    // not the hardcoded Hospitality & Security default.
+    const { service } = setup('HOSPITALITY_SECURITY_HEAD', {
       id: 'security-head-vol',
-      department: 'Hospitality',
+      department: 'Media',
     });
     await expect(
       service.getAssignableVolunteers('security-head-user'),
-    ).resolves.toEqual([expect.objectContaining({ id: 'hospitality-vol' })]);
+    ).resolves.toEqual([expect.objectContaining({ id: 'media-vol' })]);
   });
 
   it('creates a task with multiple assignees', async () => {
-    const { service, prisma } = setup('HOSPITALITY_HEAD');
+    const { service, prisma } = setup('HOSPITALITY_SECURITY_HEAD');
     const task = await service.createTask(
       {
         title: 'Setup tables',
-        department: 'Hospitality',
+        department: 'Hospitality & Security',
         assigneeIds: ['hospitality-vol'],
       },
       'head',
@@ -197,8 +197,8 @@ describe('OperationsTasksService department isolation', () => {
     const { service, prisma, matchesService } = setup('SPORTS_COORDINATOR');
     const linkedVolunteer = {
       id: 'hospitality-vol',
-      name: 'Hospitality Volunteer',
-      department: 'Hospitality',
+      name: 'Hospitality & Security Volunteer',
+      department: 'Hospitality & Security',
       status: 'ACTIVE',
       userId: 'user-1',
       contactNumber: null,
@@ -232,7 +232,7 @@ describe('OperationsTasksService department isolation', () => {
   it("rejects linking a task to a match outside the caller's competition authority before writing anything", async () => {
     // Authority is checked up front, before the task row is created — so a
     // rejected match link never leaves a half-created task behind.
-    const { service, prisma, rbacService } = setup('HOSPITALITY_HEAD');
+    const { service, prisma, rbacService } = setup('HOSPITALITY_SECURITY_HEAD');
     prisma.match.findUnique.mockResolvedValue({
       id: 'match-1',
       tournament: { sportId: 'sport-1' },
@@ -243,7 +243,7 @@ describe('OperationsTasksService department isolation', () => {
       service.createTask(
         {
           title: 'Score Cricket Final',
-          department: 'Hospitality',
+          department: 'Hospitality & Security',
           matchId: 'match-1',
         },
         'head',

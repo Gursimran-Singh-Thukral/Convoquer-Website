@@ -12,6 +12,8 @@ interface RailLink {
   anyPermission?: string[];
   /** Extra visibility check beyond anyPermission — e.g. Scorer for a volunteer tasked to one match. */
   extra?: (ctx: { hasOfficialAssignments: boolean }) => boolean;
+  /** Restricts visibility to specific role names, ignoring anyPermission — see RequireOrganizer's requireRole. */
+  requireRole?: string[];
 }
 
 const LINKS: RailLink[] = [
@@ -33,26 +35,30 @@ const LINKS: RailLink[] = [
   // /organizer's Overview, gated by media.create — see canSubmitMedia there).
   { href: '/organizer/content', label: 'Content', anyPermission: ['media.publish'] },
   {
+    href: '/sports/manager',
+    label: 'Sports & Venues',
+    requireRole: ['WEB_DEV_HEAD', 'CONVENER', 'CO_CONVENER'],
+  },
+  {
     href: '/tournaments',
     label: 'Tournaments',
-    anyPermission: ['tournament.view', 'competition.manage'],
+    // Tournament structure (create/edit/delete a Tournament, seed it,
+    // generate its bracket) is kept to this one role/account only (also
+    // backed server-side by SoleAdminGuard) — a Sports Coordinator CRUDs
+    // matches inside an existing tournament (via /matches) but never builds
+    // the tournament itself.
+    requireRole: ['WEB_DEV_HEAD'],
   },
   {
     href: '/matches',
     label: 'Matches',
-    anyPermission: ['match.update', 'score.update', 'competition.manage'],
+    anyPermission: ['match.create', 'match.update', 'score.update', 'competition.manage'],
   },
   {
     href: '/results/approvals',
     label: 'Approvals',
     anyPermission: ['result.approve', 'result.submit'],
   },
-  {
-    href: '/sports/manager',
-    label: 'Sports & venues',
-    anyPermission: ['sport.create', 'sport.update', 'venue.create', 'venue.update'],
-  },
-  { href: '/rbac', label: 'RBAC', anyPermission: ['role.view', 'role.assign'] },
   {
     href: '/scorer',
     label: 'Scorer',
@@ -63,6 +69,15 @@ const LINKS: RailLink[] = [
     extra: ({ hasOfficialAssignments }) => hasOfficialAssignments,
   },
   { href: '/security', label: 'Security', anyPermission: ['security.access'] },
+  {
+    href: '/rbac',
+    label: 'RBAC',
+    // RBAC administration is deliberately kept to this one role (and, at the
+    // backend, one exact email — see RbacAdminEmailGuard) rather than the
+    // usual anyPermission check, so it never shows for a Convener/Co-Convener
+    // who'd just hit a 403 on click.
+    requireRole: ['WEB_DEV_HEAD'],
+  },
 ];
 
 /**
@@ -74,12 +89,13 @@ export function OrganizerNavRail() {
   const pathname = usePathname();
   const { hasPermission, hasRole, hasOfficialAssignments } = useAuth();
 
-  const visibleLinks = LINKS.filter(
-    (link) =>
-      !link.anyPermission ||
-      link.anyPermission.some((p) => hasPermission(p)) ||
-      !!link.extra?.({ hasOfficialAssignments }),
-  ).filter((link) => !(link.href === '/sports/manager' && hasRole('HOSPITALITY_HEAD')));
+  const visibleLinks = LINKS.filter((link) =>
+    link.requireRole
+      ? hasRole(...link.requireRole)
+      : !link.anyPermission ||
+        link.anyPermission.some((p) => hasPermission(p)) ||
+        !!link.extra?.({ hasOfficialAssignments }),
+  );
 
   if (visibleLinks.length <= 1) return null;
 

@@ -111,12 +111,47 @@ export class MatchesService {
   ) {}
 
   /**
-   * Object-level authorization: verifies the acting user's 'competition.manage'
-   * permission actually covers the given sport/event, deriving the scope from the
-   * database record itself rather than trusting any client-supplied scope value.
-   * Mirrors ScoringService.verifyScoringAuthority.
+   * Object-level authorization for match-level mutations only (create/
+   * update/reschedule/officials on a match that already exists inside some
+   * tournament) — a Sports Coordinator's 'match.update' grant, scoped to
+   * their own sport via UserRole.sportId, is enough for these. Deliberately
+   * NOT used by the bracket/structure generators below — see
+   * verifyStructureAuthority for those.
    */
   private async verifyCompetitionAuthority(
+    userId: string,
+    sportId?: string | null,
+    eventId?: string | null,
+  ) {
+    const scope = {
+      sportId: sportId ?? undefined,
+      eventId: eventId ?? undefined,
+    };
+    const allowed =
+      (await this.rbacService.hasPermission(userId, 'match.update', scope)) ||
+      (await this.rbacService.hasPermission(
+        userId,
+        'competition.manage',
+        scope,
+      ));
+    if (!allowed) {
+      throw new ForbiddenException(
+        'You are not authorized to manage matches for this sport',
+      );
+    }
+  }
+
+  /**
+   * Object-level authorization for generating a tournament's structure
+   * (initial knockout bracket / round-robin schedule / next Swiss round) —
+   * requires full 'competition.manage', same as TournamentsService's own
+   * check, so this stays with whoever builds the tournament (Convener/
+   * Co-Convener/Web Dev Head) and never with a Sports Coordinator's
+   * sport-scoped match.update alone. A Sports Coordinator "populates" matches
+   * inside a structure that already exists (see verifyCompetitionAuthority
+   * above) but doesn't create that structure.
+   */
+  private async verifyStructureAuthority(
     userId: string,
     sportId?: string | null,
     eventId?: string | null,
@@ -128,7 +163,7 @@ export class MatchesService {
     );
     if (!allowed) {
       throw new ForbiddenException(
-        'You are not authorized to manage competition data for this sport',
+        "You are not authorized to generate this tournament's structure",
       );
     }
   }
@@ -782,7 +817,7 @@ export class MatchesService {
     if (!tournament)
       throw new NotFoundException(`Tournament "${tournamentId}" not found`);
 
-    await this.verifyCompetitionAuthority(
+    await this.verifyStructureAuthority(
       userId,
       tournament.sportId,
       tournament.eventId,
@@ -1061,7 +1096,7 @@ export class MatchesService {
     if (!tournament)
       throw new NotFoundException(`Tournament "${tournamentId}" not found`);
 
-    await this.verifyCompetitionAuthority(
+    await this.verifyStructureAuthority(
       userId,
       tournament.sportId,
       tournament.eventId,
@@ -1197,7 +1232,7 @@ export class MatchesService {
     if (!tournament)
       throw new NotFoundException(`Tournament "${tournamentId}" not found`);
 
-    await this.verifyCompetitionAuthority(
+    await this.verifyStructureAuthority(
       userId,
       tournament.sportId,
       tournament.eventId,

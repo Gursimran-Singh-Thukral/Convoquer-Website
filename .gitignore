@@ -132,3 +132,6 @@ server/node_modules/@prisma/client/
 .tmp/
 .next-*/
 /reports
+# Real PII extracted from the organizing-team roster for prisma/import-organizing-team.ts —
+# never commit names/emails/phone numbers; regenerate from reports/Hard Coded Data/ if needed.
+/server/prisma/org-team-data.json

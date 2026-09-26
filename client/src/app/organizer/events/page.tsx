@@ -1,6 +1,5 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { PublicPage } from '@/components/PublicPage';
 import { RequireOrganizer } from '@/components/RequireOrganizer';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -336,14 +335,6 @@ function EventsContent() {
           ))}
         </div>
       )}
-      <div className="flex flex-wrap gap-6 mt-8">
-        <Link className="underline text-[#FFD700]" href="/sports/manager">
-          Manage sports and venues
-        </Link>
-        <Link className="underline text-[#FFD700]" href="/tournaments">
-          Manage tournaments
-        </Link>
-      </div>
     </PublicPage>
   );
 }

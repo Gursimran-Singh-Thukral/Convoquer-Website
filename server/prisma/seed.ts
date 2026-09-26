@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
-import { createCipheriv, createHmac, randomBytes } from 'crypto';
+import { createHmac } from 'crypto';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -24,17 +24,6 @@ function seedBlindIndex(value: string): string {
   return createHmac('sha256', seedEncryptionKey())
     .update(value.trim().toLowerCase())
     .digest('hex');
-}
-
-function seedEncrypt(plaintext: string): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', seedEncryptionKey(), iv);
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, 'utf8'),
-    cipher.final(),
-  ]);
-  const authTag = cipher.getAuthTag();
-  return `v1:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted.toString('base64')}`;
 }
 
 async function main() {
@@ -191,21 +180,30 @@ async function main() {
         'Media team member — can submit photos/content for the Media Head to approve, cannot publish directly',
     },
     {
-      name: 'HOSPITALITY_HEAD',
-      description: 'Hospitality, logistics and on-ground guest operations lead',
-    },
-    {
-      name: 'SECURITY_HEAD',
+      name: 'HOSPITALITY_SECURITY_HEAD',
       description:
-        'Security, gate pass and participant clearance operations lead',
+        'Hospitality, logistics, security, gate pass and participant clearance operations lead — the two functions run as one combined team',
     },
     {
-      name: 'SECURITY_VOLUNTEER',
-      description: 'Security volunteer with gate entry and exit access',
+      name: 'HOSPITALITY_SECURITY_VOLUNTEER',
+      description:
+        'Hospitality and security ground volunteer — gate entry/exit access plus general on-ground guest operations',
     },
     {
       name: 'WEB_DEV_HEAD',
       description: 'Website, RBAC and technical operations lead',
+    },
+    {
+      name: 'SPONSORSHIP_HEAD',
+      description: 'Sponsor roster and partnership operations lead',
+    },
+    {
+      name: 'EVENT_MANAGEMENT_HEAD',
+      description: 'General event operations and logistics lead',
+    },
+    {
+      name: 'DESIGN_HEAD',
+      description: 'Design and creative operations lead',
     },
     {
       name: 'VOLUNTEER',
@@ -243,17 +241,23 @@ async function main() {
   const mediaTeamRole = await prisma.role.findUniqueOrThrow({
     where: { name: 'MEDIA_TEAM' },
   });
-  const hospitalityHeadRole = await prisma.role.findUniqueOrThrow({
-    where: { name: 'HOSPITALITY_HEAD' },
+  const hospitalitySecurityHeadRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'HOSPITALITY_SECURITY_HEAD' },
   });
-  const securityHeadRole = await prisma.role.findUniqueOrThrow({
-    where: { name: 'SECURITY_HEAD' },
-  });
-  const securityVolunteerRole = await prisma.role.findUniqueOrThrow({
-    where: { name: 'SECURITY_VOLUNTEER' },
+  const hospitalitySecurityVolunteerRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'HOSPITALITY_SECURITY_VOLUNTEER' },
   });
   const webDevHeadRole = await prisma.role.findUniqueOrThrow({
     where: { name: 'WEB_DEV_HEAD' },
+  });
+  const sponsorshipHeadRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'SPONSORSHIP_HEAD' },
+  });
+  const eventManagementHeadRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'EVENT_MANAGEMENT_HEAD' },
+  });
+  const designHeadRole = await prisma.role.findUniqueOrThrow({
+    where: { name: 'DESIGN_HEAD' },
   });
   const coConvenerRole = await prisma.role.findUniqueOrThrow({
     where: { name: 'CO_CONVENER' },
@@ -262,8 +266,17 @@ async function main() {
     where: { name: 'VOLUNTEER' },
   });
 
-  // Convener and Co-Convener get everything (event-wide leadership authority)
+  // Convener and Co-Convener get everything EXCEPT RBAC administration —
+  // role.view/assign/revoke are deliberately held by Web Dev Head alone (see
+  // webDevPermActions below), so a Co-Convener signing in can't touch role
+  // assignments even though they get every other permission that exists.
+  const RBAC_ADMIN_ACTIONS = new Set([
+    'role.view',
+    'role.assign',
+    'role.revoke',
+  ]);
   for (const perm of allPermissions) {
+    if (RBAC_ADMIN_ACTIONS.has(perm.action)) continue;
     for (const roleId of [convenerRole.id, coConvenerRole.id]) {
       await prisma.rolePermission.upsert({
         where: {
@@ -280,15 +293,25 @@ async function main() {
       });
     }
   }
+  // Clean up RBAC admin grants from earlier seed runs, before this exclusion existed.
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: { in: [convenerRole.id, coConvenerRole.id] },
+      permission: { action: { in: Array.from(RBAC_ADMIN_ACTIONS) } },
+    },
+  });
 
-  // Overall Sports Coordinator permissions
+  // Overall Sports Coordinator permissions. Deliberately NO tournament.create/
+  // update or competition.manage — creating, editing or deleting a Tournament
+  // itself (structure, seeding, bracket generation) is kept to Convener/
+  // Co-Convener/Web Dev Head only (see MatchesService.verifyCompetitionAuthority
+  // vs TournamentsService's own, stricter check of the same name). match.update
+  // is what actually authorizes creating/editing matches inside an existing
+  // tournament — unscoped here, so it covers every sport.
   const overallSportPermActions = [
     'sport.view',
     'sport.update',
     'tournament.view',
-    'tournament.create',
-    'tournament.update',
-    'competition.manage',
     'team.view',
     'team.update',
     'participant.view',
@@ -328,18 +351,21 @@ async function main() {
     }
   }
 
-  // Sports Coordinator permissions (scoped per sport)
+  // Sports Coordinator permissions (scoped per sport). Deliberately NO
+  // tournament.create/update or competition.manage — same reasoning as
+  // Overall Sports Coordinator above. match.create/match.update, scoped to
+  // this coordinator's own sportId via UserRole, is what lets them CRUD
+  // matches inside their sport's tournament without touching its structure.
   const sportsCoordPermActions = [
     'sport.view',
     'tournament.view',
-    'tournament.update',
-    'competition.manage',
     'team.view',
     'participant.view',
     'fixture.view',
     'fixture.create',
     'fixture.update',
     'match.view',
+    'match.create',
     'match.update',
     'score.view',
     'score.update',
@@ -367,6 +393,18 @@ async function main() {
       });
     }
   }
+  // Clean up tournament-structure grants from earlier seed runs, before this
+  // exclusion existed — upserts above only add/refresh, they never remove.
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: { in: [overallCoordRole.id, sportsCoordRole.id] },
+      permission: {
+        action: {
+          in: ['competition.manage', 'tournament.create', 'tournament.update'],
+        },
+      },
+    },
+  });
 
   // Media Head permissions
   const mediaPermActions = [
@@ -421,91 +459,76 @@ async function main() {
     }
   }
 
-  // Hospitality Head permissions
-  const hospitalityPermActions = [
+  // Hospitality & Security Head permissions — the two functions run as one
+  // combined team on the ground (per the real org chart), so this role gets
+  // the union of what a Hospitality Head and a Security Head each held.
+  const hospitalitySecurityHeadPermActions = [
     'participant.view',
     'participant.update',
+    'participant.create',
     'venue.view',
     'venue.update',
     'team.view',
     'match.view',
     'standings.view',
+    'security.access',
     'task.view',
     'task.create',
     'task.update',
     'volunteer.view.department',
   ];
-  for (const action of hospitalityPermActions) {
+  for (const action of hospitalitySecurityHeadPermActions) {
     const permId = permMap.get(action);
     if (permId) {
       await prisma.rolePermission.upsert({
         where: {
           roleId_permissionId: {
-            roleId: hospitalityHeadRole.id,
+            roleId: hospitalitySecurityHeadRole.id,
             permissionId: permId,
           },
         },
         update: {},
-        create: { roleId: hospitalityHeadRole.id, permissionId: permId },
+        create: {
+          roleId: hospitalitySecurityHeadRole.id,
+          permissionId: permId,
+        },
       });
     }
   }
 
-  // Security Head permissions
-  const securityPermActions = [
+  // Hospitality & Security Volunteers are restricted to the Security tab (no
+  // separate Workforce/RBAC/Sports/Venue tabs) — see organizer/page.tsx
+  // canSeeWorkforceDept, which deliberately excludes this role. task.view/
+  // task.update are still granted so they can see and complete tasks assigned
+  // to them; those show up inside the Security tab's own task list, not the
+  // full Workforce dispatch card. Also carries the generic ground-volunteer
+  // permissions (match/standings/fixture/team view) since Hospitality has no
+  // separate ground role of its own — see GROUND_ROLE_BY_DEPARTMENT.
+  const hospitalitySecurityVolunteerPermActions = [
     'participant.view',
     'participant.update',
-    'participant.create',
     'venue.view',
+    'security.access',
+    'task.view',
+    'task.update',
     'match.view',
+    'score.view',
     'standings.view',
-    'security.access',
-    'task.view',
-    'task.create',
-    'task.update',
-    'volunteer.view.department',
+    'fixture.view',
+    'team.view',
   ];
-  for (const action of securityPermActions) {
-    const permId = permMap.get(action);
-    if (permId) {
-      await prisma.rolePermission.upsert({
-        where: {
-          roleId_permissionId: {
-            roleId: securityHeadRole.id,
-            permissionId: permId,
-          },
-        },
-        update: {},
-        create: { roleId: securityHeadRole.id, permissionId: permId },
-      });
-    }
-  }
-
-  // Security Volunteers are restricted to the Security tab (no separate
-  // Workforce/RBAC/Sports/Venue tabs) — see organizer/page.tsx canSeeWorkforceDept,
-  // which deliberately excludes this role. task.view/task.update are still
-  // granted so they can see and complete tasks assigned to them; those show up
-  // inside the Security tab's own task list, not the full Workforce dispatch card.
-  const securityVolunteerPermActions = [
-    'participant.view',
-    'participant.update',
-    'venue.view',
-    'security.access',
-    'task.view',
-    'task.update',
-  ];
-  for (const action of securityVolunteerPermActions) {
+  for (const action of hospitalitySecurityVolunteerPermActions) {
     const permissionId = permMap.get(action);
     if (permissionId) {
       await prisma.rolePermission.upsert({
         where: {
           roleId_permissionId: {
-            roleId: securityVolunteerRole.id,
+            roleId: hospitalitySecurityVolunteerRole.id,
             permissionId,
           },
         },
         update: {},
-        create: { roleId: securityVolunteerRole.id, permissionId },
+        create: { roleId: hospitalitySecurityVolunteerRole.id, permissionId },
       });
     }
   }
@@ -522,7 +545,21 @@ async function main() {
     'sponsor.update',
     'sponsor.delete',
     'venue.view',
+    'venue.create',
+    'venue.update',
     'sport.view',
+    'sport.create',
+    'sport.update',
+    // Tournament structure (create/update/delete a Tournament, seed it,
+    // generate its bracket) is deliberately kept to this role plus Convener/
+    // Co-Convener — see TournamentsService.verifyCompetitionAuthority. Sports
+    // Coordinators get match.create/match.update instead, scoped to their own
+    // sport, which only lets them CRUD matches inside a tournament someone
+    // with this permission already built.
+    'tournament.view',
+    'tournament.create',
+    'tournament.update',
+    'competition.manage',
     'task.view',
     'task.create',
     'task.update',
@@ -540,6 +577,84 @@ async function main() {
         },
         update: {},
         create: { roleId: webDevHeadRole.id, permissionId: permId },
+      });
+    }
+  }
+
+  // Sponsorship Head permissions — owns the sponsor roster shown on the
+  // public site plus their own team's tasks.
+  const sponsorshipHeadPermActions = [
+    'sponsor.create',
+    'sponsor.update',
+    'sponsor.delete',
+    'task.view',
+    'task.create',
+    'task.update',
+    'volunteer.view.department',
+  ];
+  for (const action of sponsorshipHeadPermActions) {
+    const permId = permMap.get(action);
+    if (permId) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: sponsorshipHeadRole.id,
+            permissionId: permId,
+          },
+        },
+        update: {},
+        create: { roleId: sponsorshipHeadRole.id, permissionId: permId },
+      });
+    }
+  }
+
+  // Event Management Head permissions — general on-ground logistics
+  // oversight, not tied to a single sport or department's resources.
+  const eventManagementHeadPermActions = [
+    'task.view',
+    'task.create',
+    'task.update',
+    'volunteer.view.department',
+    'venue.view',
+    'participant.view',
+  ];
+  for (const action of eventManagementHeadPermActions) {
+    const permId = permMap.get(action);
+    if (permId) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: eventManagementHeadRole.id,
+            permissionId: permId,
+          },
+        },
+        update: {},
+        create: { roleId: eventManagementHeadRole.id, permissionId: permId },
+      });
+    }
+  }
+
+  // Design Head permissions — creative/graphics team; media.create lets them
+  // queue design assets the same way Media Team submits photos.
+  const designHeadPermActions = [
+    'task.view',
+    'task.create',
+    'task.update',
+    'volunteer.view.department',
+    'media.create',
+  ];
+  for (const action of designHeadPermActions) {
+    const permId = permMap.get(action);
+    if (permId) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: designHeadRole.id,
+            permissionId: permId,
+          },
+        },
+        update: {},
+        create: { roleId: designHeadRole.id, permissionId: permId },
       });
     }
   }
@@ -676,41 +791,62 @@ async function main() {
     },
   });
 
-  // Seed Confirmed Sports
-  const confirmedSports = [
-    { name: 'Cricket', description: 'T20 & League Cricket tournament' },
+  // Seed Confirmed Sports — Men's/Women's draws are separate Sport records
+  // (not a field on one shared Sport) since each fields its own champion,
+  // standings and medal count. Squash was dropped; Athletics/Weight Lifting/
+  // E-Sports exist as placeholders with no tournament yet (format on hold).
+  const confirmedSports: {
+    name: string;
+    description: string;
+    scoringMode?: string;
+  }[] = [
     {
-      name: 'Football',
-      description: 'Full-pitch inter-college football championship',
-    },
-    { name: 'Basketball', description: '5v5 full-court basketball tournament' },
-    { name: 'Volleyball', description: 'Standard 6v6 volleyball championship' },
-    {
-      name: 'Badminton',
-      description: 'Singles and doubles badminton competition',
+      name: 'Badminton (Men)',
+      description: 'Knockout tournament, group stage then knockout',
     },
     {
-      name: 'Table Tennis',
-      description: 'Singles and doubles table tennis tournament',
+      name: 'Badminton (Women)',
+      description: 'Knockout tournament, group stage then knockout',
     },
-    { name: 'Athletics', description: 'Track and field athletics events' },
-    { name: 'Chess', description: 'Classical & rapid chess tournament' },
-    { name: 'Squash', description: 'Singles squash tournament' },
     {
-      name: 'Weightlifting',
-      description: 'Snatch and Clean & Jerk weightlifting competition',
+      name: 'Basketball (Men)',
+      description: '5v5 full-court knockout tournament',
     },
+    {
+      name: 'Basketball (Women)',
+      description: '5v5 full-court knockout tournament',
+    },
+    { name: 'Cricket', description: 'Knockout tournament' },
+    { name: 'Football', description: 'Knockout tournament' },
+    { name: 'Table Tennis (Men)', description: 'Knockout tournament' },
+    { name: 'Table Tennis (Women)', description: 'Knockout tournament' },
+    { name: 'Volleyball (Men)', description: 'Knockout tournament' },
+    { name: 'Volleyball (Women)', description: 'Knockout tournament' },
+    {
+      name: 'Chess (Men)',
+      description: 'Round robin, Sonneborn–Berger tiebreak',
+      scoringMode: 'RESULT_ONLY',
+    },
+    {
+      name: 'Chess (Women)',
+      description: 'Round robin, Sonneborn–Berger tiebreak',
+      scoringMode: 'RESULT_ONLY',
+    },
+    { name: 'Athletics', description: 'Track and field — format TBC' },
+    { name: 'Weight Lifting', description: 'Format on hold' },
+    { name: 'E-Sports', description: 'BGMI, Free Fire, Valorant — format TBC' },
   ];
 
   for (const sport of confirmedSports) {
     const existing = await prisma.sport.findFirst({
       where: { eventId: event.id, name: sport.name },
     });
+    const scoringMode = sport.scoringMode ?? 'LIVE';
 
     if (existing) {
       await prisma.sport.update({
         where: { id: existing.id },
-        data: { description: sport.description, status: 'ACTIVE' },
+        data: { description: sport.description, status: 'ACTIVE', scoringMode },
       });
     } else {
       await prisma.sport.create({
@@ -719,23 +855,22 @@ async function main() {
           name: sport.name,
           description: sport.description,
           status: 'ACTIVE',
+          scoringMode,
         },
       });
     }
   }
 
-  // Seed Venues
-  const campusVenues = [
-    { name: 'Main Ground', location: 'Campus West' },
-    { name: 'Cricket Ground', location: 'Campus South' },
-    {
-      name: 'Indoor Sports Complex',
-      location: 'Student Activity Centre (SAC)',
-    },
-    { name: 'Basketball Court', location: 'Outdoor Sports Enclave' },
-    { name: 'Volleyball Court', location: 'Outdoor Sports Enclave' },
-    { name: 'Squash Court', location: 'Student Activity Centre (SAC)' },
-    { name: 'Weightlifting Hall', location: 'Student Activity Centre (SAC)' },
+  // Seed Venues — no coordinates yet; the Web Dev Head places pins on the
+  // campus map via /sports/manager once these exist.
+  const campusVenues: { name: string; location: string | null }[] = [
+    { name: 'Badminton Courts', location: 'Chinar Sports Complex' },
+    { name: 'Basketball Court', location: null },
+    { name: 'Student Activity Centre', location: 'Chinar Sports Complex' },
+    { name: 'Khel Gaon', location: 'Athletics Ground' },
+    { name: 'Football Ground', location: null },
+    { name: 'Table Tennis Court', location: 'Chinar Sports Complex' },
+    { name: 'Volleyball Court', location: null },
   ];
 
   for (const venue of campusVenues) {
@@ -760,392 +895,54 @@ async function main() {
     }
   }
 
-  // Seed Participating Institutes
-  const institutesData = [
+  // Seed Participating Institutes — the 17 confirmed delegations, exactly as
+  // named in the official participation sheet.
+  const institutesData: { name: string; shortName: string }[] = [
+    { name: 'MIET', shortName: 'MIET' },
+    { name: 'IIM Jammu', shortName: 'IIMJ' },
+    { name: 'SMVDU', shortName: 'SMVDU' },
+    { name: 'ASCOMS', shortName: 'ASCOMS' },
+    { name: 'Central University of Jammu', shortName: 'CU' },
+    { name: 'GMC Jammu', shortName: 'GMC' },
+    { name: 'GCET', shortName: 'GCET' },
+    { name: 'Bhaskar Degree College Udhampur', shortName: 'BDC' },
+    { name: 'GGMS Jammu', shortName: 'GGMS' },
+    { name: 'Lovely Professional University', shortName: 'LPU' },
+    { name: 'IIM Amritsar', shortName: 'IIMA' },
+    { name: 'Amity University, Punjab', shortName: 'AMITY' },
+    { name: 'Baba Ghulam Shah Badshah University', shortName: 'BGSBU' },
     {
-      name: 'Indian Institute of Technology Jammu',
-      shortName: 'IIT Jammu',
-      city: 'Jammu',
-      state: 'J&K',
+      name: 'Sher-e-Kashmir University of Agricultural Sciences and Technology',
+      shortName: 'SKUAST',
     },
-    {
-      name: 'National Institute of Technology Srinagar',
-      shortName: 'NIT Srinagar',
-      city: 'Srinagar',
-      state: 'J&K',
-    },
-    {
-      name: 'Shri Mata Vaishno Devi University',
-      shortName: 'SMVDU',
-      city: 'Katra',
-      state: 'J&K',
-    },
-    {
-      name: 'Government College of Engineering and Technology',
-      shortName: 'GCET Jammu',
-      city: 'Jammu',
-      state: 'J&K',
-    },
+    { name: 'AIIMS', shortName: 'AIIMS' },
+    { name: 'Central Sanskrit University', shortName: 'CSU' },
+    { name: 'Indian Institute of Technology Jammu', shortName: 'IIT Jammu' },
   ];
 
-  const institutesMap = new Map<string, any>();
   for (const inst of institutesData) {
-    let existing = await prisma.institute.findFirst({
+    const existing = await prisma.institute.findFirst({
       where: { eventId: event.id, name: inst.name },
     });
-    if (!existing) {
-      existing = await prisma.institute.create({
+    if (existing) {
+      await prisma.institute.update({
+        where: { id: existing.id },
+        data: { shortName: inst.shortName, status: 'ACTIVE' },
+      });
+    } else {
+      await prisma.institute.create({
         data: {
           eventId: event.id,
           name: inst.name,
           shortName: inst.shortName,
-          city: inst.city,
-          state: inst.state,
           status: 'ACTIVE',
         },
       });
     }
-    institutesMap.set(inst.shortName, existing);
-  }
-
-  // Seed Sample Teams & Athletes for Football
-  const football = await prisma.sport.findFirst({
-    where: { eventId: event.id, name: 'Football' },
-  });
-  const iitj = institutesMap.get('IIT Jammu');
-  const nits = institutesMap.get('NIT Srinagar');
-
-  if (football && iitj && nits) {
-    // 1. IIT Jammu Football Team
-    let iitjTeam = await prisma.team.findFirst({
-      where: { eventId: event.id, instituteId: iitj.id, sportId: football.id },
-    });
-    if (!iitjTeam) {
-      iitjTeam = await prisma.team.create({
-        data: {
-          eventId: event.id,
-          instituteId: iitj.id,
-          sportId: football.id,
-          name: 'IIT Jammu Football',
-        },
-      });
-    }
-
-    // 2. NIT Srinagar Football Team
-    let nitsTeam = await prisma.team.findFirst({
-      where: { eventId: event.id, instituteId: nits.id, sportId: football.id },
-    });
-    if (!nitsTeam) {
-      nitsTeam = await prisma.team.create({
-        data: {
-          eventId: event.id,
-          instituteId: nits.id,
-          sportId: football.id,
-          name: 'NIT Srinagar Football',
-        },
-      });
-    }
-
-    // Seed Sample Athletes
-    const athletes = [
-      {
-        name: 'Aarav Sharma',
-        rollNumber: '2023UEC0012',
-        instituteId: iitj.id,
-        gender: 'MALE',
-        teamId: iitjTeam.id,
-        role: 'CAPTAIN',
-        gatePassNumber: 'CQ26-P-1001',
-      },
-      {
-        name: 'Rohan Verma',
-        rollNumber: '2023UCS0045',
-        instituteId: iitj.id,
-        gender: 'MALE',
-        teamId: iitjTeam.id,
-        role: 'PLAYER',
-        gatePassNumber: 'CQ26-P-1002',
-      },
-      {
-        name: 'Tufail Ahmed',
-        rollNumber: '2022NIT089',
-        instituteId: nits.id,
-        gender: 'MALE',
-        teamId: nitsTeam.id,
-        role: 'CAPTAIN',
-        gatePassNumber: 'CQ26-P-2001',
-      },
-    ];
-
-    for (const ath of athletes) {
-      let part = await prisma.participant.findFirst({
-        where: {
-          eventId: event.id,
-          rollNumberHash: seedBlindIndex(ath.rollNumber),
-        },
-      });
-      if (!part) {
-        part = await prisma.participant.create({
-          data: {
-            eventId: event.id,
-            instituteId: ath.instituteId,
-            name: ath.name,
-            rollNumber: seedEncrypt(ath.rollNumber),
-            rollNumberHash: seedBlindIndex(ath.rollNumber),
-            gender: ath.gender,
-            category: 'ATHLETE',
-            gatePassNumber: ath.gatePassNumber,
-          },
-        });
-      }
-
-      await prisma.teamMember.upsert({
-        where: {
-          teamId_participantId: { teamId: ath.teamId, participantId: part.id },
-        },
-        update: { role: ath.role },
-        create: {
-          teamId: ath.teamId,
-          participantId: part.id,
-          role: ath.role,
-        },
-      });
-    }
-  }
-
-  // Seed Sample Audience / Visitor Passes (to demonstrate Security Search & Gate Verification)
-  const audienceList = [
-    {
-      name: 'Priya Gupta',
-      contactNumber: '+919876543210',
-      category: 'AUDIENCE',
-      gatePassNumber: 'CQ26-AUD-3001',
-      isCheckedIn: false,
-    },
-    {
-      name: 'Amit Kumar',
-      contactNumber: '+919812345678',
-      category: 'AUDIENCE',
-      gatePassNumber: 'CQ26-AUD-3002',
-      isCheckedIn: true,
-      checkedInAt: new Date(),
-    },
-  ];
-
-  for (const aud of audienceList) {
-    const existing = await prisma.participant.findFirst({
-      where: { eventId: event.id, gatePassNumber: aud.gatePassNumber },
-    });
-    if (!existing) {
-      await prisma.participant.create({
-        data: {
-          eventId: event.id,
-          name: aud.name,
-          contactNumber: seedEncrypt(aud.contactNumber),
-          category: aud.category,
-          gatePassNumber: aud.gatePassNumber,
-          isCheckedIn: aud.isCheckedIn,
-          checkedInAt: aud.checkedInAt,
-        },
-      });
-    }
-  }
-
-  // =========================================================================
-  // SEED TOURNAMENT, SEEDS, FIXTURES & MATCHES (PHASE 7)
-  // =========================================================================
-  const footballSport = await prisma.sport.findFirst({
-    where: { eventId: event.id, name: 'Football' },
-  });
-  const mainGround = await prisma.venue.findFirst({
-    where: { eventId: event.id, name: 'Main Ground' },
-  });
-
-  if (footballSport && mainGround) {
-    let footballTournament = await prisma.tournament.findFirst({
-      where: {
-        eventId: event.id,
-        sportId: footballSport.id,
-        name: "Convoquer'26 Inter-College Football Cup",
-      },
-    });
-
-    if (!footballTournament) {
-      footballTournament = await prisma.tournament.create({
-        data: {
-          eventId: event.id,
-          sportId: footballSport.id,
-          name: "Convoquer'26 Inter-College Football Cup",
-          format: 'KNOCKOUT',
-          status: 'UPCOMING',
-          pointsForWin: 3,
-          pointsForDraw: 1,
-          pointsForLoss: 0,
-        },
-      });
-    }
-
-    const smvduInst = institutesMap.get('SMVDU');
-    const gcetInst = institutesMap.get('GCET Jammu');
-
-    let teamIITJ = await prisma.team.findFirst({
-      where: { eventId: event.id, name: { contains: 'IIT Jammu' } },
-    });
-    let teamNIT = await prisma.team.findFirst({
-      where: { eventId: event.id, name: { contains: 'NIT Srinagar' } },
-    });
-    let teamSMVDU = await prisma.team.findFirst({
-      where: { eventId: event.id, name: { contains: 'SMVDU' } },
-    });
-    if (!teamSMVDU && smvduInst) {
-      teamSMVDU = await prisma.team.create({
-        data: {
-          eventId: event.id,
-          instituteId: smvduInst.id,
-          sportId: footballSport.id,
-          name: 'SMVDU Football',
-        },
-      });
-    }
-
-    let teamGCET = await prisma.team.findFirst({
-      where: { eventId: event.id, name: { contains: 'GCET' } },
-    });
-    if (!teamGCET && gcetInst) {
-      teamGCET = await prisma.team.create({
-        data: {
-          eventId: event.id,
-          instituteId: gcetInst.id,
-          sportId: footballSport.id,
-          name: 'GCET Football',
-        },
-      });
-    }
-
-    if (teamIITJ && teamNIT && teamSMVDU && teamGCET) {
-      // Configure Tournament Seeding:
-      // Seed 1: IIT Jammu (Defending Champ)
-      // Seed 2: NIT Srinagar (Runners Up)
-      // Seed 3: SMVDU
-      // Seed 4: GCET
-      // Ensures Seed 1 and Seed 2 are in opposite halves of the bracket and can ONLY meet in Finals!
-      const seedEntries = [
-        {
-          teamId: teamIITJ.id,
-          seedNumber: 1,
-          notes: 'Defending Champion - Seed 1 (Top Half)',
-        },
-        {
-          teamId: teamNIT.id,
-          seedNumber: 2,
-          notes: 'Finalist 2025 - Seed 2 (Bottom Half)',
-        },
-        {
-          teamId: teamSMVDU.id,
-          seedNumber: 3,
-          notes: 'Semifinalist 2025 - Seed 3',
-        },
-        { teamId: teamGCET.id, seedNumber: 4, notes: 'Seed 4' },
-      ];
-
-      for (const se of seedEntries) {
-        await prisma.tournamentTeamSeed.upsert({
-          where: {
-            tournamentId_teamId: {
-              tournamentId: footballTournament.id,
-              teamId: se.teamId,
-            },
-          },
-          update: { seedNumber: se.seedNumber, notes: se.notes },
-          create: {
-            tournamentId: footballTournament.id,
-            teamId: se.teamId,
-            seedNumber: se.seedNumber,
-            notes: se.notes,
-          },
-        });
-      }
-
-      // Create Semifinal and Final Stages
-      let semiStage = await prisma.tournamentStage.findFirst({
-        where: { tournamentId: footballTournament.id, name: 'Semifinals' },
-      });
-      if (!semiStage) {
-        semiStage = await prisma.tournamentStage.create({
-          data: {
-            tournamentId: footballTournament.id,
-            name: 'Semifinals',
-            sequence: 1,
-            stageType: 'KNOCKOUT',
-            status: 'PENDING',
-          },
-        });
-      }
-
-      // Match 1: Seed 1 (IIT Jammu) vs Seed 4 (GCET) [Top Half]
-      const m1Existing = await prisma.match.findFirst({
-        where: { tournamentId: footballTournament.id, matchNumber: 'FB-SF-01' },
-      });
-      let m1 = m1Existing;
-      if (!m1Existing) {
-        m1 = await prisma.match.create({
-          data: {
-            tournamentId: footballTournament.id,
-            stageId: semiStage.id,
-            venueId: mainGround.id,
-            matchNumber: 'FB-SF-01',
-            teamAId: teamIITJ.id,
-            teamBId: teamGCET.id,
-            scheduledStartTime: new Date('2026-10-02T09:00:00Z'),
-            scheduledEndTime: new Date('2026-10-02T10:30:00Z'),
-            status: 'SCHEDULED',
-          },
-        });
-      }
-
-      // Match 2: Seed 2 (NIT Srinagar) vs Seed 3 (SMVDU) [Bottom Half]
-      // Notice: Seed 1 and Seed 2 are separated into opposite semifinals!
-      const m2Existing = await prisma.match.findFirst({
-        where: { tournamentId: footballTournament.id, matchNumber: 'FB-SF-02' },
-      });
-      let m2 = m2Existing;
-      if (!m2Existing) {
-        m2 = await prisma.match.create({
-          data: {
-            tournamentId: footballTournament.id,
-            stageId: semiStage.id,
-            venueId: mainGround.id,
-            matchNumber: 'FB-SF-02',
-            teamAId: teamNIT.id,
-            teamBId: teamSMVDU.id,
-            scheduledStartTime: new Date('2026-10-02T11:00:00Z'),
-            scheduledEndTime: new Date('2026-10-02T12:30:00Z'),
-            status: 'SCHEDULED',
-          },
-        });
-      }
-
-      // Assign Lead Referee / Scorekeeper to matches
-      const leadUser = await prisma.user.findFirst({
-        where: { emailHash: seedBlindIndex('convener@iitjammu.ac.in') },
-      });
-      if (leadUser && m1 && m2) {
-        await prisma.matchOfficial.upsert({
-          where: { matchId_userId: { matchId: m1.id, userId: leadUser.id } },
-          update: { role: 'REFEREE' },
-          create: { matchId: m1.id, userId: leadUser.id, role: 'REFEREE' },
-        });
-        await prisma.matchOfficial.upsert({
-          where: { matchId_userId: { matchId: m2.id, userId: leadUser.id } },
-          update: { role: 'REFEREE' },
-          create: { matchId: m2.id, userId: leadUser.id, role: 'REFEREE' },
-        });
-      }
-    }
   }
 
   console.log(
-    'Seeding complete. Seeded permissions, roles, event, sports, venues, institutes, teams, audience passes, tournament seeds, and seeded knockout fixtures.',
+    'Seeding complete. Seeded permissions, roles, event, sports, venues, and institutes. Teams, brackets and volunteer import are a separate pass.',
   );
 }
 

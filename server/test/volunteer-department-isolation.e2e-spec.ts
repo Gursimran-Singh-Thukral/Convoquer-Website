@@ -183,41 +183,43 @@ describe('Volunteer department isolation (e2e)', () => {
     );
 
     // Two department Heads, each managing only their own department.
-    const hospHeadId = await makeUser('E2E Hospitality Head');
-    await rbac.assignRole(null, hospHeadId, 'HOSPITALITY_HEAD');
-    const secHeadId = await makeUser('E2E Security Head');
-    await rbac.assignRole(null, secHeadId, 'SECURITY_HEAD');
+    const hospHeadId = await makeUser('E2E Hospitality & Security Head');
+    await rbac.assignRole(null, hospHeadId, 'HOSPITALITY_SECURITY_HEAD');
+    const mediaHeadId = await makeUser('E2E Media Head');
+    await rbac.assignRole(null, mediaHeadId, 'MEDIA_HEAD');
 
-    // A plain volunteer in Hospitality, linked to a real login account.
-    const hospVolUserId = await makeUser('E2E Hospitality Volunteer');
+    // A plain volunteer in Hospitality & Security, linked to a real login account.
+    const hospVolUserId = await makeUser(
+      'E2E Hospitality & Security Volunteer',
+    );
     await rbac.assignRole(null, hospVolUserId, 'VOLUNTEER');
     const hospVolunteer = await prisma.volunteer.create({
       data: {
         volunteerCode: `VOL-${randomUUID()}`,
         name: 'E2E Hosp Vol',
         email: `e2e-hv-${randomUUID()}@convoquer.test`,
-        department: 'Hospitality',
+        department: 'Hospitality & Security',
         userId: hospVolUserId,
       },
     });
     volunteerIds.push(hospVolunteer.id);
 
-    // A Security volunteer with no linked login — exists purely to prove Hospitality's Head can't see it.
-    const secVolunteer = await prisma.volunteer.create({
+    // A Media volunteer with no linked login — exists purely to prove Hospitality & Security's Head can't see it.
+    const mediaVolunteer = await prisma.volunteer.create({
       data: {
         volunteerCode: `VOL-${randomUUID()}`,
-        name: 'E2E Sec Vol',
-        email: `e2e-sv-${randomUUID()}@convoquer.test`,
-        department: 'Security',
+        name: 'E2E Media Vol',
+        email: `e2e-mv-${randomUUID()}@convoquer.test`,
+        department: 'Media',
       },
     });
-    volunteerIds.push(secVolunteer.id);
+    volunteerIds.push(mediaVolunteer.id);
 
-    // Tasks: one department-wide Hospitality task, one addressed specifically to the
-    // Hospitality volunteer, and one Security task — Requirement 3 hinges on the plain
-    // volunteer NOT seeing the department-wide one.
+    // Tasks: one department-wide Hospitality & Security task, one addressed specifically to
+    // the Hospitality & Security volunteer, and one Media task — Requirement 3 hinges on the
+    // plain volunteer NOT seeing the department-wide one.
     const deptWideTask = await opsTasksSvc.createTask(
-      { title: 'Set up refreshments', department: 'Hospitality' },
+      { title: 'Set up refreshments', department: 'Hospitality & Security' },
       hospHeadId,
     );
     taskIds.push(deptWideTask.id);
@@ -226,20 +228,20 @@ describe('Volunteer department isolation (e2e)', () => {
       hospHeadId,
     );
     taskIds.push(myTask.id);
-    const securityTask = await opsTasksSvc.createTask(
-      { title: 'Gate duty', department: 'Security' },
-      secHeadId,
+    const mediaTask = await opsTasksSvc.createTask(
+      { title: 'Photo coverage', department: 'Media' },
+      mediaHeadId,
     );
-    taskIds.push(securityTask.id);
+    taskIds.push(mediaTask.id);
 
     // --- Requirement 2: roster visibility is Head-scoped to their own department only ---
     const hospRoster = await volunteersSvc.getRosterForUser(hospHeadId);
     expect(hospRoster.map((v) => v.id)).toContain(hospVolunteer.id);
-    expect(hospRoster.map((v) => v.id)).not.toContain(secVolunteer.id);
+    expect(hospRoster.map((v) => v.id)).not.toContain(mediaVolunteer.id);
 
-    const secRoster = await volunteersSvc.getRosterForUser(secHeadId);
-    expect(secRoster.map((v) => v.id)).toContain(secVolunteer.id);
-    expect(secRoster.map((v) => v.id)).not.toContain(hospVolunteer.id);
+    const mediaRoster = await volunteersSvc.getRosterForUser(mediaHeadId);
+    expect(mediaRoster.map((v) => v.id)).toContain(mediaVolunteer.id);
+    expect(mediaRoster.map((v) => v.id)).not.toContain(hospVolunteer.id);
 
     // A plain volunteer gets no roster at all (never their department peers) — and the
     // controller layer would 403 them (neither permission granted), not silently 200.
@@ -265,14 +267,14 @@ describe('Volunteer department isolation (e2e)', () => {
     expect(hospHeadTaskIds).toEqual(
       expect.arrayContaining([deptWideTask.id, myTask.id]),
     );
-    expect(hospHeadTaskIds).not.toContain(securityTask.id);
+    expect(hospHeadTaskIds).not.toContain(mediaTask.id);
 
-    const secHeadTaskIds = (await opsTasksSvc.getTasks(secHeadId)).map(
+    const mediaHeadTaskIds = (await opsTasksSvc.getTasks(mediaHeadId)).map(
       (t) => t.id,
     );
-    expect(secHeadTaskIds).toContain(securityTask.id);
-    expect(secHeadTaskIds).not.toContain(deptWideTask.id);
-    expect(secHeadTaskIds).not.toContain(myTask.id);
+    expect(mediaHeadTaskIds).toContain(mediaTask.id);
+    expect(mediaHeadTaskIds).not.toContain(deptWideTask.id);
+    expect(mediaHeadTaskIds).not.toContain(myTask.id);
 
     const plainVolTaskIds = (await opsTasksSvc.getTasks(hospVolUserId)).map(
       (t) => t.id,
@@ -284,7 +286,7 @@ describe('Volunteer department isolation (e2e)', () => {
       [],
     );
 
-    // --- Hospitality: expected audience per venue, from the real fixture + roster we built ---
+    // --- Hospitality & Security: expected audience per venue, from the real fixture + roster we built ---
     const projection = await dashboardSvc.getVenueAudienceProjection(eventId);
     const ourVenue = projection.venues.find((v) => v.venueId === venue.id)!;
     expect(ourVenue).toBeDefined();

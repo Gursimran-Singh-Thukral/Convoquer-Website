@@ -32,7 +32,14 @@ interface SetsAndGamesDetails {
   gamesWon?: { teamA: number; teamB: number };
 }
 interface ChessDetails {
-  pointsX2?: { teamA: number; teamB: number };
+  points?: { teamA: number; teamB: number };
+}
+
+/** Formats a chess score (whole or half-point, e.g. 1, 1.5, 2.5) as "1", "1½", "2½". */
+function formatChessPoints(points: number): string {
+  const whole = Math.floor(points);
+  const isHalf = points - whole >= 0.5;
+  return isHalf ? `${whole || ''}½` : String(whole);
 }
 interface AthleticsDetails {
   unit?: string;
@@ -73,9 +80,8 @@ export function formatScoreLine(match: MatchLike, teamAName = 'A', teamBName = '
     return `${teamAName} ${d.gamesWon.teamA}-${d.gamesWon.teamB} ${teamBName}${setsLine ? ` (${setsLine})` : ''}`;
   }
 
-  if (sport === 'CHESS' && d.pointsX2) {
-    const fmt = (x2: number) => (x2 % 2 === 0 ? String(x2 / 2) : `${(x2 - 1) / 2}½`);
-    return `${teamAName} ${fmt(d.pointsX2.teamA)}-${fmt(d.pointsX2.teamB)} ${teamBName}`;
+  if (sport === 'CHESS' && d.points) {
+    return `${teamAName} ${formatChessPoints(d.points.teamA)}-${formatChessPoints(d.points.teamB)} ${teamBName}`;
   }
 
   if (sport === 'WEIGHTLIFTING') {
@@ -138,9 +144,11 @@ export function formatTeamScores(match: MatchLike): {
     };
   }
 
-  if (sport === 'CHESS' && d.pointsX2) {
-    const fmt = (x2: number) => (x2 % 2 === 0 ? String(x2 / 2) : `${(x2 - 1) / 2}½`);
-    return { teamA: { primary: fmt(d.pointsX2.teamA) }, teamB: { primary: fmt(d.pointsX2.teamB) } };
+  if (sport === 'CHESS' && d.points) {
+    return {
+      teamA: { primary: formatChessPoints(d.points.teamA) },
+      teamB: { primary: formatChessPoints(d.points.teamB) },
+    };
   }
 
   if (sport === 'WEIGHTLIFTING') {

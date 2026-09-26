@@ -22,29 +22,28 @@ function result(
 }
 
 describe('chess engine (FIDE Laws of Chess)', () => {
-  it('scores a win as 2 (doubled points) and a draw as 1 each', () => {
+  it('scores a win as 1 point and a draw as ½ point each', () => {
     let state = chessEngine.initialState(ctx);
     state = result(state, 'A', 'WHITE'); // A played White and won
-    expect(state.teamAScore).toBe(2);
+    expect(state.teamAScore).toBe(1);
     expect(state.teamBScore).toBe(0);
     state = result(state, 'B', 'DRAW');
-    expect(state.teamAScore).toBe(3);
-    expect(state.teamBScore).toBe(1);
+    expect(state.teamAScore).toBe(1.5);
+    expect(state.teamBScore).toBe(0.5);
   });
 
   it('credits the result to whichever team actually held that colour, not always the nominal home side', () => {
     const state = result(chessEngine.initialState(ctx), 'B', 'BLACK'); // B played White, A (Black) won
-    expect(state.teamAScore).toBe(2);
+    expect(state.teamAScore).toBe(1);
     expect(state.teamBScore).toBe(0);
   });
 
   it('ends the match early once the lead is unassailable', () => {
     let state = chessEngine.initialState(ctx); // best of 3
-    state = result(state, 'A', 'WHITE'); // A 2-0
-    state = result(state, 'B', 'WHITE'); // B could only draw level at best if it won every remaining game (1 left, 2pts) -> A still ahead by 0? check math
-    // After 2 games: A=2, B=2 if B's white win counts for B. Not yet decided (1 game left, tied).
+    state = result(state, 'A', 'WHITE'); // A 1-0
+    state = result(state, 'B', 'WHITE'); // B wins as White too: 1-1, 1 game left, tied
     expect(state.isComplete).toBe(false);
-    state = result(state, 'A', 'WHITE'); // A wins final game outright: 4-2
+    state = result(state, 'A', 'WHITE'); // A wins final game outright: 2-1
     expect(state.isComplete).toBe(true);
     expect(state.winnerTeamId).toBe('A');
   });

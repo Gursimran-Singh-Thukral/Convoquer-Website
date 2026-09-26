@@ -344,14 +344,20 @@ describe('RbacService & PermissionsGuard', () => {
       VOLUNTEER: { id: 'role-volunteer', name: 'VOLUNTEER' },
       'role-security-vol': {
         id: 'role-security-vol',
-        name: 'SECURITY_VOLUNTEER',
+        name: 'HOSPITALITY_SECURITY_VOLUNTEER',
       },
-      SECURITY_VOLUNTEER: {
+      HOSPITALITY_SECURITY_VOLUNTEER: {
         id: 'role-security-vol',
-        name: 'SECURITY_VOLUNTEER',
+        name: 'HOSPITALITY_SECURITY_VOLUNTEER',
       },
-      'role-security-head': { id: 'role-security-head', name: 'SECURITY_HEAD' },
-      SECURITY_HEAD: { id: 'role-security-head', name: 'SECURITY_HEAD' },
+      'role-security-head': {
+        id: 'role-security-head',
+        name: 'HOSPITALITY_SECURITY_HEAD',
+      },
+      HOSPITALITY_SECURITY_HEAD: {
+        id: 'role-security-head',
+        name: 'HOSPITALITY_SECURITY_HEAD',
+      },
     };
 
     function mockLinkedVolunteer(department: string) {
@@ -382,18 +388,18 @@ describe('RbacService & PermissionsGuard', () => {
       prismaMock.auditLog.create.mockResolvedValue({ id: 'audit-x' });
     });
 
-    it('infers SECURITY_VOLUNTEER when the generic VOLUNTEER role is picked with department "Security"', async () => {
-      mockLinkedVolunteer('Security');
+    it('infers HOSPITALITY_SECURITY_VOLUNTEER when the generic VOLUNTEER role is picked with department "Hospitality & Security"', async () => {
+      mockLinkedVolunteer('Hospitality & Security');
 
       await rbacService.assignRoleWithVolunteerScopes(
         'admin-1',
         'target-1',
         'VOLUNTEER',
-        { volunteerId: 'vol-1', department: 'Security' },
+        { volunteerId: 'vol-1', department: 'Hospitality & Security' },
       );
 
       expect(prismaMock.role.findUniqueOrThrow).toHaveBeenCalledWith({
-        where: { name: 'SECURITY_VOLUNTEER' },
+        where: { name: 'HOSPITALITY_SECURITY_VOLUNTEER' },
       });
       expect(prismaMock.userRole.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -402,18 +408,18 @@ describe('RbacService & PermissionsGuard', () => {
       );
       expect(prismaMock.volunteer.update).toHaveBeenCalledWith({
         where: { id: 'vol-1' },
-        data: { userId: 'target-1', department: 'Security' },
+        data: { userId: 'target-1', department: 'Hospitality & Security' },
       });
     });
 
     it('falls back to the generic VOLUNTEER role for a department with no dedicated ground role', async () => {
-      mockLinkedVolunteer('Hospitality');
+      mockLinkedVolunteer('Web');
 
       await rbacService.assignRoleWithVolunteerScopes(
         'admin-1',
         'target-1',
         'VOLUNTEER',
-        { volunteerId: 'vol-1', department: 'Hospitality' },
+        { volunteerId: 'vol-1', department: 'Web' },
       );
 
       expect(prismaMock.role.findUniqueOrThrow).not.toHaveBeenCalled();
@@ -430,13 +436,13 @@ describe('RbacService & PermissionsGuard', () => {
       await rbacService.assignRoleWithVolunteerScopes(
         'admin-1',
         'target-1',
-        'SECURITY_HEAD',
+        'HOSPITALITY_SECURITY_HEAD',
         { volunteerId: 'vol-1' },
       );
 
       expect(prismaMock.volunteer.update).toHaveBeenCalledWith({
         where: { id: 'vol-1' },
-        data: { userId: 'target-1', department: 'Security' },
+        data: { userId: 'target-1', department: 'Hospitality & Security' },
       });
       expect(prismaMock.userRole.create).toHaveBeenCalledWith(
         expect.objectContaining({

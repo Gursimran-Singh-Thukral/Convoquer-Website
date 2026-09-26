@@ -11,8 +11,8 @@ import type {
  * single decisive game, or an odd number for a mini-match/tie). Each game's
  * result is recorded directly (1-0 / 0-1 / ½-½) with its reason — chess has
  * no incremental point-by-point scoring, only a final result per game. Points
- * are stored doubled (win=2, draw=1, loss=0) so they stay integers; format as
- * "/2" for display (e.g. 3 doubled points = 1½).
+ * are real fractional values (win=1, draw=0.5, loss=0), matching standard
+ * chess scoring directly — no doubling/undoubling needed.
  */
 
 type GameResult = 'WHITE' | 'BLACK' | 'DRAW';
@@ -34,7 +34,7 @@ interface GameRecord {
 interface ChessDetails {
   numberOfGames: number;
   games: GameRecord[];
-  pointsX2: { teamA: number; teamB: number };
+  points: { teamA: number; teamB: number };
 }
 
 const VALID_REASONS: GameReason[] = [
@@ -59,7 +59,7 @@ export const chessEngine: SportEngine = {
     const d: ChessDetails = {
       numberOfGames,
       games: [],
-      pointsX2: { teamA: 0, teamB: 0 },
+      points: { teamA: 0, teamB: 0 },
     };
     return {
       teamAScore: 0,
@@ -112,33 +112,33 @@ export const chessEngine: SportEngine = {
     d.games.push({ whiteTeamId, result, reason });
 
     if (result === 'DRAW') {
-      d.pointsX2.teamA += 1;
-      d.pointsX2.teamB += 1;
+      d.points.teamA += 0.5;
+      d.points.teamB += 0.5;
     } else {
       const winnerTeamId = result === 'WHITE' ? whiteTeamId : blackTeamId;
-      if (winnerTeamId === context.teamAId) d.pointsX2.teamA += 2;
-      else d.pointsX2.teamB += 2;
+      if (winnerTeamId === context.teamAId) d.points.teamA += 1;
+      else d.points.teamB += 1;
     }
 
     const gamesPlayed = d.games.length;
     const gamesRemaining = d.numberOfGames - gamesPlayed;
-    // A side already has an unassailable lead if the trailing side can't catch up even by winning every remaining game (2 pts each).
-    const leaderMargin = Math.abs(d.pointsX2.teamA - d.pointsX2.teamB);
-    const decidedEarly = leaderMargin > gamesRemaining * 2;
+    // A side already has an unassailable lead if the trailing side can't catch up even by winning every remaining game (1 pt each).
+    const leaderMargin = Math.abs(d.points.teamA - d.points.teamB);
+    const decidedEarly = leaderMargin > gamesRemaining;
     const isComplete = gamesPlayed >= d.numberOfGames || decidedEarly;
 
     let winnerTeamId: string | null = null;
-    if (isComplete && d.pointsX2.teamA !== d.pointsX2.teamB)
+    if (isComplete && d.points.teamA !== d.points.teamB)
       winnerTeamId =
-        d.pointsX2.teamA > d.pointsX2.teamB ? context.teamAId : context.teamBId;
+        d.points.teamA > d.points.teamB ? context.teamAId : context.teamBId;
 
     const currentPeriod = isComplete
       ? 'Match Complete'
       : `Game ${gamesPlayed + 1} of ${d.numberOfGames}`;
 
     return {
-      teamAScore: d.pointsX2.teamA,
-      teamBScore: d.pointsX2.teamB,
+      teamAScore: d.points.teamA,
+      teamBScore: d.points.teamB,
       scoreDetails: d as unknown as Record<string, unknown>,
       currentPeriod,
       winnerTeamId,

@@ -86,8 +86,17 @@ function CreateMatchModal({
 
   const selectedTournament = tournaments.find((t) => t.id === tournamentId);
   const stages = selectedTournament?.stages || [];
+  // The Tournament Builder registers a group's teams as seeds without
+  // creating any matches — once seeds exist, that's the authoritative "which
+  // teams belong to this tournament" list (a sport can have several
+  // tournaments, e.g. Group A/Group B), not just "every team in the sport".
+  const seededTeamIds = selectedTournament?.seeds?.length
+    ? new Set(selectedTournament.seeds.map((s) => s.teamId))
+    : null;
   const eligibleTeams = selectedTournament
-    ? teams.filter((t) => t.sportId === selectedTournament.sportId)
+    ? seededTeamIds
+      ? teams.filter((t) => seededTeamIds.has(t.id))
+      : teams.filter((t) => t.sportId === selectedTournament.sportId)
     : teams;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -858,8 +867,19 @@ function OfficialsTab({
 
 function MatchManagerContent() {
   const { hasPermission, myScopedSportId } = useAuth();
-  const canManage = hasPermission('competition.manage');
+  // match.create/match.update is what a Sports Coordinator holds, scoped to
+  // their own sport — competition.manage (Convener/Co-Convener/Web Dev Head)
+  // covers every sport. Either is enough to CRUD matches; only the latter can
+  // touch tournament structure itself (see /tournaments).
+  const canManage =
+    hasPermission('match.create') ||
+    hasPermission('match.update') ||
+    hasPermission('competition.manage');
   const canViewUsers = hasPermission('user.view');
+  // A Sports Coordinator only ever holds match.create/update scoped to their
+  // own sport — undefined here for a global grant (Convener/Co-Convener/Web
+  // Dev Head, or Overall Sports Coordinator, none of which are sport-scoped).
+  const scopedSportId = myScopedSportId('competition.manage', 'match.update');
 
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
@@ -905,13 +925,12 @@ function MatchManagerContent() {
     let cancelled = false;
     Promise.resolve().then(() => {
       if (cancelled) return;
-      const scoped = myScopedSportId('competition.manage', 'match.update');
-      if (scoped) setFilterSportId(scoped);
+      if (scopedSportId) setFilterSportId(scopedSportId);
     });
     return () => {
       cancelled = true;
     };
-  }, [myScopedSportId]);
+  }, [scopedSportId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -980,11 +999,11 @@ function MatchManagerContent() {
               <span>FIELD DESK</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white">
-              MATCH MANAGER &amp; <span className="text-[#FFD700]">FIXTURES DESK</span>
+              MATCH <span className="text-[#FFD700]">MANAGER</span>
             </h1>
             <p className="text-zinc-400 text-sm mt-1 max-w-2xl leading-relaxed">
-              Official match scheduling, pitch-level venue allocations, licensed referee rosters,
-              and high-speed bracket progression controls for Convoquer&apos;26.
+              Schedule matches inside a tournament, set venues and timings, enter results, and
+              assign officials — scoped to your own sport unless you manage tournament structure.
             </p>
           </div>
 
@@ -1273,7 +1292,9 @@ function MatchManagerContent() {
 
       {isCreateOpen && (
         <CreateMatchModal
-          tournaments={tournaments}
+          tournaments={
+            scopedSportId ? tournaments.filter((t) => t.sportId === scopedSportId) : tournaments
+          }
           venues={venues}
           teams={teams}
           onClose={() => setIsCreateOpen(false)}

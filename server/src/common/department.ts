@@ -22,9 +22,11 @@ export function departmentAllowed(
 
 const HEAD_ROLE_NAMES = new Set([
   'MEDIA_HEAD',
-  'HOSPITALITY_HEAD',
-  'SECURITY_HEAD',
+  'HOSPITALITY_SECURITY_HEAD',
   'WEB_DEV_HEAD',
+  'SPONSORSHIP_HEAD',
+  'EVENT_MANAGEMENT_HEAD',
+  'DESIGN_HEAD',
   'OVERALL_SPORTS_COORDINATOR',
   'SPORTS_COORDINATOR',
 ]);
@@ -41,10 +43,12 @@ export function isDepartmentHead(roleName: string): boolean {
  * HEAD_ROLE_DEPARTMENT below.
  */
 export const CANONICAL_DEPARTMENTS = [
-  'Security',
+  'Hospitality & Security',
   'Media',
   'Sports',
-  'Hospitality',
+  'Sponsorship',
+  'Event Management',
+  'Design',
   'Web',
   'General Operations',
 ];
@@ -52,11 +56,11 @@ export const CANONICAL_DEPARTMENTS = [
 /**
  * The ground-level volunteer role granted purely from the department a
  * volunteer is assigned to (see RbacService.assignRoleWithVolunteerScopes) —
- * departments with no dedicated ground role (Hospitality, Web, General
- * Operations) fall back to the generic VOLUNTEER role.
+ * departments with no dedicated ground role (Web, General Operations) fall
+ * back to the generic VOLUNTEER role.
  */
 export const GROUND_ROLE_BY_DEPARTMENT: Record<string, string> = {
-  security: 'SECURITY_VOLUNTEER',
+  'hospitality & security': 'HOSPITALITY_SECURITY_VOLUNTEER',
   media: 'MEDIA_TEAM',
   sports: 'SPORTS_VOLUNTEER',
 };
@@ -71,7 +75,9 @@ export const GROUND_ROLE_BY_DEPARTMENT: Record<string, string> = {
  */
 export const HEAD_ROLE_DEPARTMENT: Record<string, string> = {
   MEDIA_HEAD: 'Media',
-  HOSPITALITY_HEAD: 'Hospitality',
-  SECURITY_HEAD: 'Security',
+  HOSPITALITY_SECURITY_HEAD: 'Hospitality & Security',
   WEB_DEV_HEAD: 'Web',
+  SPONSORSHIP_HEAD: 'Sponsorship',
+  EVENT_MANAGEMENT_HEAD: 'Event Management',
+  DESIGN_HEAD: 'Design',
 };

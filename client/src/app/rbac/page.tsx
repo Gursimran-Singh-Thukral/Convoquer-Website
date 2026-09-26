@@ -74,25 +74,30 @@ const ROLE_HIERARCHY = [
   'SPORTS_VOLUNTEER',
   'MEDIA_HEAD',
   'MEDIA_TEAM',
-  'HOSPITALITY_HEAD',
-  'SECURITY_HEAD',
-  'SECURITY_VOLUNTEER',
+  'HOSPITALITY_SECURITY_HEAD',
+  'HOSPITALITY_SECURITY_VOLUNTEER',
+  'SPONSORSHIP_HEAD',
+  'EVENT_MANAGEMENT_HEAD',
+  'DESIGN_HEAD',
   'WEB_DEV_HEAD',
   'VOLUNTEER',
 ];
 
 // The Role Tier dropdown only ever assigns one of these — ground-level roles
-// (VOLUNTEER, SECURITY_VOLUNTEER, SPORTS_VOLUNTEER, MEDIA_TEAM) are granted
-// automatically from the department picked in "Ground Volunteer" mode instead
-// (see GROUND_ROLE_BY_DEPARTMENT on the server), never chosen directly here.
+// (VOLUNTEER, HOSPITALITY_SECURITY_VOLUNTEER, SPORTS_VOLUNTEER, MEDIA_TEAM)
+// are granted automatically from the department picked in "Ground Volunteer"
+// mode instead (see GROUND_ROLE_BY_DEPARTMENT on the server), never chosen
+// directly here.
 const HEAD_ROLE_NAMES = [
   'CONVENER',
   'CO_CONVENER',
   'OVERALL_SPORTS_COORDINATOR',
   'SPORTS_COORDINATOR',
   'MEDIA_HEAD',
-  'HOSPITALITY_HEAD',
-  'SECURITY_HEAD',
+  'HOSPITALITY_SECURITY_HEAD',
+  'SPONSORSHIP_HEAD',
+  'EVENT_MANAGEMENT_HEAD',
+  'DESIGN_HEAD',
   'WEB_DEV_HEAD',
 ];
 
@@ -155,7 +160,6 @@ export default function RbacManagerPage() {
 
   // Provision / assign-role form state
   const [assignMode, setAssignMode] = useState<'HEAD' | 'VOLUNTEER'>('HEAD');
-  const [targetEmail, setTargetEmail] = useState('');
   const [newRole, setNewRole] = useState('');
   const [newScopeSportId, setNewScopeSportId] = useState('');
   const [newScopeEventId, setNewScopeEventId] = useState('');
@@ -270,46 +274,46 @@ export default function RbacManagerPage() {
 
   const handleAssignRole = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetEmail.trim() || !selectedVolunteerId) return;
+    if (!selectedVolunteerId) return;
     if (assignMode === 'HEAD' && !newRole) return;
     if (assignMode === 'VOLUNTEER' && !selectedDepartment) return;
 
+    const volunteer = assignmentOptions.volunteers.find((v) => v.id === selectedVolunteerId);
+    if (!volunteer) return;
+
     setAssignSubmitting(true);
     try {
-      // Resolve the target user by email from the currently loaded/searched roster,
-      // falling back to a fresh lookup via GET /users?q= if not present locally.
-      let targetUser = users.find(
-        (u) => u.email.toLowerCase() === targetEmail.trim().toLowerCase(),
-      );
-      if (!targetUser) {
-        const lookup = await apiAuthedGet<ManagedUser[]>(
-          `/users?q=${encodeURIComponent(targetEmail.trim())}`,
-        );
-        targetUser = lookup.find((u) => u.email.toLowerCase() === targetEmail.trim().toLowerCase());
-      }
-      if (!targetUser) {
-        showNotification(
-          'error',
-          `No existing account found for "${targetEmail.trim()}". Users are created automatically on their first Google sign-in — ask them to log in once first.`,
-        );
-        setAssignSubmitting(false);
-        return;
-      }
-
       // Ground-volunteer mode always posts the generic 'VOLUNTEER' role — the
-      // server infers the actual role (SECURITY_VOLUNTEER/MEDIA_TEAM/SPORTS_VOLUNTEER/
-      // plain VOLUNTEER) purely from the department picked below.
+      // server infers the actual role (HOSPITALITY_SECURITY_VOLUNTEER/MEDIA_TEAM/
+      // SPORTS_VOLUNTEER/plain VOLUNTEER) purely from the department picked below.
       const roleToAssign = assignMode === 'VOLUNTEER' ? 'VOLUNTEER' : newRole;
-      await apiPost(`/users/${targetUser.id}/roles`, {
-        role: roleToAssign,
-        volunteerId: selectedVolunteerId,
+      const scope = {
         sportId: newScopeSportId.trim() || undefined,
         eventId: newScopeEventId.trim() || undefined,
         department: assignMode === 'VOLUNTEER' ? selectedDepartment : undefined,
-      });
+      };
+
+      // A volunteer already linked to a login account gets the role live and
+      // immediately; one who hasn't signed in yet gets it queued on their
+      // Volunteer record and it activates automatically the moment they do
+      // (see RbacService.linkPendingVolunteerRole) — no need to wait for them
+      // to log in before you can set this up.
+      let pending = false;
+      if (volunteer.userId) {
+        await apiPost(`/users/${volunteer.userId}/roles`, {
+          role: roleToAssign,
+          volunteerId: selectedVolunteerId,
+          ...scope,
+        });
+      } else {
+        const result = await apiPost<{ pending: boolean }>(
+          `/volunteers/${selectedVolunteerId}/role`,
+          { role: roleToAssign, ...scope },
+        );
+        pending = result.pending;
+      }
 
       setIsProvisionModalOpen(false);
-      setTargetEmail('');
       setNewScopeSportId('');
       setNewScopeEventId('');
       setSelectedVolunteerId('');
@@ -317,7 +321,9 @@ export default function RbacManagerPage() {
       setShowAdvancedScope(false);
       showNotification(
         'success',
-        `Assigned "${roleToAssign}" to ${targetUser.name || targetUser.email}.`,
+        pending
+          ? `Queued "${roleToAssign}" for ${volunteer.name} — it activates automatically the moment they first log in.`
+          : `Assigned "${roleToAssign}" to ${volunteer.name}.`,
       );
       await loadUsers(searchQuery);
     } catch (err) {
@@ -664,8 +670,9 @@ export default function RbacManagerPage() {
                 </button>
               </div>
               <p className="text-xs text-zinc-500">
-                Select a volunteer whose email matches an existing Google sign-in account, then
-                grant either a Head role or a ground-level department.
+                Select a volunteer and grant either a Head role or a ground-level department. They
+                don&apos;t need to have signed in yet — an assignment for someone who hasn&apos;t
+                logged in queues automatically and activates the moment they do.
               </p>
 
               {/* Mode toggle — the Role Tier dropdown only ever assigns a Head role; a
@@ -699,7 +706,6 @@ export default function RbacManagerPage() {
                         (item) => item.id === e.target.value,
                       );
                       setSelectedVolunteerId(e.target.value);
-                      setTargetEmail(volunteer?.email || '');
                       setSelectedDepartment(volunteer?.department || '');
                     }}
                     className="w-full bg-[#0f0d10] border border-white/15 p-2.5 rounded-lg text-white font-mono"
@@ -707,7 +713,8 @@ export default function RbacManagerPage() {
                     <option value="">Select a volunteer</option>
                     {assignmentOptions.volunteers.map((volunteer) => (
                       <option key={volunteer.id} value={volunteer.id}>
-                        {volunteer.name} ({volunteer.email})
+                        {volunteer.name} ({volunteer.email}) —{' '}
+                        {volunteer.userId ? 'logged in' : 'not logged in yet'}
                       </option>
                     ))}
                   </select>

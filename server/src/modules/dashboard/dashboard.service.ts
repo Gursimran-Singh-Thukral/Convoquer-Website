@@ -46,12 +46,16 @@ export class DashboardService {
       primaryRole = 'MEDIA_HEAD';
     } else if (roleNames.includes('WEB_DEV_HEAD')) {
       primaryRole = 'WEB_DEV_HEAD';
-    } else if (roleNames.includes('HOSPITALITY_HEAD')) {
-      primaryRole = 'HOSPITALITY_HEAD';
-    } else if (roleNames.includes('SECURITY_HEAD')) {
-      primaryRole = 'SECURITY_HEAD';
-    } else if (roleNames.includes('SECURITY_VOLUNTEER')) {
-      primaryRole = 'SECURITY_VOLUNTEER';
+    } else if (roleNames.includes('HOSPITALITY_SECURITY_HEAD')) {
+      primaryRole = 'HOSPITALITY_SECURITY_HEAD';
+    } else if (roleNames.includes('HOSPITALITY_SECURITY_VOLUNTEER')) {
+      primaryRole = 'HOSPITALITY_SECURITY_VOLUNTEER';
+    } else if (roleNames.includes('SPONSORSHIP_HEAD')) {
+      primaryRole = 'SPONSORSHIP_HEAD';
+    } else if (roleNames.includes('EVENT_MANAGEMENT_HEAD')) {
+      primaryRole = 'EVENT_MANAGEMENT_HEAD';
+    } else if (roleNames.includes('DESIGN_HEAD')) {
+      primaryRole = 'DESIGN_HEAD';
     }
 
     return {
@@ -86,20 +90,22 @@ export class DashboardService {
           eventFilter,
         );
 
-      case 'SECURITY_HEAD':
-        return this.getSecurityOverview(eventFilter, 'SECURITY_HEAD');
+      case 'HOSPITALITY_SECURITY_HEAD':
+        return this.getHospitalitySecurityHeadDashboard(eventFilter);
 
-      case 'SECURITY_VOLUNTEER':
+      case 'HOSPITALITY_SECURITY_VOLUNTEER':
         return this.getSecurityVolunteerOverview(eventFilter);
-
-      case 'HOSPITALITY_HEAD':
-        return this.getVenueAudienceProjection(eventFilter);
 
       case 'MEDIA_HEAD':
         return this.getMediaDashboard(eventFilter);
 
       case 'WEB_DEV_HEAD':
         return this.getWebDevDashboard();
+
+      case 'SPONSORSHIP_HEAD':
+      case 'EVENT_MANAGEMENT_HEAD':
+      case 'DESIGN_HEAD':
+        return this.getGenericDepartmentHeadDashboard(userId, ctx.primaryRole);
 
       default:
         return this.getVolunteerDashboard(userId);
@@ -494,6 +500,50 @@ export class DashboardService {
     };
   }
 
+  /**
+   * Shared overview for Head roles whose department has no bespoke dashboard
+   * yet (Sponsorship, Event Management, Design) — their own department's
+   * roster and task queue, the same shape every other Head gets a richer
+   * version of. Department-scoped management itself (the Workforce tab) is
+   * already permission-gated client-side (task.view + task.create), so this
+   * only affects what the Overview summary shows, not what they can do.
+   */
+  async getGenericDepartmentHeadDashboard(userId: string, persona: string) {
+    const headVolunteer = await this.prisma.volunteer.findUnique({
+      where: { userId },
+    });
+    const department = headVolunteer?.department;
+
+    const [roster, tasks] = department
+      ? await Promise.all([
+          this.prisma.volunteer.findMany({
+            where: { department, status: 'ACTIVE' },
+            orderBy: { name: 'asc' },
+          }),
+          this.prisma.operationsTask.findMany({
+            where: { department },
+            orderBy: { createdAt: 'desc' },
+            include: {
+              assignees: {
+                include: { volunteer: { select: { id: true, name: true } } },
+              },
+            },
+          }),
+        ])
+      : [[], []];
+
+    return {
+      persona,
+      department: department ?? null,
+      metrics: {
+        rosterSize: roster.length,
+        openTasks: tasks.filter((t) => t.status !== 'COMPLETED').length,
+      },
+      roster,
+      tasks,
+    };
+  }
+
   // ===================================
   // VOLUNTEER DASHBOARD
   // ===================================
@@ -568,7 +618,27 @@ export class DashboardService {
   // SECURITY & HOSPITALITY OVERVIEW
   // ===================================
 
-  async getSecurityOverview(eventId?: string, persona = 'SECURITY_HEAD') {
+  /**
+   * Hospitality & Security run as one combined team on the ground, so the
+   * Head sees both the gate/check-in picture (getSecurityOverview) and the
+   * venue/audience logistics projection (getVenueAudienceProjection) that
+   * used to be split across two separate Head roles.
+   */
+  async getHospitalitySecurityHeadDashboard(eventId?: string) {
+    const [security, venueProjection] = await Promise.all([
+      this.getSecurityOverview(eventId, 'HOSPITALITY_SECURITY_HEAD'),
+      this.getVenueAudienceProjection(eventId),
+    ]);
+    return {
+      ...security,
+      venueProjection,
+    };
+  }
+
+  async getSecurityOverview(
+    eventId?: string,
+    persona = 'HOSPITALITY_SECURITY_HEAD',
+  ) {
     const [totalParticipants, checkedInCount, institutes, venues] =
       await Promise.all([
         this.prisma.participant.count({ where: eventId ? { eventId } : {} }),
@@ -635,10 +705,11 @@ export class DashboardService {
   }
 
   /**
-   * Restricted counterpart of getSecurityOverview for rank-and-file Security
-   * Volunteers: keeps the gate-relevant aggregate metrics (Security Volunteers
-   * all staff the one Main Gate for the whole event) but drops the per-institute
-   * breakdown, which is oversight detail a Head needs and a volunteer doesn't.
+   * Restricted counterpart of getSecurityOverview for rank-and-file
+   * Hospitality & Security Volunteers: keeps the gate-relevant aggregate
+   * metrics (Volunteers all staff the one Main Gate for the whole event) but
+   * drops the per-institute breakdown, which is oversight detail a Head needs
+   * and a volunteer doesn't.
    */
   async getSecurityVolunteerOverview(eventId?: string) {
     const [totalParticipants, checkedInCount, venues] = await Promise.all([
@@ -661,7 +732,7 @@ export class DashboardService {
     ]);
 
     return {
-      persona: 'SECURITY_VOLUNTEER',
+      persona: 'HOSPITALITY_SECURITY_VOLUNTEER',
       metrics: {
         totalParticipants,
         checkedInCount,
@@ -774,7 +845,7 @@ export class DashboardService {
     });
 
     return {
-      persona: 'HOSPITALITY',
+      persona: 'HOSPITALITY_SECURITY_HEAD',
       venues: venueProjections,
       metrics: {
         totalExpectedAudience: venueProjections.reduce(

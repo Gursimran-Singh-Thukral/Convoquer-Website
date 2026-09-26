@@ -92,7 +92,7 @@ export function FixtureResultEditor({ match, onSaved }: { match: Match; onSaved:
                   required
                   type="number"
                   min={0}
-                  step={1}
+                  step="any"
                   value={scoreA}
                   onChange={(e) => setScoreA(e.target.value)}
                   className={input}
@@ -105,7 +105,7 @@ export function FixtureResultEditor({ match, onSaved }: { match: Match; onSaved:
                   required
                   type="number"
                   min={0}
-                  step={1}
+                  step="any"
                   value={scoreB}
                   onChange={(e) => setScoreB(e.target.value)}
                   className={input}

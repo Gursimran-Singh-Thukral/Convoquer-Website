@@ -14,6 +14,7 @@ import type { Request } from 'express';
 import { TournamentsService } from './tournaments.service.js';
 import { MatchesService } from './matches.service.js';
 import { SessionGuard } from '../../common/guards/session.guard.js';
+import { SoleAdminGuard } from '../../common/guards/sole-admin.guard.js';
 import {
   CreateTournamentDto,
   UpdateTournamentDto,
@@ -33,10 +34,15 @@ import {
 // below: they address an existing tournament/stage/match by :id, and
 // authority depends on which sport/event that record actually belongs to —
 // not something PermissionsGuard's static decorator can derive.
-// TournamentsService/MatchesService#verifyCompetitionAuthority() is the real
-// check on every one of these: it loads the record, derives its actual
-// sportId/eventId, and authorizes a correctly-scoped 'competition.manage'
-// grant. Mirrors ScoringService.verifyScoringAuthority.
+// TournamentsService#verifyCompetitionAuthority() and MatchesService's own
+// verifyCompetitionAuthority()/verifyStructureAuthority() are the real check
+// on every one of these: each loads the record, derives its actual
+// sportId/eventId, and authorizes a correctly-scoped permission — 'match.
+// update' (or 'competition.manage') for match-level routes, but strictly
+// 'competition.manage' for tournament-structure routes (create/update/delete
+// a tournament, seeding, stages, generate-bracket/round-robin/swiss-round —
+// the ones additionally wearing SoleAdminGuard below). Mirrors
+// ScoringService.verifyScoringAuthority.
 @Controller('api')
 export class FixturesController {
   constructor(
@@ -62,7 +68,7 @@ export class FixturesController {
   }
 
   @Post('tournaments')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, SoleAdminGuard)
   async createTournament(
     @Body() dto: CreateTournamentDto,
     @Req() req: Request,
@@ -72,7 +78,7 @@ export class FixturesController {
   }
 
   @Patch('tournaments/:id')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, SoleAdminGuard)
   async updateTournament(
     @Param('id') id: string,
     @Body() dto: UpdateTournamentDto,
@@ -83,7 +89,7 @@ export class FixturesController {
   }
 
   @Delete('tournaments/:id')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, SoleAdminGuard)
   async deleteTournament(@Param('id') id: string, @Req() req: Request) {
     return this.tournamentsService.deleteTournament(id, (req as any).user.id);
   }
@@ -93,7 +99,7 @@ export class FixturesController {
   // ===================================
 
   @Post('tournaments/:id/seeds')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, SoleAdminGuard)
   async setSeeds(
     @Param('id') tournamentId: string,
     @Body() dto: SetSeedsDto,
@@ -113,7 +119,7 @@ export class FixturesController {
   // ===================================
 
   @Post('tournaments/:id/stages')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, SoleAdminGuard)
   async createStage(
     @Param('id') tournamentId: string,
     @Body() dto: CreateStageDto,
@@ -124,7 +130,7 @@ export class FixturesController {
   }
 
   @Patch('stages/:id')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, SoleAdminGuard)
   async updateStage(
     @Param('id') id: string,
     @Body() dto: UpdateStageDto,
@@ -139,7 +145,7 @@ export class FixturesController {
   // ===================================
 
   @Post('tournaments/:id/generate-bracket')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, SoleAdminGuard)
   async generateKnockoutBracket(
     @Param('id') tournamentId: string,
     @Body() dto: GenerateKnockoutBracketDto,
@@ -154,7 +160,7 @@ export class FixturesController {
   }
 
   @Post('tournaments/:id/generate-round-robin')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, SoleAdminGuard)
   async generateRoundRobin(
     @Param('id') tournamentId: string,
     @Body() dto: GenerateRoundRobinDto,
@@ -170,7 +176,7 @@ export class FixturesController {
    * stages of this tournament — see MatchesService.generateSwissRound.
    */
   @Post('tournaments/:id/generate-swiss-round')
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, SoleAdminGuard)
   async generateSwissRound(
     @Param('id') tournamentId: string,
     @Body() dto: GenerateSwissRoundDto,
