@@ -49,8 +49,8 @@ function makeLimiter(limit: number, windowMs: number) {
 
 @Injectable()
 export class AuthRateLimitMiddleware implements NestMiddleware {
-  // 15 attempts per 5 minutes per IP against auth endpoints.
-  private readonly limiter = makeLimiter(15, 5 * 60 * 1000);
+  // 1000 attempts per 5 minutes per IP against auth endpoints.
+  private readonly limiter = makeLimiter(1000, 5 * 60 * 1000);
 
   use(req: Request, res: Response, next: NextFunction) {
     if (req.path.endsWith('/me') || req.path.endsWith('/logout')) return next();
