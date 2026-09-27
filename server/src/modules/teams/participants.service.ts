@@ -506,10 +506,14 @@ export class ParticipantsService {
           `Row ${i + 1}: name, college and rollNumber are required`,
         );
       }
-      const identity = `${row.college.trim().toLowerCase()}|${row.rollNumber.trim().toLowerCase()}|${row.sport?.trim().toLowerCase() || ''}`;
+      // A participant is one event-level person who may belong to several
+      // sport/game squads. Only reject an exact duplicate membership row;
+      // including the team label also supports multiple games represented as
+      // squads under one parent sport (for example BGMI and Valorant).
+      const identity = `${row.college.trim().toLowerCase()}|${row.rollNumber.trim().toLowerCase()}|${row.sport?.trim().toLowerCase() || ''}|${row.team?.trim().toLowerCase() || ''}`;
       if (seen.has(identity))
         throw new BadRequestException(
-          `Row ${i + 1}: duplicate participant and sport`,
+          `Row ${i + 1}: duplicate participant, sport and team`,
         );
       seen.add(identity);
       if (

@@ -804,6 +804,15 @@ export class ScoringService {
           select: {
             id: true,
             name: true,
+            members: {
+              select: {
+                role: true,
+                jerseyNumber: true,
+                participant: {
+                  select: { id: true, name: true, rollNumber: true },
+                },
+              },
+            },
             institute: {
               select: { name: true, shortName: true, logoUrl: true },
             },
@@ -813,6 +822,15 @@ export class ScoringService {
           select: {
             id: true,
             name: true,
+            members: {
+              select: {
+                role: true,
+                jerseyNumber: true,
+                participant: {
+                  select: { id: true, name: true, rollNumber: true },
+                },
+              },
+            },
             institute: {
               select: { name: true, shortName: true, logoUrl: true },
             },

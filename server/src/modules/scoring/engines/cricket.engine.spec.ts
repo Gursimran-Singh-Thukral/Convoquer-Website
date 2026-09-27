@@ -18,7 +18,27 @@ function apply(
   return cricketEngine.applyEvent(state, { eventType, teamId, metadata }, ctx);
 }
 
+function start(state: EngineState, battingTeamId = 'A'): EngineState {
+  state = apply(state, 'TOSS', battingTeamId, {
+    winnerTeamId: battingTeamId,
+    decision: 'BAT',
+  });
+  return apply(state, 'START_INNINGS', battingTeamId, { battingTeamId });
+}
+
 describe('cricket engine (ICC/MCC-style limited-overs)', () => {
+  it('records the toss and enforces the elected first batting side', () => {
+    let state = apply(cricketEngine.initialState(ctx), 'TOSS', 'A', {
+      winnerTeamId: 'A',
+      decision: 'BOWL',
+    });
+    expect((state.scoreDetails as any).toss.battingTeamId).toBe('B');
+    expect(() =>
+      apply(state, 'START_INNINGS', 'A', { battingTeamId: 'A' }),
+    ).toThrow(BadRequestException);
+    state = apply(state, 'START_INNINGS', 'B', { battingTeamId: 'B' });
+    expect((state.scoreDetails as any).innings[0].battingTeamId).toBe('B');
+  });
   it('requires an innings to be started before recording deliveries', () => {
     const initial = cricketEngine.initialState(ctx);
     expect(() => apply(initial, 'RUN', 'A', { runs: 4 })).toThrow(
@@ -27,12 +47,7 @@ describe('cricket engine (ICC/MCC-style limited-overs)', () => {
   });
 
   it('wide and no-ball do not consume a legal ball; runs and byes do', () => {
-    let state = apply(
-      cricketEngine.initialState(ctx),
-      'START_INNINGS',
-      undefined,
-      { battingTeamId: 'A' },
-    );
+    let state = start(cricketEngine.initialState(ctx));
     state = apply(state, 'WIDE', 'A', { runs: 0 }); // 1 run, ball uncounted
     state = apply(state, 'RUN', 'A', { runs: 4 }); // legal ball 1
     const details = state.scoreDetails as any;
@@ -114,5 +129,55 @@ describe('cricket engine (ICC/MCC-style limited-overs)', () => {
     expect(() =>
       apply(state, 'START_INNINGS', undefined, { battingTeamId: 'A' }),
     ).toThrow(BadRequestException);
+  });
+
+  it('tracks batters, bowlers, strike rotation and over changes', () => {
+    let state = apply(cricketEngine.initialState(ctx), 'START_INNINGS', 'A', {
+      battingTeamId: 'A',
+      strikerId: 'a1',
+      nonStrikerId: 'a2',
+      bowlerId: 'b1',
+    });
+    state = cricketEngine.applyEvent(
+      state,
+      {
+        eventType: 'RUN',
+        teamId: 'A',
+        participantId: 'a1',
+        metadata: { runs: 1, bowlerId: 'b1' },
+      },
+      ctx,
+    );
+    let innings = (state.scoreDetails as any).innings[0];
+    expect(innings.strikerId).toBe('a2');
+    expect(innings.batters.a1).toMatchObject({ runs: 1, balls: 1 });
+    for (let i = 0; i < 5; i++)
+      state = apply(state, 'RUN', 'A', {
+        runs: 0,
+        strikerId: 'a2',
+        bowlerId: 'b1',
+      });
+    innings = (state.scoreDetails as any).innings[0];
+    expect(innings.bowlerId).toBeNull();
+    expect(innings.bowlers.b1.balls).toBe(6);
+  });
+
+  it('enforces free-hit dismissal rules and stores a valid run-out', () => {
+    let state = apply(cricketEngine.initialState(ctx), 'START_INNINGS', 'A', {
+      battingTeamId: 'A',
+      strikerId: 'a1',
+      nonStrikerId: 'a2',
+      bowlerId: 'b1',
+    });
+    state = apply(state, 'NO_BALL', 'A', { runs: 0 });
+    expect(() =>
+      apply(state, 'WICKET', 'A', { dismissalType: 'BOWLED' }),
+    ).toThrow(BadRequestException);
+    state = apply(state, 'WICKET', 'A', {
+      dismissalType: 'RUN_OUT',
+      dismissedPlayerId: 'a1',
+      nextBatterId: 'a3',
+    });
+    expect((state.scoreDetails as any).innings[0].batters.a1.out).toBe(true);
   });
 });

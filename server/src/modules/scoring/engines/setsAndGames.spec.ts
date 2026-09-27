@@ -20,6 +20,32 @@ function pointsFor(
 }
 
 describe('badminton engine (BWF Laws of Badminton)', () => {
+  it('stores the selected server and gives service to the rally winner', () => {
+    let state = badmintonEngine.initialState(ctx);
+    state = badmintonEngine.applyEvent(
+      state,
+      {
+        eventType: 'SET_SERVICE',
+        metadata: {
+          serverTeamId: 'A',
+          serverParticipantId: 'a1',
+          receiverParticipantId: 'b1',
+          teamAPlayers: ['a1', 'a2'],
+          teamBPlayers: ['b1', 'b2'],
+        },
+      },
+      ctx,
+    );
+    state = badmintonEngine.applyEvent(
+      state,
+      { eventType: 'POINT', teamId: 'B' },
+      ctx,
+    );
+    expect((state.scoreDetails as any).service.serverTeamId).toBe('B');
+    expect(['b1', 'b2']).toContain(
+      (state.scoreDetails as any).service.serverParticipantId,
+    );
+  });
   it('wins a game at 21 with a 2-point lead', () => {
     let state = badmintonEngine.initialState(ctx);
     state = pointsFor(badmintonEngine, state, 'A', 21);

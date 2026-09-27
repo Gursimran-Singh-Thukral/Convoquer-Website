@@ -278,6 +278,19 @@ export default function ScorerPage() {
   });
   const [showCustomEvent, setShowCustomEvent] = useState(false);
   const [customEvent, setCustomEvent] = useState({ teamId: '', eventType: '', points: '' });
+  const [cricketSelection, setCricketSelection] = useState({
+    strikerId: '',
+    nonStrikerId: '',
+    bowlerId: '',
+    nextBatterId: '',
+    dismissalType: 'BOWLED',
+  });
+  const [cricketToss, setCricketToss] = useState({ winnerTeamId: '', decision: 'BAT' });
+  const [badmintonSelection, setBadmintonSelection] = useState({
+    serverTeamId: '',
+    serverParticipantId: '',
+    receiverParticipantId: '',
+  });
 
   // Roster modal
   const [rosterMatchId, setRosterMatchId] = useState<string | null>(null);
@@ -386,6 +399,25 @@ export default function ScorerPage() {
         return;
       }
       setLiveDetail(data);
+      if (data.tournament?.sport?.name?.trim().toUpperCase() === 'CRICKET') {
+        const innings = (
+          data.scoreDetails as {
+            innings?: Array<{
+              strikerId?: string | null;
+              nonStrikerId?: string | null;
+              bowlerId?: string | null;
+            }>;
+          } | null
+        )?.innings?.at(-1);
+        if (innings) {
+          setCricketSelection((previous) => ({
+            ...previous,
+            strikerId: innings.strikerId || '',
+            nonStrikerId: innings.nonStrikerId || '',
+            bowlerId: innings.bowlerId || previous.bowlerId,
+          }));
+        }
+      }
       setManualForm({
         teamAScore: String(data.teamAScore ?? 0),
         teamBScore: String(data.teamBScore ?? 0),
@@ -485,7 +517,7 @@ export default function ScorerPage() {
   const handleRecordEvent = (
     teamId: string | undefined,
     eventType: string,
-    extra?: { points?: number; metadata?: Record<string, unknown> },
+    extra?: { points?: number; participantId?: string; metadata?: Record<string, unknown> },
   ) => {
     if (!consoleMatchId) return;
     runAction(`event-${teamId || 'match'}-${eventType}`, () =>
@@ -494,6 +526,7 @@ export default function ScorerPage() {
         ...(teamId ? { teamId } : {}),
         eventType,
         ...(extra?.points !== undefined ? { points: extra.points } : {}),
+        ...(extra?.participantId ? { participantId: extra.participantId } : {}),
         ...(extra?.metadata ? { metadata: extra.metadata } : {}),
         ...(liveDetail?.currentPeriod ? { period: liveDetail.currentPeriod } : {}),
       }),
@@ -533,12 +566,86 @@ export default function ScorerPage() {
   const handleEventButtonClick = async (teamId: string, action: EventAction) => {
     const prompted = await collectPromptMetadata(action.prompts);
     if (prompted === null) return; // user cancelled a prompt
-    const metadata = normalizeMetadata({ ...action.fixedMetadata, ...prompted });
+    let metadata = normalizeMetadata({ ...action.fixedMetadata, ...prompted });
+    const sport = liveDetail?.tournament?.sport?.name?.trim().toUpperCase();
+    if (sport === 'CRICKET') {
+      if (action.eventType === 'START_INNINGS') {
+        if (
+          !cricketSelection.strikerId ||
+          !cricketSelection.nonStrikerId ||
+          !cricketSelection.bowlerId
+        ) {
+          setActionError('Select the two opening batters and opening bowler first.');
+          return;
+        }
+        metadata = { ...metadata, battingTeamId: teamId, ...cricketSelection };
+      } else {
+        metadata = {
+          ...metadata,
+          ...(action.eventType === 'WICKET'
+            ? {
+                dismissedPlayerId: cricketSelection.strikerId,
+                nextBatterId: cricketSelection.nextBatterId,
+                dismissalType: cricketSelection.dismissalType,
+              }
+            : {}),
+        };
+      }
+    }
     handleRecordEvent(
       teamId,
       action.eventType,
       Object.keys(metadata).length ? { metadata } : undefined,
     );
+  };
+
+  const recordToss = () => {
+    if (!cricketToss.winnerTeamId) {
+      setActionError('Select the team that won the toss.');
+      return;
+    }
+    // Clear any pre-toss roster choices so players can only be selected from
+    // the batting and bowling teams determined by this toss.
+    setCricketSelection({
+      strikerId: '',
+      nonStrikerId: '',
+      bowlerId: '',
+      nextBatterId: '',
+      dismissalType: 'BOWLED',
+    });
+    handleRecordEvent(cricketToss.winnerTeamId, 'TOSS', { metadata: cricketToss });
+  };
+
+  const recordCricketDelivery = (eventType: string, runs = 0) => {
+    if (!battingTeam) return;
+    handleRecordEvent(battingTeam.id, eventType, {
+      metadata: {
+        runs,
+        ...(eventType === 'WICKET'
+          ? {
+              dismissedPlayerId: activeCricketDetail?.strikerId,
+              nextBatterId: cricketSelection.nextBatterId,
+              dismissalType: cricketSelection.dismissalType,
+            }
+          : {}),
+      },
+    });
+  };
+
+  const configureBadmintonService = () => {
+    if (!liveDetail?.teamA || !liveDetail.teamB) return;
+    const { serverTeamId, serverParticipantId, receiverParticipantId } = badmintonSelection;
+    if (!serverTeamId || !serverParticipantId || !receiverParticipantId) {
+      setActionError('Select the serving team, server, and receiver.');
+      return;
+    }
+    handleRecordEvent(undefined, 'SET_SERVICE', {
+      metadata: {
+        ...badmintonSelection,
+        teamAPlayers: liveDetail.teamA.members?.map((m) => m.participant.id) || [],
+        teamBPlayers: liveDetail.teamB.members?.map((m) => m.participant.id) || [],
+      },
+    });
   };
 
   const handleMatchControlClick = async (action: EventAction) => {
@@ -649,6 +756,69 @@ export default function ScorerPage() {
     (ev) => !ev.isReversed,
   );
   const liveTeamScores = liveDetail ? formatTeamScores(liveDetail) : null;
+  const liveSport = liveDetail?.tournament?.sport?.name?.trim().toUpperCase();
+  const currentCricketInnings =
+    liveSport === 'CRICKET'
+      ? ((
+          liveDetail?.scoreDetails as { innings?: Array<{ battingTeamId: string }> } | null
+        )?.innings?.at(-1) ?? null)
+      : null;
+  const recordedToss =
+    liveSport === 'CRICKET'
+      ? (
+          liveDetail?.scoreDetails as {
+            toss?: { winnerTeamId: string; decision: string; battingTeamId: string } | null;
+          } | null
+        )?.toss
+      : null;
+  const battingTeamId = currentCricketInnings?.battingTeamId || recordedToss?.battingTeamId;
+  const battingTeam =
+    battingTeamId === liveDetail?.teamA?.id
+      ? liveDetail?.teamA
+      : battingTeamId === liveDetail?.teamB?.id
+        ? liveDetail?.teamB
+        : undefined;
+  const bowlingTeam =
+    battingTeamId === liveDetail?.teamA?.id
+      ? liveDetail?.teamB
+      : battingTeamId === liveDetail?.teamB?.id
+        ? liveDetail?.teamA
+        : undefined;
+  const participantNames = new Map(
+    [...(liveDetail?.teamA?.members || []), ...(liveDetail?.teamB?.members || [])].map(
+      (m) => [m.participant.id, m.participant.name] as const,
+    ),
+  );
+  const cricketDetail =
+    liveSport === 'CRICKET'
+      ? (liveDetail?.scoreDetails as {
+          innings?: Array<{
+            strikerId?: string | null;
+            nonStrikerId?: string | null;
+            bowlerId?: string | null;
+            freeHit?: boolean;
+            batters?: Record<
+              string,
+              { runs: number; balls: number; fours: number; sixes: number; out: boolean }
+            >;
+            bowlers?: Record<string, { balls: number; runs: number; wickets: number }>;
+            deliveries?: Array<{ ball: string; type: string; runs: number; wicket?: boolean }>;
+          }>;
+        } | null)
+      : null;
+  const activeCricketDetail = cricketDetail?.innings?.at(-1);
+  const badmintonService =
+    liveSport === 'BADMINTON'
+      ? (
+          liveDetail?.scoreDetails as {
+            service?: {
+              serverTeamId?: string;
+              serverParticipantId?: string;
+              receiverParticipantId?: string;
+            };
+          } | null
+        )?.service
+      : null;
 
   return (
     <RequireOrganizer
@@ -1408,9 +1578,454 @@ export default function ScorerPage() {
                     </div>
                   </div>
 
+                  {activeCricketDetail && (
+                    <div className="grid lg:grid-cols-2 gap-3 text-xs">
+                      <div className="rounded-xl bg-black/35 border border-white/10 p-3">
+                        <div className="flex justify-between mb-2">
+                          <b className="uppercase text-emerald-300">Batting card</b>
+                          {activeCricketDetail.freeHit && (
+                            <span className="text-amber-300 font-black">FREE HIT</span>
+                          )}
+                        </div>
+                        <div className="space-y-1 font-mono">
+                          {Object.entries(activeCricketDetail.batters || {}).map(
+                            ([playerId, s]) => (
+                              <div
+                                key={playerId}
+                                className="grid grid-cols-[1fr_auto] gap-3 text-neutral-300"
+                              >
+                                <span>
+                                  {playerId === activeCricketDetail.strikerId ? '● ' : ''}
+                                  {participantNames.get(playerId) || playerId}
+                                  {s.out ? ' (out)' : ''}
+                                </span>
+                                <span className="text-white">
+                                  {s.runs} ({s.balls}) · 4s {s.fours} · 6s {s.sixes}
+                                </span>
+                              </div>
+                            ),
+                          )}
+                          {!Object.keys(activeCricketDetail.batters || {}).length && (
+                            <span className="text-neutral-500">No deliveries recorded.</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="rounded-xl bg-black/35 border border-white/10 p-3">
+                        <b className="uppercase text-emerald-300 block mb-2">
+                          Bowling & current over
+                        </b>
+                        {activeCricketDetail.bowlerId && (
+                          <div className="text-neutral-300 mb-2">
+                            Bowler:{' '}
+                            <strong className="text-white">
+                              {participantNames.get(activeCricketDetail.bowlerId) ||
+                                activeCricketDetail.bowlerId}
+                            </strong>
+                          </div>
+                        )}
+                        {Object.entries(activeCricketDetail.bowlers || {}).map(([playerId, s]) => (
+                          <div key={playerId} className="font-mono text-neutral-300">
+                            {participantNames.get(playerId) || playerId}: {Math.floor(s.balls / 6)}.
+                            {s.balls % 6} ov, {s.runs} runs, {s.wickets} wkts
+                          </div>
+                        ))}
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {(activeCricketDetail.deliveries || []).slice(-8).map((d, i) => (
+                            <span
+                              key={`${d.ball}-${i}`}
+                              className="min-w-7 px-1.5 py-1 rounded bg-white/10 text-center font-mono"
+                            >
+                              {d.wicket
+                                ? 'W'
+                                : d.type === 'WIDE'
+                                  ? `${d.runs}wd`
+                                  : d.type === 'NO_BALL'
+                                    ? `${d.runs}nb`
+                                    : d.runs}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {badmintonService?.serverParticipantId && (
+                    <div className="rounded-xl bg-cyan-950/20 border border-cyan-500/25 p-3 text-xs flex flex-wrap gap-x-6 gap-y-1">
+                      <span>
+                        <b className="text-cyan-300 uppercase">Serving:</b>{' '}
+                        {participantNames.get(badmintonService.serverParticipantId) ||
+                          badmintonService.serverParticipantId}
+                      </span>
+                      {badmintonService.receiverParticipantId && (
+                        <span>
+                          <b className="text-cyan-300 uppercase">Receiving:</b>{' '}
+                          {participantNames.get(badmintonService.receiverParticipantId) ||
+                            badmintonService.receiverParticipantId}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Score Event Buttons */}
                   {canRecordEvents ? (
                     <div className="space-y-2">
+                      {liveSport === 'CRICKET' && (
+                        <div className="p-3 rounded-lg bg-black/30 border border-emerald-500/25 space-y-3">
+                          {!currentCricketInnings && !recordedToss && (
+                            <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 space-y-2">
+                              <span className="text-[11px] font-bold uppercase text-amber-300 block">
+                                1. Record toss
+                              </span>
+                              <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                                <label className="text-[10px] uppercase text-neutral-400">
+                                  Toss winner
+                                  <select
+                                    value={cricketToss.winnerTeamId}
+                                    onChange={(e) =>
+                                      setCricketToss((p) => ({
+                                        ...p,
+                                        winnerTeamId: e.target.value,
+                                      }))
+                                    }
+                                    className="mt-1 w-full px-2 py-1.5 rounded bg-[#0e0e11] border border-white/10 text-xs text-white normal-case"
+                                  >
+                                    <option value="">Select team</option>
+                                    {liveDetail.teamA && (
+                                      <option value={liveDetail.teamA.id}>
+                                        {liveDetail.teamA.name}
+                                      </option>
+                                    )}
+                                    {liveDetail.teamB && (
+                                      <option value={liveDetail.teamB.id}>
+                                        {liveDetail.teamB.name}
+                                      </option>
+                                    )}
+                                  </select>
+                                </label>
+                                <label className="text-[10px] uppercase text-neutral-400">
+                                  Decision
+                                  <select
+                                    value={cricketToss.decision}
+                                    onChange={(e) =>
+                                      setCricketToss((p) => ({ ...p, decision: e.target.value }))
+                                    }
+                                    className="mt-1 w-full px-2 py-1.5 rounded bg-[#0e0e11] border border-white/10 text-xs text-white normal-case"
+                                  >
+                                    <option value="BAT">Bat first</option>
+                                    <option value="BOWL">Bowl first</option>
+                                  </select>
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={recordToss}
+                                  disabled={actionKey !== null}
+                                  className="px-3 py-2 rounded bg-amber-500 text-black text-[10px] font-black uppercase disabled:opacity-30"
+                                >
+                                  Confirm toss
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {recordedToss && !currentCricketInnings && (
+                            <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-3 text-xs text-neutral-200">
+                              Toss recorded:{' '}
+                              <strong>
+                                {recordedToss.winnerTeamId === liveDetail.teamA?.id
+                                  ? liveDetail.teamA.name
+                                  : liveDetail.teamB?.name}
+                              </strong>{' '}
+                              chose to {recordedToss.decision.toLowerCase()}. Select the opening
+                              batters and bowler, then use the Start Innings button under the
+                              batting team.
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold uppercase text-emerald-300">
+                              {currentCricketInnings ? 'Current players' : '2. Opening players'}
+                            </span>
+                            <span className="text-[10px] text-neutral-500">
+                              Update batters after a wicket and bowler after each over
+                            </span>
+                          </div>
+                          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                            {(
+                              [
+                                [
+                                  'strikerId',
+                                  'Striker',
+                                  battingTeam?.members || [
+                                    ...(liveDetail.teamA?.members || []),
+                                    ...(liveDetail.teamB?.members || []),
+                                  ],
+                                ],
+                                [
+                                  'nonStrikerId',
+                                  'Non-striker',
+                                  battingTeam?.members || [
+                                    ...(liveDetail.teamA?.members || []),
+                                    ...(liveDetail.teamB?.members || []),
+                                  ],
+                                ],
+                                [
+                                  'bowlerId',
+                                  'Bowler',
+                                  bowlingTeam?.members || [
+                                    ...(liveDetail.teamA?.members || []),
+                                    ...(liveDetail.teamB?.members || []),
+                                  ],
+                                ],
+                                [
+                                  'nextBatterId',
+                                  'Next batter',
+                                  battingTeam?.members || [
+                                    ...(liveDetail.teamA?.members || []),
+                                    ...(liveDetail.teamB?.members || []),
+                                  ],
+                                ],
+                              ] as const
+                            ).map(([key, label, members]) => (
+                              <label key={key} className="text-[10px] uppercase text-neutral-400">
+                                {label}
+                                <select
+                                  value={cricketSelection[key]}
+                                  onChange={(e) =>
+                                    setCricketSelection((p) => ({ ...p, [key]: e.target.value }))
+                                  }
+                                  className="mt-1 w-full px-2 py-1.5 rounded bg-[#0e0e11] border border-white/10 text-xs text-white normal-case"
+                                >
+                                  <option value="">Select</option>
+                                  {members.map((m) => (
+                                    <option key={m.participant.id} value={m.participant.id}>
+                                      {m.participant.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            ))}
+                            <label className="text-[10px] uppercase text-neutral-400">
+                              Dismissal
+                              <select
+                                value={cricketSelection.dismissalType}
+                                onChange={(e) =>
+                                  setCricketSelection((p) => ({
+                                    ...p,
+                                    dismissalType: e.target.value,
+                                  }))
+                                }
+                                className="mt-1 w-full px-2 py-1.5 rounded bg-[#0e0e11] border border-white/10 text-xs text-white normal-case"
+                              >
+                                {[
+                                  'BOWLED',
+                                  'CAUGHT',
+                                  'LBW',
+                                  'RUN_OUT',
+                                  'STUMPED',
+                                  'HIT_WICKET',
+                                  'RETIRED_OUT',
+                                ].map((v) => (
+                                  <option key={v}>{v.replaceAll('_', ' ')}</option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                          {currentCricketInnings && (
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRecordEvent(undefined, 'SET_BATTERS', {
+                                    metadata: cricketSelection,
+                                  })
+                                }
+                                disabled={
+                                  !cricketSelection.strikerId ||
+                                  !cricketSelection.nonStrikerId ||
+                                  actionKey !== null
+                                }
+                                className="px-2.5 py-1.5 rounded bg-emerald-800 text-white text-[10px] font-bold uppercase disabled:opacity-30"
+                              >
+                                Apply batters
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRecordEvent(undefined, 'SET_BOWLER', {
+                                    metadata: cricketSelection,
+                                  })
+                                }
+                                disabled={!cricketSelection.bowlerId || actionKey !== null}
+                                className="px-2.5 py-1.5 rounded bg-emerald-800 text-white text-[10px] font-bold uppercase disabled:opacity-30"
+                              >
+                                Apply bowler
+                              </button>
+                            </div>
+                          )}
+                          {currentCricketInnings && (
+                            <div className="pt-3 border-t border-white/10 space-y-2">
+                              <span className="text-[11px] font-bold uppercase text-[#FFD700] block">
+                                Quick scoring
+                              </span>
+                              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                                {[0, 1, 2, 3, 4, 6].map((runs) => (
+                                  <button
+                                    key={runs}
+                                    type="button"
+                                    onClick={() => recordCricketDelivery('RUN', runs)}
+                                    disabled={actionKey !== null}
+                                    className={`h-12 rounded-xl border text-lg font-black disabled:opacity-30 ${runs === 4 || runs === 6 ? 'bg-fuchsia-700 border-fuchsia-400 text-white' : 'bg-white/10 border-white/15 text-white hover:bg-white/20'}`}
+                                  >
+                                    {runs}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => recordCricketDelivery('WIDE')}
+                                  disabled={actionKey !== null}
+                                  className="px-3 py-2 rounded-lg bg-sky-800 text-white text-xs font-black"
+                                >
+                                  WD
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => recordCricketDelivery('NO_BALL')}
+                                  disabled={actionKey !== null}
+                                  className="px-3 py-2 rounded-lg bg-orange-700 text-white text-xs font-black"
+                                >
+                                  NB
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => recordCricketDelivery('BYE', 1)}
+                                  disabled={actionKey !== null}
+                                  className="px-3 py-2 rounded-lg bg-neutral-700 text-white text-xs font-black"
+                                >
+                                  BYE
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => recordCricketDelivery('LEG_BYE', 1)}
+                                  disabled={actionKey !== null}
+                                  className="px-3 py-2 rounded-lg bg-neutral-700 text-white text-xs font-black"
+                                >
+                                  LEG BYE
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => recordCricketDelivery('WICKET')}
+                                  disabled={actionKey !== null || !cricketSelection.nextBatterId}
+                                  className="px-3 py-2 rounded-lg bg-red-700 text-white text-xs font-black disabled:opacity-30"
+                                >
+                                  WICKET
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const lastDelivery = visibleEvents.find((event) =>
+                                    ['RUN', 'WIDE', 'NO_BALL', 'BYE', 'LEG_BYE', 'WICKET'].includes(
+                                      event.eventType.toUpperCase(),
+                                    ),
+                                  );
+                                  if (lastDelivery) void handleReverseEvent(lastDelivery.id);
+                                }}
+                                disabled={
+                                  actionKey !== null ||
+                                  !visibleEvents.some((event) =>
+                                    ['RUN', 'WIDE', 'NO_BALL', 'BYE', 'LEG_BYE', 'WICKET'].includes(
+                                      event.eventType.toUpperCase(),
+                                    ),
+                                  )
+                                }
+                                className="px-3 py-2 rounded-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white text-xs font-bold disabled:opacity-30"
+                              >
+                                ↶ Undo last ball
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {liveSport === 'BADMINTON' && liveDetail.teamA && liveDetail.teamB && (
+                        <div className="p-3 rounded-lg bg-black/30 border border-cyan-500/25 space-y-3">
+                          <span className="text-[11px] font-bold uppercase text-cyan-300 block">
+                            Service setup (singles or doubles)
+                          </span>
+                          <div className="grid sm:grid-cols-3 gap-2">
+                            <label className="text-[10px] uppercase text-neutral-400">
+                              Serving team
+                              <select
+                                value={badmintonSelection.serverTeamId}
+                                onChange={(e) =>
+                                  setBadmintonSelection({
+                                    serverTeamId: e.target.value,
+                                    serverParticipantId: '',
+                                    receiverParticipantId: '',
+                                  })
+                                }
+                                className="mt-1 w-full px-2 py-1.5 rounded bg-[#0e0e11] border border-white/10 text-xs text-white normal-case"
+                              >
+                                <option value="">Select</option>
+                                <option value={liveDetail.teamA.id}>{liveDetail.teamA.name}</option>
+                                <option value={liveDetail.teamB.id}>{liveDetail.teamB.name}</option>
+                              </select>
+                            </label>
+                            <label className="text-[10px] uppercase text-neutral-400">
+                              Server
+                              <select
+                                value={badmintonSelection.serverParticipantId}
+                                onChange={(e) =>
+                                  setBadmintonSelection((p) => ({
+                                    ...p,
+                                    serverParticipantId: e.target.value,
+                                  }))
+                                }
+                                className="mt-1 w-full px-2 py-1.5 rounded bg-[#0e0e11] border border-white/10 text-xs text-white normal-case"
+                              >
+                                <option value="">Select</option>
+                                {(badmintonSelection.serverTeamId === liveDetail.teamA.id
+                                  ? liveDetail.teamA.members
+                                  : liveDetail.teamB.members
+                                )?.map((m) => (
+                                  <option key={m.participant.id} value={m.participant.id}>
+                                    {m.participant.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="text-[10px] uppercase text-neutral-400">
+                              Receiver
+                              <select
+                                value={badmintonSelection.receiverParticipantId}
+                                onChange={(e) =>
+                                  setBadmintonSelection((p) => ({
+                                    ...p,
+                                    receiverParticipantId: e.target.value,
+                                  }))
+                                }
+                                className="mt-1 w-full px-2 py-1.5 rounded bg-[#0e0e11] border border-white/10 text-xs text-white normal-case"
+                              >
+                                <option value="">Select</option>
+                                {(badmintonSelection.serverTeamId === liveDetail.teamA.id
+                                  ? liveDetail.teamB.members
+                                  : liveDetail.teamA.members
+                                )?.map((m) => (
+                                  <option key={m.participant.id} value={m.participant.id}>
+                                    {m.participant.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={configureBadmintonService}
+                            disabled={actionKey !== null}
+                            className="px-2.5 py-1.5 rounded bg-cyan-800 text-white text-[10px] font-bold uppercase disabled:opacity-30"
+                          >
+                            Set server & receiver
+                          </button>
+                        </div>
+                      )}
                       {matchControls.length > 0 && (
                         <div className="p-3 rounded-lg bg-black/30 border border-[#FFD700]/20 space-y-1.5">
                           <span className="text-[11px] font-bold uppercase text-[#FFD700] block">
@@ -1446,22 +2061,31 @@ export default function ScorerPage() {
                                 {team.name}
                               </span>
                               <div className="flex flex-wrap gap-1.5">
-                                {eventButtons.map((btn) => (
-                                  <button
-                                    key={btn.eventType + btn.label}
-                                    onClick={() => handleEventButtonClick(team.id, btn)}
-                                    disabled={actionKey !== null}
-                                    className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wide disabled:opacity-30 disabled:cursor-not-allowed ${
-                                      idx === 0
-                                        ? 'bg-[#800020] hover:bg-[#990026] text-white'
-                                        : 'bg-neutral-700 hover:bg-neutral-600 text-white'
-                                    }`}
-                                  >
-                                    {actionKey === `event-${team.id}-${btn.eventType}`
-                                      ? 'Sending…'
-                                      : btn.label}
-                                  </button>
-                                ))}
+                                {eventButtons
+                                  .filter(
+                                    (btn) =>
+                                      liveSport !== 'CRICKET' ||
+                                      (!currentCricketInnings &&
+                                        !!recordedToss &&
+                                        btn.eventType === 'START_INNINGS' &&
+                                        recordedToss.battingTeamId === team.id),
+                                  )
+                                  .map((btn) => (
+                                    <button
+                                      key={btn.eventType + btn.label}
+                                      onClick={() => handleEventButtonClick(team.id, btn)}
+                                      disabled={actionKey !== null}
+                                      className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wide disabled:opacity-30 disabled:cursor-not-allowed ${
+                                        idx === 0
+                                          ? 'bg-[#800020] hover:bg-[#990026] text-white'
+                                          : 'bg-neutral-700 hover:bg-neutral-600 text-white'
+                                      }`}
+                                    >
+                                      {actionKey === `event-${team.id}-${btn.eventType}`
+                                        ? 'Sending…'
+                                        : btn.label}
+                                    </button>
+                                  ))}
                               </div>
                             </div>
                           ) : null,

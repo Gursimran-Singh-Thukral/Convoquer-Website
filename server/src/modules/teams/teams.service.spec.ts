@@ -489,5 +489,37 @@ describe('Teams, Institutes & Participants Services', () => {
       expect(prismaMock.participant.create).toHaveBeenCalledTimes(1); // reused on the second row
       expect(prismaMock.teamMember.upsert).toHaveBeenCalledTimes(2); // linked to both sport teams
     });
+
+    it('allows one participant in multiple game squads under the same sport', async () => {
+      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
+      prismaMock.sport.findFirst.mockResolvedValue({
+        id: 'sport-esports',
+        name: 'E-Sports',
+      });
+
+      const summary = await participantsService.bulkImport({
+        eventId: 'event-1',
+        dryRun: true,
+        rows: [
+          {
+            name: 'Multi Game Player',
+            college: 'IIT Jammu',
+            rollNumber: '2024CS001',
+            sport: 'E-Sports',
+            team: 'BGMI',
+          },
+          {
+            name: 'Multi Game Player',
+            college: 'IIT Jammu',
+            rollNumber: '2024CS001',
+            sport: 'E-Sports',
+            team: 'Valorant',
+          },
+        ],
+      });
+
+      expect(summary.totalRows).toBe(2);
+      expect(summary.dryRun).toBe(true);
+    });
   });
 });

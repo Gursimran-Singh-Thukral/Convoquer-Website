@@ -485,6 +485,14 @@ export interface LiveMatchDetail extends Match {
   scoreDetails?: Record<string, unknown> | null;
   scoreEvents?: ScoreEventItem[];
   winnerTeam?: { id: string; name: string } | null;
+  teamA?: Match['teamA'] & { members?: TeamMemberSummary[] };
+  teamB?: Match['teamB'] & { members?: TeamMemberSummary[] };
+}
+
+export interface TeamMemberSummary {
+  role: string;
+  jerseyNumber: number | null;
+  participant: { id: string; name: string; rollNumber: string | null };
 }
 
 /** Shape returned by GET /api/matches/:id (full detail, includes rosters) */

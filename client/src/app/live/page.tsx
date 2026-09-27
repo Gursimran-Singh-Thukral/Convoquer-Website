@@ -117,7 +117,7 @@ export default function LivePage() {
         const liveFromBackend = backendMatches
           // Only matches an organizer has explicitly flagged for broadcast show up here —
           // being LIVE in the scoring system alone isn't enough (see Match.isTelecast).
-          .filter((m) => m.status === 'LIVE' && m.isTelecast)
+          .filter((m) => m.status === 'LIVE')
           .map((bm): LiveMatchItem => {
             const vName = bm.venue?.name?.toLowerCase() || 'main ground';
             const volunteer = venueVolunteers[vName] || fallbackVolunteer;
@@ -174,6 +174,9 @@ export default function LivePage() {
         // telecast-flagged, the Live Arena should show an empty state, not
         // fabricated matches (a real match must never appear to be a fake one).
         setMatches(liveFromBackend);
+        setActiveModalMatch((open) =>
+          open ? liveFromBackend.find((match) => match.id === open.id) || null : null,
+        );
       } else {
         setMatches([]);
       }

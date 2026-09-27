@@ -6,46 +6,100 @@ import type {
   SportEngine,
 } from './types.js';
 
-/**
- * Cricket — ICC Playing Conditions / MCC Laws of Cricket, scoped to a single
- * limited-overs match (1 innings per side, e.g. T20/ODI-style), which is what
- * an inter-college fest actually runs. Test-style multi-innings cricket is out
- * of scope.
- */
-
+type Dismissal =
+  | 'BOWLED'
+  | 'CAUGHT'
+  | 'LBW'
+  | 'RUN_OUT'
+  | 'STUMPED'
+  | 'HIT_WICKET'
+  | 'RETIRED_OUT';
+interface BatterStats {
+  participantId: string;
+  runs: number;
+  balls: number;
+  fours: number;
+  sixes: number;
+  out: boolean;
+  dismissal?: Dismissal;
+}
+interface BowlerStats {
+  participantId: string;
+  balls: number;
+  runs: number;
+  wickets: number;
+  wides: number;
+  noBalls: number;
+}
+interface Delivery {
+  ball: string;
+  type: string;
+  runs: number;
+  batterId?: string;
+  bowlerId?: string;
+  wicket?: boolean;
+}
 interface InningsState {
   battingTeamId: string;
   runs: number;
   wickets: number;
-  balls: number; // legal (non-wide, non-no-ball) deliveries bowled this innings
+  balls: number;
   extras: { wide: number; noBall: number; bye: number; legBye: number };
   completed: boolean;
+  strikerId: string | null;
+  nonStrikerId: string | null;
+  bowlerId: string | null;
+  freeHit: boolean;
+  batters: Record<string, BatterStats>;
+  bowlers: Record<string, BowlerStats>;
+  deliveries: Delivery[];
 }
-
 interface CricketDetails {
   oversPerInnings: number;
   inningsNumber: 0 | 1 | 2;
-  innings: InningsState[]; // index 0 = 1st innings, index 1 = 2nd innings
+  innings: InningsState[];
   target: number | null;
+  toss: {
+    winnerTeamId: string;
+    decision: 'BAT' | 'BOWL';
+    battingTeamId: string;
+  } | null;
 }
-
 const DEFAULT_OVERS = 20;
-
-function details(state: EngineState): CricketDetails {
-  return state.scoreDetails as unknown as CricketDetails;
-}
-
-function oversDisplay(balls: number): string {
-  return `${Math.floor(balls / 6)}.${balls % 6}`;
-}
-
-function currentInnings(d: CricketDetails): InningsState | null {
-  return d.inningsNumber === 0 ? null : d.innings[d.inningsNumber - 1];
-}
+const detail = (s: EngineState) => s.scoreDetails as unknown as CricketDetails;
+const overs = (balls: number) => `${Math.floor(balls / 6)}.${balls % 6}`;
+const current = (d: CricketDetails) =>
+  d.inningsNumber ? d.innings[d.inningsNumber - 1] : null;
+const id = (value: unknown) =>
+  typeof value === 'string' && value.trim() ? value.trim() : null;
+const swapStrike = (i: InningsState) => {
+  [i.strikerId, i.nonStrikerId] = [i.nonStrikerId, i.strikerId];
+};
+const batter = (i: InningsState, participantId: string) =>
+  (i.batters[participantId] ||= {
+    participantId,
+    runs: 0,
+    balls: 0,
+    fours: 0,
+    sixes: 0,
+    out: false,
+  });
+const bowler = (i: InningsState, participantId: string) =>
+  (i.bowlers[participantId] ||= {
+    participantId,
+    balls: 0,
+    runs: 0,
+    wickets: 0,
+    wides: 0,
+    noBalls: 0,
+  });
 
 export const cricketEngine: SportEngine = {
   validEventTypes: [
+    'TOSS',
     'START_INNINGS',
+    'SET_BATTERS',
+    'SET_BOWLER',
     'RUN',
     'WIDE',
     'NO_BALL',
@@ -54,55 +108,67 @@ export const cricketEngine: SportEngine = {
     'WICKET',
     'END_INNINGS',
   ],
-
-  initialState(context: EngineContext): EngineState {
-    const oversPerInnings =
-      Number(context.config.oversPerInnings) || DEFAULT_OVERS;
+  initialState(context) {
     const d: CricketDetails = {
-      oversPerInnings,
+      oversPerInnings: Number(context.config.oversPerInnings) || DEFAULT_OVERS,
       inningsNumber: 0,
       innings: [],
       target: null,
+      toss: null,
     };
-    return {
-      teamAScore: 0,
-      teamBScore: 0,
-      scoreDetails: d as unknown as Record<string, unknown>,
-      currentPeriod: 'Yet to start',
-      winnerTeamId: null,
-      isComplete: false,
-    };
+    return finish(d, context, 'Yet to start');
   },
-
-  applyEvent(
-    state: EngineState,
-    event: EngineEvent,
-    context: EngineContext,
-  ): EngineState {
-    const d = structuredClone(details(state));
+  applyEvent(state, event, context) {
+    const d = structuredClone(detail(state));
+    d.toss ??= null;
     const type = event.eventType.toUpperCase();
-
+    if (type === 'TOSS') {
+      if (d.inningsNumber > 0)
+        throw new BadRequestException(
+          'The toss cannot be changed after an innings starts.',
+        );
+      const winnerTeamId = id(event.metadata?.winnerTeamId) || event.teamId;
+      const decision = String(event.metadata?.decision || '').toUpperCase();
+      if (
+        !winnerTeamId ||
+        ![context.teamAId, context.teamBId].includes(winnerTeamId) ||
+        !['BAT', 'BOWL'].includes(decision)
+      )
+        throw new BadRequestException(
+          'Select the toss winner and whether they chose to bat or bowl.',
+        );
+      const otherTeamId =
+        winnerTeamId === context.teamAId ? context.teamBId : context.teamAId;
+      d.toss = {
+        winnerTeamId,
+        decision: decision as 'BAT' | 'BOWL',
+        battingTeamId: decision === 'BAT' ? winnerTeamId : otherTeamId,
+      };
+      return finish(d, context, 'Toss complete');
+    }
     if (type === 'START_INNINGS') {
       if (d.inningsNumber >= 2)
         throw new BadRequestException('This match already has both innings.');
-      const battingTeamId =
-        (event.metadata?.battingTeamId as string) || event.teamId || undefined;
+      const battingTeamId = id(event.metadata?.battingTeamId) || event.teamId;
       if (
         !battingTeamId ||
         ![context.teamAId, context.teamBId].includes(battingTeamId)
-      ) {
+      )
         throw new BadRequestException(
           'START_INNINGS requires a valid battingTeamId.',
         );
-      }
       if (
-        d.inningsNumber === 1 &&
-        d.innings[0].battingTeamId === battingTeamId
-      ) {
+        d.inningsNumber === 0 &&
+        d.toss &&
+        d.toss.battingTeamId !== battingTeamId
+      )
+        throw new BadRequestException(
+          'The first batting team must match the recorded toss decision.',
+        );
+      if (d.inningsNumber === 1 && d.innings[0].battingTeamId === battingTeamId)
         throw new BadRequestException(
           'The second innings must be batted by the other team.',
         );
-      }
       d.inningsNumber = (d.inningsNumber + 1) as 1 | 2;
       d.innings.push({
         battingTeamId,
@@ -111,85 +177,175 @@ export const cricketEngine: SportEngine = {
         balls: 0,
         extras: { wide: 0, noBall: 0, bye: 0, legBye: 0 },
         completed: false,
+        strikerId: id(event.metadata?.strikerId),
+        nonStrikerId: id(event.metadata?.nonStrikerId),
+        bowlerId: id(event.metadata?.bowlerId),
+        freeHit: false,
+        batters: {},
+        bowlers: {},
+        deliveries: [],
       });
       if (d.inningsNumber === 2) d.target = d.innings[0].runs + 1;
       return finish(d, context, `Innings ${d.inningsNumber} · 0.0 ov`);
     }
-
-    const innings = currentInnings(d);
-    if (!innings)
+    const inn = current(d);
+    if (!inn)
       throw new BadRequestException(
-        'Start an innings (START_INNINGS) before recording deliveries.',
+        'Start an innings before recording deliveries.',
       );
-    if (innings.completed)
-      throw new BadRequestException(
-        'This innings has already ended — start the next one.',
+    if (inn.completed)
+      throw new BadRequestException('This innings has already ended.');
+    // Matches created before player scorecards were introduced still replay
+    // correctly and are upgraded on the next event.
+    inn.strikerId ??= null;
+    inn.nonStrikerId ??= null;
+    inn.bowlerId ??= null;
+    inn.freeHit ??= false;
+    inn.batters ??= {};
+    inn.bowlers ??= {};
+    inn.deliveries ??= [];
+    if (type === 'SET_BATTERS') {
+      const strikerId = id(event.metadata?.strikerId),
+        nonStrikerId = id(event.metadata?.nonStrikerId);
+      if (!strikerId || !nonStrikerId || strikerId === nonStrikerId)
+        throw new BadRequestException('Select two different batters.');
+      inn.strikerId = strikerId;
+      inn.nonStrikerId = nonStrikerId;
+      return finish(
+        d,
+        context,
+        `Innings ${d.inningsNumber} · ${overs(inn.balls)} ov`,
       );
-
+    }
+    if (type === 'SET_BOWLER') {
+      const bowlerId = id(event.metadata?.bowlerId);
+      if (!bowlerId) throw new BadRequestException('Select a bowler.');
+      inn.bowlerId = bowlerId;
+      return finish(
+        d,
+        context,
+        `Innings ${d.inningsNumber} · ${overs(inn.balls)} ov`,
+      );
+    }
+    if (type === 'END_INNINGS') {
+      inn.completed = true;
+      return finish(
+        d,
+        context,
+        `Innings ${d.inningsNumber} complete (${overs(inn.balls)} ov)`,
+      );
+    }
     const runs = Number(event.metadata?.runs ?? 0);
     if (!Number.isInteger(runs) || runs < 0 || runs > 6)
       throw new BadRequestException('runs must be an integer between 0 and 6.');
-
-    switch (type) {
-      case 'RUN':
-        innings.runs += runs;
-        innings.balls += 1;
-        break;
-      case 'WIDE':
-        innings.runs += 1 + runs; // 1 mandatory wide run + any additional runs run
-        innings.extras.wide += 1 + runs;
-        // A wide is not a legal delivery — does not advance the over.
-        break;
-      case 'NO_BALL':
-        innings.runs += 1 + runs;
-        innings.extras.noBall += 1 + runs;
-        // Not a legal delivery either.
-        break;
-      case 'BYE':
-        innings.runs += runs || 1;
-        innings.extras.bye += runs || 1;
-        innings.balls += 1;
-        break;
-      case 'LEG_BYE':
-        innings.runs += runs || 1;
-        innings.extras.legBye += runs || 1;
-        innings.balls += 1;
-        break;
-      case 'WICKET':
-        if (innings.wickets >= 10)
-          throw new BadRequestException('This team is already all out.');
-        innings.wickets += 1;
-        innings.runs += runs; // runs completed before the dismissal (e.g. a run-out)
-        innings.balls += 1;
-        break;
-      case 'END_INNINGS':
-        break; // handled by the completion check below regardless
-      default:
+    const strikerId =
+      id(event.participantId) || id(event.metadata?.strikerId) || inn.strikerId;
+    const bowlerId = id(event.metadata?.bowlerId) || inn.bowlerId;
+    const legal = !['WIDE', 'NO_BALL'].includes(type);
+    const beforeBall = inn.balls;
+    let total = runs,
+      batterRuns = 0,
+      bowlerRuns = 0,
+      wicket = false;
+    if (type === 'WIDE') {
+      total = 1 + runs;
+      inn.extras.wide += total;
+      bowlerRuns = total;
+    } else if (type === 'NO_BALL') {
+      total = 1 + runs;
+      inn.extras.noBall += 1;
+      batterRuns = runs;
+      bowlerRuns = total;
+    } else if (type === 'BYE') {
+      total = runs || 1;
+      inn.extras.bye += total;
+    } else if (type === 'LEG_BYE') {
+      total = runs || 1;
+      inn.extras.legBye += total;
+    } else if (type === 'RUN') {
+      batterRuns = runs;
+      bowlerRuns = runs;
+    } else if (type === 'WICKET') {
+      if (inn.wickets >= 10)
+        throw new BadRequestException('This team is already all out.');
+      const dismissal = String(
+        event.metadata?.dismissalType || 'BOWLED',
+      ).toUpperCase() as Dismissal;
+      if (inn.freeHit && dismissal !== 'RUN_OUT')
         throw new BadRequestException(
-          `Unsupported cricket event type "${type}".`,
+          'Only a run-out may be recorded on a free hit.',
         );
+      total = runs;
+      bowlerRuns = runs;
+      wicket = true;
+      inn.wickets += 1;
+      const dismissedId = id(event.metadata?.dismissedPlayerId) || strikerId;
+      if (dismissedId) {
+        const bs = batter(inn, dismissedId);
+        bs.out = true;
+        bs.dismissal = dismissal;
+      }
+    } else
+      throw new BadRequestException(
+        `Unsupported cricket event type "${type}".`,
+      );
+    inn.runs += total;
+    if (legal) inn.balls += 1;
+    if (strikerId) {
+      const bs = batter(inn, strikerId);
+      if (legal) bs.balls += 1;
+      bs.runs += batterRuns;
+      if (batterRuns === 4) bs.fours += 1;
+      if (batterRuns === 6) bs.sixes += 1;
     }
-
-    const oversComplete = innings.balls >= d.oversPerInnings * 6;
-    const allOut = innings.wickets >= 10;
-    if (type === 'END_INNINGS' || oversComplete || allOut)
-      innings.completed = true;
-
-    // Second innings ends early once the target is chased down.
-    if (d.inningsNumber === 2 && d.target !== null && innings.runs >= d.target)
-      innings.completed = true;
-
-    const period = innings.completed
-      ? `Innings ${d.inningsNumber} complete (${oversDisplay(innings.balls)} ov)`
-      : `Innings ${d.inningsNumber} · ${oversDisplay(innings.balls)} ov`;
-    return finish(d, context, period);
+    if (bowlerId) {
+      const bw = bowler(inn, bowlerId);
+      if (legal) bw.balls += 1;
+      bw.runs += bowlerRuns;
+      if (type === 'WIDE') bw.wides += total;
+      if (type === 'NO_BALL') bw.noBalls += 1;
+      if (
+        wicket &&
+        String(event.metadata?.dismissalType || 'BOWLED').toUpperCase() !==
+          'RUN_OUT'
+      )
+        bw.wickets += 1;
+    }
+    inn.deliveries.push({
+      ball: `${Math.floor(beforeBall / 6)}.${(beforeBall % 6) + (legal ? 1 : 0)}`,
+      type,
+      runs: total,
+      ...(strikerId ? { batterId: strikerId } : {}),
+      ...(bowlerId ? { bowlerId } : {}),
+      ...(wicket ? { wicket: true } : {}),
+    });
+    const rotationRuns =
+      type === 'WIDE' ? runs : type === 'NO_BALL' ? runs : total;
+    if (rotationRuns % 2 === 1) swapStrike(inn);
+    if (legal && inn.balls % 6 === 0) {
+      swapStrike(inn);
+      inn.bowlerId = null;
+    }
+    inn.freeHit = type === 'NO_BALL';
+    if (type === 'WICKET') inn.strikerId = id(event.metadata?.nextBatterId);
+    if (
+      inn.balls >= d.oversPerInnings * 6 ||
+      inn.wickets >= 10 ||
+      (d.inningsNumber === 2 && d.target !== null && inn.runs >= d.target)
+    )
+      inn.completed = true;
+    return finish(
+      d,
+      context,
+      inn.completed
+        ? `Innings ${d.inningsNumber} complete (${overs(inn.balls)} ov)`
+        : `Innings ${d.inningsNumber} · ${overs(inn.balls)} ov`,
+    );
   },
 };
-
-function scoreForTeam(d: CricketDetails, teamId: string): number {
+function scoreForTeam(d: CricketDetails, teamId: string) {
   return d.innings.find((i) => i.battingTeamId === teamId)?.runs ?? 0;
 }
-
 function finish(
   d: CricketDetails,
   context: EngineContext,
@@ -205,11 +361,8 @@ function finish(
     isComplete: !!second?.completed,
   };
 }
-
-function determineWinner(d: CricketDetails): string | null {
-  const [first, second] = d.innings;
-  if (!first || !second || !second.completed) return null;
-  if (second.runs === first.runs) return null; // tie
-  if (second.runs > first.runs) return second.battingTeamId; // chased down: wins by wickets in hand
-  return first.battingTeamId; // defended: wins by runs
+function determineWinner(d: CricketDetails) {
+  const [a, b] = d.innings;
+  if (!a || !b || !b.completed || a.runs === b.runs) return null;
+  return b.runs > a.runs ? b.battingTeamId : a.battingTeamId;
 }
