@@ -5,6 +5,7 @@ import { Navbar } from '@/components/Navbar';
 import { LiveTickerRibbon } from '@/components/LiveTickerRibbon';
 import { Footer } from '@/components/Footer';
 import { apiPost, ApiError, fetchActiveEventId, type Participant } from '@/lib/api';
+import { compressImageToDataUrl } from '@/lib/image';
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -16,16 +17,7 @@ function initialsOf(name: string): string {
 // India-format WhatsApp/mobile number: a 6-9 leading digit and 9 more digits (10 total, no country code — that's fixed to +91 in the UI).
 const PHONE_PATTERN = /^[6-9]\d{9}$/;
 
-const MAX_UPLOAD_BYTES = 3 * 1024 * 1024; // 3MB, kept small since it's stored as a data URL
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // source file cap before compression; the compressed result sent to the server is much smaller
 
 export default function AudiencePassPage() {
   const [eventId, setEventId] = useState<string | null>(null);
@@ -55,10 +47,16 @@ export default function AudiencePassPage() {
       return;
     }
     if (file.size > MAX_UPLOAD_BYTES) {
-      setUploadError('That image is too large — please use a photo under 3MB.');
+      setUploadError('That image is too large — please use a photo under 15MB.');
       return;
     }
-    const dataUrl = await readFileAsDataUrl(file);
+    let dataUrl: string;
+    try {
+      dataUrl = await compressImageToDataUrl(file);
+    } catch {
+      setUploadError('Could not process that image — please try a different photo.');
+      return;
+    }
     if (kind === 'photo') setPhotoDataUrl(dataUrl);
     else setIdDataUrl(dataUrl);
   };
