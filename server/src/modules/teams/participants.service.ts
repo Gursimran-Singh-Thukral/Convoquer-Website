@@ -19,9 +19,47 @@ import {
   BulkImportDto,
 } from './dto/teams.dto.js';
 
+// Sports seeded as separate Men's/Women's records (see seed.ts) — a bare
+// "Badminton" in an import row isn't itself a Sport name and must be
+// combined with the row's gender to resolve which one. Sports not in this
+// set (Cricket, Football, Athletics, Weight Lifting, E-Sports, …) field one
+// shared team regardless of gender, so their name is used as-is.
+const GENDER_SPLIT_SPORTS = new Set([
+  'badminton',
+  'basketball',
+  'chess',
+  'table tennis',
+  'volleyball',
+]);
+
 @Injectable()
 export class ParticipantsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Resolves an import row's `sport` (+ `gender`) to the actual seeded Sport
+   * name. A row that already spells out "Badminton (Men)" passes through
+   * unchanged; a bare "Badminton" is combined with `gender` since that's how
+   * the source data (and scripts/convert-convoquer-teams.py) represent it.
+   */
+  private resolveSportName(
+    sportRaw: string | undefined,
+    genderRaw: string | undefined,
+    rowNumber: number,
+  ): string | undefined {
+    const sport = sportRaw?.trim();
+    if (!sport) return undefined;
+    if (!GENDER_SPLIT_SPORTS.has(sport.toLowerCase())) return sport;
+
+    const gender = genderRaw?.trim().toUpperCase();
+    if (gender === 'FEMALE' || gender === 'WOMEN' || gender === 'W')
+      return `${sport} (Women)`;
+    if (gender === 'MALE' || gender === 'MEN' || gender === 'M')
+      return `${sport} (Men)`;
+    throw new BadRequestException(
+      `Row ${rowNumber}: "${sport}" needs a gender (MALE or FEMALE) to tell the Men's and Women's teams apart`,
+    );
+  }
 
   /**
    * Helper to generate human-readable, unique gate pass codes (e.g. CQ26-7A9B)
@@ -516,14 +554,15 @@ export class ParticipantsService {
           `Row ${i + 1}: duplicate participant, sport and team`,
         );
       seen.add(identity);
+      const resolvedSport = this.resolveSportName(row.sport, row.gender, i + 1);
       if (
-        row.sport &&
+        resolvedSport &&
         !(await this.prisma.sport.findFirst({
-          where: { eventId: dto.eventId, name: row.sport },
+          where: { eventId: dto.eventId, name: resolvedSport },
         }))
       ) {
         throw new BadRequestException(
-          `Row ${i + 1}: create the sport "${row.sport}" before importing`,
+          `Row ${i + 1}: create the sport "${resolvedSport}" before importing`,
         );
       }
     }
@@ -573,13 +612,18 @@ export class ParticipantsService {
 
             // 2. Find or create Sport if provided
             let sport: any = null;
-            if (row.sport) {
+            const resolvedSportName = this.resolveSportName(
+              row.sport,
+              row.gender,
+              i + 1,
+            );
+            if (resolvedSportName) {
               sport = await tx.sport.findFirst({
-                where: { eventId: dto.eventId, name: row.sport },
+                where: { eventId: dto.eventId, name: resolvedSportName },
               });
               if (!sport) {
                 sport = await tx.sport.create({
-                  data: { eventId: dto.eventId, name: row.sport },
+                  data: { eventId: dto.eventId, name: resolvedSportName },
                 });
               }
             }

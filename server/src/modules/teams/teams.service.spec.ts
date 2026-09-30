@@ -376,6 +376,101 @@ describe('Teams, Institutes & Participants Services', () => {
       expect(prismaMock.participant.create).toHaveBeenCalledTimes(1);
     });
 
+    it("resolves a bare gender-split sport name using the row's gender", async () => {
+      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
+      prismaMock.institute.findFirst.mockResolvedValue({
+        id: 'inst-1',
+        name: 'IIT Delhi',
+        shortName: 'IITD',
+      });
+      prismaMock.sport.findFirst.mockResolvedValue({
+        id: 'sport-badminton-w',
+        name: 'Badminton (Women)',
+      });
+      prismaMock.participant.findFirst.mockResolvedValue(null);
+      prismaMock.participant.create.mockResolvedValue({ id: 'p-1' });
+      prismaMock.team.findFirst.mockResolvedValue(null);
+      prismaMock.team.create.mockImplementation(({ data }: any) => ({
+        id: 'team-1',
+        ...data,
+      }));
+
+      await participantsService.bulkImport({
+        eventId: 'event-1',
+        rows: [
+          {
+            name: 'Priya Sharma',
+            college: 'IIT Delhi',
+            rollNumber: '2022CS010',
+            sport: 'Badminton',
+            gender: 'FEMALE',
+          },
+        ],
+      });
+
+      expect(prismaMock.sport.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ name: 'Badminton (Women)' }),
+        }),
+      );
+    });
+
+    it('passes through an already-qualified sport name unchanged', async () => {
+      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
+      prismaMock.institute.findFirst.mockResolvedValue({
+        id: 'inst-1',
+        name: 'IIT Delhi',
+        shortName: 'IITD',
+      });
+      prismaMock.sport.findFirst.mockResolvedValue({
+        id: 'sport-badminton-m',
+        name: 'Badminton (Men)',
+      });
+      prismaMock.participant.findFirst.mockResolvedValue(null);
+      prismaMock.participant.create.mockResolvedValue({ id: 'p-2' });
+      prismaMock.team.findFirst.mockResolvedValue(null);
+      prismaMock.team.create.mockImplementation(({ data }: any) => ({
+        id: 'team-2',
+        ...data,
+      }));
+
+      await participantsService.bulkImport({
+        eventId: 'event-1',
+        rows: [
+          {
+            name: 'Rahul Mehta',
+            college: 'IIT Delhi',
+            rollNumber: '2022CS011',
+            sport: 'Badminton (Men)',
+          },
+        ],
+      });
+
+      expect(prismaMock.sport.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ name: 'Badminton (Men)' }),
+        }),
+      );
+    });
+
+    it('rejects a gender-split sport with no gender to resolve which team', async () => {
+      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
+
+      await expect(
+        participantsService.bulkImport({
+          eventId: 'event-1',
+          rows: [
+            {
+              name: 'Unknown Gender',
+              college: 'IIT Delhi',
+              rollNumber: '2022CS012',
+              sport: 'Basketball',
+            },
+          ],
+        }),
+      ).rejects.toThrow(/needs a gender/);
+    });
+
     it('creates separate teams for the same institute and sport when rows carry different team labels (e.g. E-Sports squads)', async () => {
       prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
       prismaMock.institute.findFirst.mockResolvedValue({
@@ -444,11 +539,12 @@ describe('Teams, Institutes & Participants Services', () => {
       });
       // sport.findFirst is called once in bulkImport's pre-transaction
       // validation pass and again inside the transaction per row, so key off
-      // the query args instead of a fixed call sequence.
+      // the query args instead of a fixed call sequence. Badminton/Chess are
+      // gender-split sports, so the resolved name includes "(Men)"/"(Women)".
       prismaMock.sport.findFirst.mockImplementation(({ where }: any) =>
-        where.name === 'Badminton'
-          ? { id: 'sport-badminton', name: 'Badminton' }
-          : { id: 'sport-chess', name: 'Chess' },
+        where.name === 'Badminton (Men)'
+          ? { id: 'sport-badminton', name: 'Badminton (Men)' }
+          : { id: 'sport-chess', name: 'Chess (Men)' },
       );
       prismaMock.team.findFirst
         .mockResolvedValueOnce(null)
@@ -475,12 +571,14 @@ describe('Teams, Institutes & Participants Services', () => {
             college: 'IIT Delhi',
             rollNumber: '2022CS003',
             sport: 'Badminton',
+            gender: 'MALE',
           },
           {
             name: 'Dual Athlete',
             college: 'IIT Delhi',
             rollNumber: '2022CS003',
             sport: 'Chess',
+            gender: 'MALE',
           },
         ],
       });

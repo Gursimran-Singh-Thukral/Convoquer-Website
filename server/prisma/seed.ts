@@ -895,10 +895,11 @@ async function main() {
     }
   }
 
-  // Seed Participating Institutes — the 17 confirmed delegations, exactly as
+  // Seed Participating Institutes — the confirmed delegations, exactly as
   // named in the official participation sheet.
   const institutesData: { name: string; shortName: string }[] = [
     { name: 'MIET', shortName: 'MIET' },
+    { name: 'IIT Mandi', shortName: 'IIT Mandi' },
     { name: 'IIM Jammu', shortName: 'IIMJ' },
     { name: 'SMVDU', shortName: 'SMVDU' },
     { name: 'ASCOMS', shortName: 'ASCOMS' },
