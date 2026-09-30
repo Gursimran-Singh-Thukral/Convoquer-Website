@@ -52,7 +52,10 @@ export default function AudiencePassPage() {
     }
     let dataUrl: string;
     try {
-      dataUrl = await compressImageToDataUrl(file);
+      // Two images (photo + ID) travel in the same request, so each is kept
+      // well under half of a typical strict proxy body limit (some hosts
+      // default as low as 1MB total) rather than the library's own default.
+      dataUrl = await compressImageToDataUrl(file, { maxBytes: 350_000 });
     } catch {
       setUploadError('Could not process that image — please try a different photo.');
       return;
