@@ -64,7 +64,9 @@ function ImportContent() {
         <p>
           In Google Sheets, choose File → Download → Comma-separated values (.csv). Create the sport
           first. Existing institute and roll number pairs are reused, so importing the same sheet
-          again does not duplicate participants.
+          again does not duplicate participants — instead, that participant’s name, gender, contact
+          number and category are overwritten with whatever this row has (a field left blank keeps
+          the value already on file).
         </p>
         <p className="text-zinc-400">
           Required headers: name, college, rollNumber. Optional: sport, team, gender, contactNumber,

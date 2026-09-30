@@ -465,6 +465,7 @@ describe('Teams, Institutes & Participants Services', () => {
         .mockResolvedValueOnce(null) // not found for the first (Badminton) row
         .mockResolvedValueOnce(existingParticipant); // found on the second (Chess) row — same person
       prismaMock.participant.create.mockResolvedValue(existingParticipant);
+      prismaMock.participant.update.mockResolvedValue(existingParticipant); // found on the second row, so it's overwritten in place
 
       const summary = await participantsService.bulkImport({
         eventId: 'event-1',
@@ -488,6 +489,93 @@ describe('Teams, Institutes & Participants Services', () => {
       expect(summary.errors).toHaveLength(0);
       expect(prismaMock.participant.create).toHaveBeenCalledTimes(1); // reused on the second row
       expect(prismaMock.teamMember.upsert).toHaveBeenCalledTimes(2); // linked to both sport teams
+    });
+
+    it('overwrites an existing participant with corrected details instead of leaving the stale row', async () => {
+      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
+      prismaMock.institute.findFirst.mockResolvedValue({
+        id: 'inst-1',
+        name: 'IIT Delhi',
+        shortName: 'IITD',
+      });
+      const existingParticipant = {
+        id: 'participant-1',
+        name: 'Old Name',
+        gender: 'M',
+        category: 'ATHLETE',
+      };
+      prismaMock.participant.findFirst.mockResolvedValue(existingParticipant);
+      const updatedParticipant = {
+        ...existingParticipant,
+        name: 'Corrected Name',
+      };
+      prismaMock.participant.update.mockResolvedValue(updatedParticipant);
+
+      await participantsService.bulkImport({
+        eventId: 'event-1',
+        rows: [
+          {
+            name: 'Corrected Name',
+            college: 'IIT Delhi',
+            rollNumber: '2022ME109',
+            gender: 'F',
+            contactNumber: '9998887776',
+            category: 'GUEST',
+          },
+        ],
+      });
+
+      expect(prismaMock.participant.create).not.toHaveBeenCalled();
+      expect(prismaMock.participant.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'participant-1' },
+          data: expect.objectContaining({
+            name: 'Corrected Name',
+            gender: 'F',
+            category: 'GUEST',
+          }),
+        }),
+      );
+    });
+
+    it('keeps existing participant fields that a re-imported row leaves blank', async () => {
+      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
+      prismaMock.institute.findFirst.mockResolvedValue({
+        id: 'inst-1',
+        name: 'IIT Delhi',
+        shortName: 'IITD',
+      });
+      prismaMock.participant.findFirst.mockResolvedValue({
+        id: 'participant-1',
+        name: 'Old Name',
+        gender: 'M',
+        category: 'ATHLETE',
+      });
+      prismaMock.participant.update.mockResolvedValue({
+        id: 'participant-1',
+      });
+
+      await participantsService.bulkImport({
+        eventId: 'event-1',
+        rows: [
+          {
+            name: 'Old Name',
+            college: 'IIT Delhi',
+            rollNumber: '2022ME109',
+            // gender, contactNumber, category left blank on this row
+          },
+        ],
+      });
+
+      expect(prismaMock.participant.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            gender: undefined,
+            contactNumber: undefined,
+            category: undefined,
+          }),
+        }),
+      );
     });
 
     it('allows one participant in multiple game squads under the same sport', async () => {

@@ -617,7 +617,12 @@ export class ParticipantsService {
               }
             }
 
-            // 4. Create or find Participant
+            // 4. Create, or overwrite if this roll number already exists.
+            // Re-importing the same sheet (with corrections) should land
+            // those corrections, not silently keep the stale row — but a
+            // field left blank in this row doesn't erase a value the
+            // participant already has (e.g. one filled in later via
+            // self-registration), so only fields actually present overwrite.
             let participant: any = null;
             if (row.rollNumber) {
               participant = await tx.participant.findFirst({
@@ -629,7 +634,19 @@ export class ParticipantsService {
               });
             }
 
-            if (!participant) {
+            if (participant) {
+              participant = await tx.participant.update({
+                where: { id: participant.id },
+                data: {
+                  name: row.name,
+                  gender: row.gender || undefined,
+                  contactNumber: row.contactNumber
+                    ? encryptField(row.contactNumber)
+                    : undefined,
+                  category: row.category || undefined,
+                },
+              });
+            } else {
               participant = await tx.participant.create({
                 data: {
                   eventId: dto.eventId,
