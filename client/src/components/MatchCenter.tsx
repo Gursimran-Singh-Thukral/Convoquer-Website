@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { apiGet, getApiBaseUrl, type LiveMatchDetail } from '@/lib/api';
+import { ResultScorecard } from '@/components/results/ResultScorecard';
+import { isResultDetails } from '@/lib/resultFormat';
 
 export function MatchCenter({ id }: { id: string }) {
   const [match, setMatch] = useState<LiveMatchDetail | null>(null);
@@ -44,16 +46,30 @@ export function MatchCenter({ id }: { id: string }) {
           <p className="text-[#FFD700]">
             {match.tournament?.name} · {match.status}
           </p>
-          <div aria-live="polite" className="grid grid-cols-2 gap-6 text-center py-10">
-            <div>
-              <h2>{match.teamA?.name || 'TBD'}</h2>
-              <strong className="text-6xl">{match.teamAScore ?? '?'}</strong>
+          {match.resultPublished && isResultDetails(match.scoreDetails) ? (
+            <div aria-live="polite" className="py-6">
+              <ResultScorecard
+                details={match.scoreDetails}
+                teamA={match.teamA}
+                teamB={match.teamB}
+                scoreA={match.teamAScore}
+                scoreB={match.teamBScore}
+                winnerTeamId={match.winnerTeamId ?? match.winnerTeam?.id}
+                stageName={match.stage?.name}
+              />
             </div>
-            <div>
-              <h2>{match.teamB?.name || 'TBD'}</h2>
-              <strong className="text-6xl">{match.teamBScore ?? '?'}</strong>
+          ) : (
+            <div aria-live="polite" className="grid grid-cols-2 gap-6 text-center py-10">
+              <div>
+                <h2>{match.teamA?.name || 'TBD'}</h2>
+                <strong className="text-6xl">{match.teamAScore ?? '?'}</strong>
+              </div>
+              <div>
+                <h2>{match.teamB?.name || 'TBD'}</h2>
+                <strong className="text-6xl">{match.teamBScore ?? '?'}</strong>
+              </div>
             </div>
-          </div>
+          )}
           <p>
             {match.currentPeriod} · {match.venue?.name || 'Venue to be announced'}
           </p>
@@ -62,14 +78,19 @@ export function MatchCenter({ id }: { id: string }) {
               ? 'Official result approved and published.'
               : 'Scores are provisional until the result is approved and published.'}
           </p>
-          <h2 className="text-xl mt-8 mb-4">Latest events</h2>
-          <ol className="space-y-2">
-            {match.scoreEvents?.map((event) => (
-              <li key={event.id}>
-                {event.team?.name} · {event.eventType.replaceAll('_', ' ')} · {event.points} points
-              </li>
-            ))}
-          </ol>
+          {!!match.scoreEvents?.length && (
+            <>
+              <h2 className="text-xl mt-8 mb-4">Latest events</h2>
+              <ol className="space-y-2">
+                {match.scoreEvents.map((event) => (
+                  <li key={event.id}>
+                    {event.team?.name} · {event.eventType.replaceAll('_', ' ')} · {event.points}{' '}
+                    points
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
         </>
       )}
     </div>

@@ -71,6 +71,9 @@ export default function StandingsPage() {
   const [sportStandings, setSportStandings] = useState<TeamStanding[] | null>(null);
   const [sportStandingsTournament, setSportStandingsTournament] = useState<string | null>(null);
   const [sportStandingsLoading, setSportStandingsLoading] = useState(false);
+  // A sport can have several tournaments (E-Sports: Valorant, Free Fire, BGMI).
+  const [sportTournaments, setSportTournaments] = useState<Tournament[]>([]);
+  const [tournamentChoice, setTournamentChoice] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([fetchMedalTally(), apiGet<Sport[]>('/sports').catch(() => [])])
@@ -92,6 +95,7 @@ export default function StandingsPage() {
       if (selectedSport === 'all') {
         setSportStandings(null);
         setSportStandingsTournament(null);
+        setSportTournaments([]);
         return;
       }
       const matchingSport = sports.find(
@@ -107,7 +111,9 @@ export default function StandingsPage() {
       apiGet<Tournament[]>(`/tournaments?sportId=${matchingSport.id}`)
         .then(async (tournaments) => {
           if (cancelled) return;
-          const tournament = tournaments && tournaments.length > 0 ? tournaments[0] : null;
+          const list = Array.isArray(tournaments) ? tournaments : [];
+          setSportTournaments(list);
+          const tournament = list.find((t) => t.id === tournamentChoice) ?? list[0] ?? null;
           if (!tournament) {
             setSportStandings(null);
             setSportStandingsTournament(null);
@@ -135,8 +141,10 @@ export default function StandingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedSport, sports]);
+  }, [selectedSport, sports, tournamentChoice]);
 
+  const chessTable = !!sportStandings?.some((r) => r.buchholz !== undefined);
+  const lobbyTable = !!sportStandings?.some((r) => r.placementPoints !== undefined);
   const podiumRows = useMemo(() => standings.slice(0, 3), [standings]);
 
   const totalMedals = useMemo(
@@ -564,6 +572,24 @@ export default function StandingsPage() {
                   <div className="px-4 py-2.5 bg-[#18181c] border-b border-white/10 text-xs font-mono text-gray-400 uppercase tracking-wider">
                     Point table for:{' '}
                     <span className="text-[#FFD700] font-bold">{sportStandingsTournament}</span>
+                    {sportTournaments.length > 1 && (
+                      <span className="ml-4 inline-flex flex-wrap gap-2 align-middle">
+                        {sportTournaments.map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setTournamentChoice(t.id)}
+                            className={`px-2.5 py-1 rounded border text-[11px] ${
+                              t.name === sportStandingsTournament
+                                ? 'border-[#FFD700] text-[#FFD700]'
+                                : 'border-white/20 text-gray-300 hover:border-white/50'
+                            }`}
+                          >
+                            {t.name.replace(/^.*— /, '')}
+                          </button>
+                        ))}
+                      </span>
+                    )}
                   </div>
                 )}
                 <table className="w-full text-left border-collapse min-w-[850px]">
@@ -571,10 +597,43 @@ export default function StandingsPage() {
                     <tr className="bg-[#18181c] text-gray-400 font-display text-xs uppercase tracking-wider border-b border-white/10">
                       <th className="py-3.5 px-4">RANK &amp; TEAM</th>
                       <th className="py-3.5 px-3 text-center">PLAYED</th>
-                      <th className="py-3.5 px-3 text-center text-emerald-400">WON</th>
-                      <th className="py-3.5 px-3 text-center text-[#FF4500]">LOST</th>
-                      <th className="py-3.5 px-3 text-center">DRAWN</th>
-                      <th className="py-3.5 px-4 text-right text-[#FFD700]">POINTS</th>
+                      <th className="py-3.5 px-3 text-center text-emerald-400">
+                        {lobbyTable ? 'WINS' : 'WON'}
+                      </th>
+                      {lobbyTable ? (
+                        <>
+                          <th className="py-3.5 px-3 text-center" title="Placement points">
+                            PP
+                          </th>
+                          <th className="py-3.5 px-3 text-center" title="Kill points">
+                            KP
+                          </th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="py-3.5 px-3 text-center text-[#FF4500]">LOST</th>
+                          <th className="py-3.5 px-3 text-center">DRAWN</th>
+                          <th
+                            className="py-3.5 px-3 text-center"
+                            title="Score difference (sets, goals or points)"
+                          >
+                            +/-
+                          </th>
+                        </>
+                      )}
+                      {chessTable && (
+                        <>
+                          <th className="py-3.5 px-3 text-center" title="Buchholz">
+                            BH
+                          </th>
+                          <th className="py-3.5 px-3 text-center" title="Sonneborn-Berger">
+                            SB
+                          </th>
+                        </>
+                      )}
+                      <th className="py-3.5 px-4 text-right text-[#FFD700]">
+                        {lobbyTable ? 'TOTAL' : 'POINTS'}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5 text-sm">
@@ -627,12 +686,38 @@ export default function StandingsPage() {
                           <td className="py-3.5 px-3 text-center font-display font-bold text-base text-emerald-400">
                             {row.won}
                           </td>
-                          <td className="py-3.5 px-3 text-center font-display font-bold text-base text-[#FF4500]">
-                            {row.lost}
-                          </td>
-                          <td className="py-3.5 px-3 text-center font-display font-bold text-base text-white">
-                            {row.drawn}
-                          </td>
+                          {lobbyTable ? (
+                            <>
+                              <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
+                                {row.placementPoints ?? 0}
+                              </td>
+                              <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
+                                {row.killPoints ?? 0}
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="py-3.5 px-3 text-center font-display font-bold text-base text-[#FF4500]">
+                                {row.lost}
+                              </td>
+                              <td className="py-3.5 px-3 text-center font-display font-bold text-base text-white">
+                                {row.drawn}
+                              </td>
+                              <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
+                                {row.differential > 0 ? `+${row.differential}` : row.differential}
+                              </td>
+                            </>
+                          )}
+                          {chessTable && (
+                            <>
+                              <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
+                                {row.buchholz ?? 0}
+                              </td>
+                              <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
+                                {row.sonnebornBerger ?? 0}
+                              </td>
+                            </>
+                          )}
                           <td className="py-3.5 px-4 text-right font-display text-lg font-black text-[#FFD700]">
                             {row.points}
                           </td>

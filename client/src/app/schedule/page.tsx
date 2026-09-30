@@ -1,5 +1,6 @@
 'use client';
 
+import { resultSummary } from '@/lib/resultFormat';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { LiveTickerRibbon } from '@/components/LiveTickerRibbon';
@@ -62,6 +63,15 @@ function statusTextFor(m: Match): string {
   if (m.status === 'CANCELLED') return 'CANCELLED';
   if (m.status === 'ABANDONED') return 'ABANDONED';
   if (bucket === 'COMPLETED') {
+    const summary = resultSummary(
+      m.scoreDetails,
+      m.teamA,
+      m.teamB,
+      m.winnerTeamId,
+      m.teamAScore,
+      m.teamBScore,
+    );
+    if (summary) return `FINAL · ${summary}`;
     if (m.teamAScore !== null && m.teamBScore !== null) {
       return `FINAL (${m.teamAScore}-${m.teamBScore})`;
     }

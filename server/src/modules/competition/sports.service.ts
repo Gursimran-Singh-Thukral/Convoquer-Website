@@ -68,9 +68,7 @@ export class SportsService {
         eventId: dto.eventId,
         name: dto.name,
         description: dto.description,
-        scoringMode:
-          dto.scoringMode ??
-          (dto.name.trim().toLowerCase() === 'chess' ? 'RESULT_ONLY' : 'LIVE'),
+        scoringMode: dto.scoringMode ?? 'RESULT_ONLY', // live scoring is cancelled
         status: dto.status || 'ACTIVE',
       },
       include: { event: true },

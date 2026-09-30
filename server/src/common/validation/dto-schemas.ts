@@ -702,11 +702,11 @@ export const dtoSchemas: Record<
     },
     finalScoreA: {
       type: 'number',
-      required: true,
+      required: false,
     },
     finalScoreB: {
       type: 'number',
-      required: true,
+      required: false,
     },
     scoreDetails: {
       type: 'Record<string, any>',
@@ -715,6 +715,24 @@ export const dtoSchemas: Record<
     reason: {
       type: 'string',
       required: true,
+    },
+  },
+  AddLobbyTeamDto: {
+    sportId: {
+      type: 'string',
+      required: true,
+    },
+    instituteId: {
+      type: 'string',
+      required: true,
+    },
+    game: {
+      type: "'Free Fire' | 'BGMI'",
+      required: true,
+    },
+    squad: {
+      type: 'string',
+      required: false,
     },
   },
   AwardMedalDto: {

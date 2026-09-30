@@ -9,6 +9,8 @@ import { Footer } from '@/components/Footer';
 import { RequireOrganizer } from '@/components/RequireOrganizer';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/ToastProvider';
+import { ResultScorecard } from '@/components/results/ResultScorecard';
+import { isResultDetails } from '@/lib/resultFormat';
 import {
   apiAuthedGet,
   apiPatch,
@@ -667,47 +669,62 @@ export default function MatchApprovalsPage() {
 
                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
                         <div className="lg:col-span-7 space-y-3">
-                          <div className="flex items-center justify-between bg-[#211f22] p-3 rounded-lg border border-white/5">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 rounded-full bg-[#800020] flex items-center justify-center font-bold text-white text-xs border border-[#FFD700]/30">
-                                {teamACode}
+                          {isResultDetails(result.scoreDetails) ? (
+                            <ResultScorecard
+                              details={result.scoreDetails}
+                              teamA={result.match.teamA}
+                              teamB={result.match.teamB}
+                              scoreA={result.finalScoreA}
+                              scoreB={result.finalScoreB}
+                              winnerTeamId={result.winnerTeamId}
+                              stageName={result.match.matchNumber}
+                              compact
+                            />
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between bg-[#211f22] p-3 rounded-lg border border-white/5">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-8 h-8 rounded-full bg-[#800020] flex items-center justify-center font-bold text-white text-xs border border-[#FFD700]/30">
+                                    {teamACode}
+                                  </div>
+                                  <div>
+                                    <span className="text-base font-bold text-white tracking-wide block">
+                                      {result.match.teamA?.name || 'TBD'}
+                                    </span>
+                                    {result.winnerTeamId === result.match.teamA?.id && (
+                                      <span className="text-[11px] text-emerald-400 font-bold uppercase">
+                                        Winner
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-2xl font-black text-white px-3 font-mono">
+                                  {result.finalScoreA}
+                                </div>
                               </div>
-                              <div>
-                                <span className="text-base font-bold text-white tracking-wide block">
-                                  {result.match.teamA?.name || 'TBD'}
-                                </span>
-                                {result.winnerTeamId === result.match.teamA?.id && (
-                                  <span className="text-[11px] text-emerald-400 font-bold uppercase">
-                                    Winner
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-2xl font-black text-white px-3 font-mono">
-                              {result.finalScoreA}
-                            </div>
-                          </div>
 
-                          <div className="flex items-center justify-between bg-[#211f22] p-3 rounded-lg border border-white/5">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 rounded-full bg-[#2c292c] flex items-center justify-center font-bold text-zinc-300 text-xs border border-white/10">
-                                {teamBCode}
+                              <div className="flex items-center justify-between bg-[#211f22] p-3 rounded-lg border border-white/5">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-8 h-8 rounded-full bg-[#2c292c] flex items-center justify-center font-bold text-zinc-300 text-xs border border-white/10">
+                                    {teamBCode}
+                                  </div>
+                                  <div>
+                                    <span className="text-base font-bold text-white tracking-wide block">
+                                      {result.match.teamB?.name || 'TBD'}
+                                    </span>
+                                    {result.winnerTeamId === result.match.teamB?.id && (
+                                      <span className="text-[11px] text-emerald-400 font-bold uppercase">
+                                        Winner
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-2xl font-black text-zinc-400 px-3 font-mono">
+                                  {result.finalScoreB}
+                                </div>
                               </div>
-                              <div>
-                                <span className="text-base font-bold text-white tracking-wide block">
-                                  {result.match.teamB?.name || 'TBD'}
-                                </span>
-                                {result.winnerTeamId === result.match.teamB?.id && (
-                                  <span className="text-[11px] text-emerald-400 font-bold uppercase">
-                                    Winner
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-2xl font-black text-zinc-400 px-3 font-mono">
-                              {result.finalScoreB}
-                            </div>
-                          </div>
+                            </>
+                          )}
 
                           <div className="text-xs text-zinc-400 flex flex-wrap gap-4 pt-1 font-mono">
                             <span>
@@ -721,7 +738,7 @@ export default function MatchApprovalsPage() {
                                 Notes: <strong className="text-white">{result.notes}</strong>
                               </span>
                             )}
-                            {details && (
+                            {details && !isResultDetails(result.scoreDetails) && (
                               <span className="truncate max-w-xs">Details: {details}</span>
                             )}
                           </div>

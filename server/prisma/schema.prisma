@@ -147,7 +147,7 @@ model Event {
 }
 
 model Sport {
-  scoringMode String   @default("LIVE")
+  scoringMode String   @default("RESULT_ONLY")
   id          String   @id @default(uuid())
   eventId     String
   name        String
@@ -357,7 +357,7 @@ model Match {
   // Whether this match is being broadcast on the public Live Arena feed. Matches
   // default to not telecast — an organizer must explicitly flag one for it to
   // appear on /live, even while its status is LIVE.
-  scoringMode        String    @default("LIVE")
+  scoringMode        String    @default("RESULT_ONLY")
   isTelecast         Boolean   @default(false)
   scheduledStartTime DateTime
   scheduledEndTime   DateTime?

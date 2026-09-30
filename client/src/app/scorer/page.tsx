@@ -1101,7 +1101,9 @@ export default function ScorerPage() {
                         {match.tournament?.sport?.name} · Results only · {match.status}
                       </p>
                       <h3 className="font-bold text-xl">
-                        {match.teamA?.name || 'TBD'} vs {match.teamB?.name || 'TBD'}
+                        {match.teamA || match.teamB
+                          ? `${match.teamA?.name || 'TBD'} vs ${match.teamB?.name || 'TBD'}`
+                          : match.matchNumber || 'Event'}
                       </h3>
                       <p>{new Date(match.scheduledStartTime).toLocaleString()}</p>
                       <button
