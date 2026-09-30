@@ -16,6 +16,7 @@ import { MedalsService } from './medals.service.js';
 import { SessionGuard } from '../../common/guards/session.guard.js';
 import {
   SubmitResultDto,
+  AddLobbyTeamDto,
   ApproveResultDto,
   RejectResultDto,
   OverrideResultDto,
@@ -53,6 +54,12 @@ export class ResultsController {
     const userId = (req as any).user.id;
     const ipAddress = req.ip;
     return this.resultsService.submitResult(matchId, dto, userId, ipAddress);
+  }
+
+  @Post('lobby-teams')
+  @UseGuards(SessionGuard)
+  async addLobbyTeam(@Body() dto: AddLobbyTeamDto, @Req() req: Request) {
+    return this.resultsService.addLobbyTeam(dto, (req as any).user.id);
   }
 
   @Patch('results/:id/approve')

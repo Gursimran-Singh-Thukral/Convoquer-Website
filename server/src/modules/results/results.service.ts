@@ -1,4 +1,11 @@
 import { advanceBracket } from '../fixtures/bracket.js';
+import {
+  buildResult,
+  isRankedKind,
+  resultKindFor,
+  type BuiltResult,
+  type ResultKind,
+} from './result-formats.js';
 import type { Result } from '@prisma/client';
 import { matchTransaction } from '../../database/transaction.js';
 import {
@@ -42,10 +49,12 @@ export class ResultsService {
     scoreB: number,
     winnerId: string | null | undefined,
     match: { teamAId: string | null; teamBId: string | null },
+    allowHalfPoints = false,
   ) {
+    const step = allowHalfPoints ? 2 : 1;
     if (
       ![scoreA, scoreB].every(
-        (score) => Number.isSafeInteger(score) && score >= 0,
+        (score) => Number.isSafeInteger(score * step) && score >= 0,
       )
     )
       throw new BadRequestException('Scores must be non-negative integers');
@@ -58,6 +67,80 @@ export class ResultsService {
     private readonly rbacService: RbacService,
     private readonly realtimeService?: RealtimeService,
   ) {}
+
+  /**
+   * Builds the canonical result for a sport-specific scorecard (sets, quarters,
+   * cricket innings, football penalties, chess boards, athletics rankings…).
+   * Returns null for sports/fixtures that use the plain two-score path.
+   */
+  private async structuredResult(
+    match: {
+      teamAId: string | null;
+      teamBId: string | null;
+      matchNumber: string | null;
+      nextMatchId: string | null;
+      scoringMode: string;
+      tournament?: { sportId: string; sport?: { name: string } | null } | null;
+    },
+    details: Record<string, any> | undefined,
+    requestedWinnerId: string | null | undefined,
+    fallback: { a?: number; b?: number },
+  ): Promise<(BuiltResult & { kind: ResultKind }) | null> {
+    const kind = resultKindFor(
+      match.tournament?.sport?.name,
+      match.matchNumber,
+    );
+    const structured =
+      match.scoringMode === 'RESULT_ONLY'
+        ? kind !== 'SCORE' || !!details?.kind
+        : !!details?.kind;
+    if (!structured) return null;
+    let fieldTeams:
+      Map<string, { name: string; shortName: string | null }> | undefined;
+    if (isRankedKind(kind) && match.tournament) {
+      // A lobby only lists the teams of its own game (Free Fire or BGMI).
+      const game = /bgmi/i.test(match.matchNumber ?? '')
+        ? 'BGMI'
+        : /free fire/i.test(match.matchNumber ?? '')
+          ? 'Free Fire'
+          : null;
+      const teams = await this.prisma.team.findMany({
+        where: {
+          sportId: match.tournament.sportId,
+          ...(kind === 'LOBBY' && game
+            ? { name: { contains: `(${game}`, mode: 'insensitive' as const } }
+            : {}),
+        },
+        select: {
+          id: true,
+          name: true,
+          institute: { select: { shortName: true } },
+        },
+      });
+      fieldTeams = new Map(
+        teams.map((t) => [
+          t.id,
+          { name: t.name, shortName: t.institute?.shortName ?? null },
+        ]),
+      );
+    }
+    const built = buildResult(
+      kind,
+      details,
+      {
+        teamAId: match.teamAId,
+        teamBId: match.teamBId,
+        knockout: !!match.nextMatchId,
+        bestOf: /volleyball/i.test(match.tournament?.sport?.name ?? '') ? 5 : 3,
+        mustDecide: /valorant/i.test(match.matchNumber ?? ''),
+        label: match.matchNumber,
+        fieldTeams,
+        requestedWinnerId,
+      },
+      fallback,
+    );
+    return { ...built, kind };
+  }
 
   /**
    * Object-level authorization: verifies the acting user's permission actually
@@ -99,7 +182,7 @@ export class ResultsService {
     const match = await this.prisma.match.findUnique({
       where: { id: matchId },
       include: {
-        tournament: true,
+        tournament: { include: { sport: true } },
         result: true,
         officials: true,
       },
@@ -128,43 +211,70 @@ export class ResultsService {
       );
     }
 
-    if (!match.teamAId || !match.teamBId)
-      throw new BadRequestException(
-        'Both teams must be determined before submitting a result',
-      );
-    if (
-      match.scoringMode === 'RESULT_ONLY' &&
-      (dto.finalScoreA === undefined || dto.finalScoreB === undefined)
-    )
-      throw new BadRequestException(
-        'Enter both final scores for a results-only fixture',
-      );
-
-    // Determine final scores and winner
-    const scoreA =
-      dto.finalScoreA !== undefined ? dto.finalScoreA : (match.teamAScore ?? 0);
-    const scoreB =
-      dto.finalScoreB !== undefined ? dto.finalScoreB : (match.teamBScore ?? 0);
-
-    let winnerId =
-      dto.winnerTeamId ??
-      (dto.finalScoreA === undefined && dto.finalScoreB === undefined
-        ? match.winnerTeamId
-        : null);
-    if (!winnerId) {
-      if (scoreA > scoreB) winnerId = match.teamAId;
-      else if (scoreB > scoreA) winnerId = match.teamBId;
-      else winnerId = null; // Draw
-    }
-
     if (['CANCELLED', 'ABANDONED'].includes(match.status))
       throw new BadRequestException(
         'Cannot submit a result for a cancelled or abandoned match',
       );
-    this.validateScores(scoreA, scoreB, winnerId, match);
-    const scoreDetailsValue = (dto.scoreDetails ??
-      match.scoreDetails ??
-      undefined) as any;
+    const structured = await this.structuredResult(
+      match,
+      dto.scoreDetails,
+      dto.winnerTeamId,
+      { a: dto.finalScoreA, b: dto.finalScoreB },
+    );
+
+    let scoreA: number;
+    let scoreB: number;
+    let winnerId: string | null;
+    let scoreDetailsValue: any;
+    if (structured) {
+      scoreA = structured.finalScoreA;
+      scoreB = structured.finalScoreB;
+      winnerId = structured.winnerTeamId;
+      scoreDetailsValue = structured.scoreDetails;
+      this.validateScores(
+        scoreA,
+        scoreB,
+        isRankedKind(structured.kind) ? null : winnerId,
+        match,
+        structured.kind === 'CHESS',
+      );
+    } else {
+      if (!match.teamAId || !match.teamBId)
+        throw new BadRequestException(
+          'Both teams must be determined before submitting a result',
+        );
+      if (
+        match.scoringMode === 'RESULT_ONLY' &&
+        (dto.finalScoreA === undefined || dto.finalScoreB === undefined)
+      )
+        throw new BadRequestException(
+          'Enter both final scores for a results-only fixture',
+        );
+
+      scoreA =
+        dto.finalScoreA !== undefined
+          ? dto.finalScoreA
+          : (match.teamAScore ?? 0);
+      scoreB =
+        dto.finalScoreB !== undefined
+          ? dto.finalScoreB
+          : (match.teamBScore ?? 0);
+
+      winnerId =
+        dto.winnerTeamId ??
+        (dto.finalScoreA === undefined && dto.finalScoreB === undefined
+          ? match.winnerTeamId
+          : null);
+      if (!winnerId) {
+        if (scoreA > scoreB) winnerId = match.teamAId;
+        else if (scoreB > scoreA) winnerId = match.teamBId;
+        else winnerId = null; // Draw
+      }
+      this.validateScores(scoreA, scoreB, winnerId, match);
+      scoreDetailsValue = (dto.scoreDetails ??
+        match.scoreDetails ??
+        undefined) as any;
+    }
 
     const result = await this.prisma.result.upsert({
       where: { matchId },
@@ -317,6 +427,8 @@ export class ResultsService {
         teamBScore: result.finalScoreB,
         winnerTeamId: result.winnerTeamId,
         status: 'COMPLETED',
+        // Public pages render the official scorecard straight from the match.
+        scoreDetails: (result.scoreDetails ?? undefined) as any,
       },
     });
 
@@ -439,7 +551,9 @@ export class ResultsService {
     }
     const result = await this.prisma.result.findUnique({
       where: { id: resultId },
-      include: { match: { include: { tournament: true } } },
+      include: {
+        match: { include: { tournament: { include: { sport: true } } } },
+      },
     });
 
     if (!result) {
@@ -466,36 +580,55 @@ export class ResultsService {
       status: result.status,
     };
 
-    let winnerId: string | null = dto.winnerTeamId ?? null;
-    if (!winnerId) {
-      if (dto.finalScoreA > dto.finalScoreB)
-        winnerId = result.match.teamAId ?? null;
-      else if (dto.finalScoreB > dto.finalScoreA)
-        winnerId = result.match.teamBId ?? null;
-      else winnerId = null;
-    }
-
-    this.validateScores(
-      dto.finalScoreA,
-      dto.finalScoreB,
-      winnerId,
+    const structured = await this.structuredResult(
       result.match,
+      dto.scoreDetails,
+      dto.winnerTeamId,
+      { a: dto.finalScoreA, b: dto.finalScoreB },
     );
+    let winnerId: string | null;
+    let finalA: number;
+    let finalB: number;
+    let overrideScoreDetails: any;
+    if (structured) {
+      finalA = structured.finalScoreA;
+      finalB = structured.finalScoreB;
+      winnerId = structured.winnerTeamId;
+      overrideScoreDetails = structured.scoreDetails;
+      this.validateScores(
+        finalA,
+        finalB,
+        isRankedKind(structured.kind) ? null : winnerId,
+        result.match,
+        structured.kind === 'CHESS',
+      );
+    } else {
+      if (dto.finalScoreA === undefined || dto.finalScoreB === undefined)
+        throw new BadRequestException('Enter both final scores');
+      finalA = dto.finalScoreA;
+      finalB = dto.finalScoreB;
+      winnerId = dto.winnerTeamId ?? null;
+      if (!winnerId) {
+        if (finalA > finalB) winnerId = result.match.teamAId ?? null;
+        else if (finalB > finalA) winnerId = result.match.teamBId ?? null;
+      }
+      this.validateScores(finalA, finalB, winnerId, result.match);
+      overrideScoreDetails = (dto.scoreDetails ??
+        result.scoreDetails ??
+        undefined) as any;
+    }
     if (result.match.nextMatchId && winnerId !== result.winnerTeamId) {
       throw new BadRequestException(
         'A progressed knockout winner cannot be overridden; resolve downstream fixtures first',
       );
     }
-    const overrideScoreDetails = (dto.scoreDetails ??
-      result.scoreDetails ??
-      undefined) as any;
 
     const updated = await this.prisma.result.update({
       where: { id: resultId },
       data: {
         status: 'PUBLISHED',
-        finalScoreA: dto.finalScoreA,
-        finalScoreB: dto.finalScoreB,
+        finalScoreA: finalA,
+        finalScoreB: finalB,
         winnerTeamId: winnerId,
         scoreDetails: overrideScoreDetails,
         overrideReason: dto.reason,
@@ -510,10 +643,11 @@ export class ResultsService {
     await this.prisma.match.update({
       where: { id: result.matchId },
       data: {
-        teamAScore: dto.finalScoreA,
-        teamBScore: dto.finalScoreB,
+        teamAScore: finalA,
+        teamBScore: finalB,
         winnerTeamId: winnerId,
         status: 'COMPLETED',
+        scoreDetails: overrideScoreDetails,
       },
     });
 
@@ -525,8 +659,8 @@ export class ResultsService {
         resourceId: resultId,
         previousState,
         newState: {
-          finalScoreA: dto.finalScoreA,
-          finalScoreB: dto.finalScoreB,
+          finalScoreA: finalA,
+          finalScoreB: finalB,
           winnerTeamId: winnerId,
           overrideReason: dto.reason,
         },
@@ -541,8 +675,8 @@ export class ResultsService {
       {
         resultId,
         matchId: result.matchId,
-        finalScoreA: dto.finalScoreA,
-        finalScoreB: dto.finalScoreB,
+        finalScoreA: finalA,
+        finalScoreB: finalB,
         winnerTeamId: winnerId,
       },
     );
@@ -551,6 +685,82 @@ export class ResultsService {
     });
 
     return updated;
+  }
+
+  // ===================================
+  // E-SPORTS LOBBY TEAMS
+  // ===================================
+
+  /**
+   * Adds a Free Fire / BGMI team for a college (a college may field several).
+   * Sports Coordinators lack the generic team.create permission, so this is
+   * authorised by result.submit on the E-Sports sport instead. The team follows
+   * the roster-import naming, e.g. "GCET E-Sports (BGMI - Team 2)", so a later
+   * roster import lands in the same team.
+   */
+  async addLobbyTeam(
+    dto: { sportId: string; instituteId: string; game: string; squad?: string },
+    userId: string,
+  ) {
+    const sport = await this.prisma.sport.findUnique({
+      where: { id: dto.sportId },
+    });
+    if (!sport) throw new NotFoundException('Sport not found');
+    if (!/e-?sports/i.test(sport.name))
+      throw new BadRequestException(
+        'Lobby teams can only be added to E-Sports',
+      );
+    await this.verifyResultAuthority(
+      'result.submit',
+      userId,
+      sport.id,
+      sport.eventId,
+    );
+    if (dto.game !== 'Free Fire' && dto.game !== 'BGMI')
+      throw new BadRequestException('Game must be Free Fire or BGMI');
+    const institute = await this.prisma.institute.findUnique({
+      where: { id: dto.instituteId },
+    });
+    if (!institute || institute.eventId !== sport.eventId)
+      throw new BadRequestException('Choose a participating institute');
+
+    const base = `${institute.shortName || institute.name} ${sport.name}`;
+    const existing = await this.prisma.team.findMany({
+      where: {
+        sportId: sport.id,
+        instituteId: institute.id,
+        name: { contains: `(${dto.game}`, mode: 'insensitive' },
+      },
+    });
+    // The first team of a college is plain; later ones are numbered squads.
+    const squad =
+      dto.squad?.trim() ||
+      (existing.length ? `Team ${existing.length + 1}` : '');
+    const name = squad
+      ? `${base} (${dto.game} - ${squad.slice(0, 40)})`
+      : `${base} (${dto.game})`;
+    if (existing.some((t) => t.name.toLowerCase() === name.toLowerCase()))
+      throw new BadRequestException(`"${name}" is already registered`);
+
+    const team = await this.prisma.team.create({
+      data: {
+        eventId: sport.eventId,
+        instituteId: institute.id,
+        sportId: sport.id,
+        name,
+      },
+      include: { institute: true },
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'team.create',
+        resource: 'Team',
+        resourceId: team.id,
+        newState: { name, game: dto.game },
+      },
+    });
+    return team;
   }
 
   // ===================================
@@ -624,11 +834,15 @@ export class ResultsService {
         finalScoreB: true,
         winnerTeamId: true,
         publishedAt: true,
+        scoreDetails: true,
         match: {
           select: {
             matchNumber: true,
-            teamA: { select: { name: true } },
-            teamB: { select: { name: true } },
+            scheduledStartTime: true,
+            stage: { select: { name: true } },
+            venue: { select: { name: true } },
+            teamA: { select: { id: true, name: true } },
+            teamB: { select: { id: true, name: true } },
             tournament: {
               select: { name: true, sport: { select: { name: true } } },
             },

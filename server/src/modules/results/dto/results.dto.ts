@@ -16,10 +16,17 @@ export class RejectResultDto {
 
 export class OverrideResultDto {
   winnerTeamId?: string;
-  finalScoreA!: number;
-  finalScoreB!: number;
+  finalScoreA?: number;
+  finalScoreB?: number;
   scoreDetails?: Record<string, any>;
   reason!: string;
+}
+
+export class AddLobbyTeamDto {
+  sportId!: string;
+  instituteId!: string;
+  game!: 'Free Fire' | 'BGMI';
+  squad?: string;
 }
 
 export class AwardMedalDto {

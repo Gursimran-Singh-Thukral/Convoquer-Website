@@ -29,7 +29,7 @@ export class MatchesService {
     const sport = await this.prisma.sport.findUnique({
       where: { id: sportId },
     });
-    return override ?? sport?.scoringMode ?? 'LIVE';
+    return override ?? sport?.scoringMode ?? 'RESULT_ONLY';
   }
 
   private async generationCapacity(dto: {

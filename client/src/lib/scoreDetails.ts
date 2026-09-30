@@ -3,6 +3,8 @@
 // scorer console, /live, the homepage ticker) reads through these so they
 // can't drift out of sync with the actual engine output.
 
+import { headlineFor, isResultDetails, resultSummary } from '@/lib/resultFormat';
+
 export interface MatchLike {
   teamAId?: string | null;
   teamBId?: string | null;
@@ -55,6 +57,19 @@ function oversDisplay(balls: number): string {
 
 /** Short line for a scoreboard/ticker, e.g. "IND 142/4 (16.2 ov)" or "2-1 (2nd Half)". */
 export function formatScoreLine(match: MatchLike, teamAName = 'A', teamBName = 'B'): string {
+  if (isResultDetails(match.scoreDetails)) {
+    const line = resultSummary(
+      match.scoreDetails,
+      { name: teamAName },
+      { name: teamBName },
+      null,
+      match.teamAScore,
+      match.teamBScore,
+    );
+    if (line && match.scoreDetails.kind === 'CRICKET') return line;
+    const h = headlineFor(match.scoreDetails, match.teamAScore, match.teamBScore);
+    return `${teamAName} ${h.a} - ${h.b} ${teamBName}`;
+  }
   const sport = sportName(match);
   const d = (match.scoreDetails || {}) as CricketDetails &
     SetsAndGamesDetails &

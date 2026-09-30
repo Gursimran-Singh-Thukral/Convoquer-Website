@@ -824,24 +824,29 @@ async function main() {
     { name: 'Volleyball (Women)', description: 'Knockout tournament' },
     {
       name: 'Chess (Men)',
-      description: 'Round robin, Sonneborn–Berger tiebreak',
+      description:
+        '5-round Swiss system; Buchholz Cut-1 then Sonneborn–Berger tiebreak',
       scoringMode: 'RESULT_ONLY',
     },
     {
       name: 'Chess (Women)',
-      description: 'Round robin, Sonneborn–Berger tiebreak',
+      description:
+        'Round robin; Sonneborn–Berger then direct encounter tiebreak',
       scoringMode: 'RESULT_ONLY',
     },
-    { name: 'Athletics', description: 'Track and field — format TBC' },
-    { name: 'Weight Lifting', description: 'Format on hold' },
-    { name: 'E-Sports', description: 'BGMI, Free Fire, Valorant — format TBC' },
+    {
+      name: 'Athletics',
+      description: 'Track and field — semifinals and finals',
+    },
+    { name: 'E-Sports', description: 'Valorant, Free Fire and BGMI' },
   ];
 
   for (const sport of confirmedSports) {
     const existing = await prisma.sport.findFirst({
       where: { eventId: event.id, name: sport.name },
     });
-    const scoringMode = sport.scoringMode ?? 'LIVE';
+    // Live scoring is cancelled: every sport records final results only.
+    const scoringMode = sport.scoringMode ?? 'RESULT_ONLY';
 
     if (existing) {
       await prisma.sport.update({

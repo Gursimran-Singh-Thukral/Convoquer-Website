@@ -10,22 +10,22 @@ afterEach(() => {
   Reflect.deleteProperty(window, 'google');
 });
 
-it('switches to results-only and submits final scores without any live lifecycle requests', async () => {
+it('submits a final score with no live-scoring controls', async () => {
   const requests: string[] = [];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init: RequestInit) => {
       requests.push(`${init.method} ${url}`);
-      if (init.method === 'PATCH')
-        expect(JSON.parse(String(init.body))).toEqual({ scoringMode: 'RESULT_ONLY' });
-      else expect(JSON.parse(String(init.body))).toMatchObject({ finalScoreA: 3, finalScoreB: 2 });
+      expect(JSON.parse(String(init.body))).toMatchObject({
+        scoreDetails: { kind: 'SCORE', a: 3, b: 2 },
+      });
       return new Response('{}', { status: 200 });
     }),
   );
   const onSaved = vi.fn();
   const match = {
     id: 'fixture',
-    scoringMode: 'LIVE',
+    scoringMode: 'RESULT_ONLY',
     status: 'SCHEDULED',
     teamAId: 'a',
     teamBId: 'b',
@@ -33,16 +33,15 @@ it('switches to results-only and submits final scores without any live lifecycle
     teamB: { id: 'b', name: 'B' },
   } as Match;
   render(<FixtureResultEditor match={match} onSaved={onSaved} />);
-  fireEvent.change(screen.getByLabelText('Scoring mode'), { target: { value: 'RESULT_ONLY' } });
-  await waitFor(() => expect(screen.queryByText('Open live scorer')).not.toBeInTheDocument());
-  fireEvent.change(screen.getByLabelText('Team A final score'), { target: { value: '3' } });
-  fireEvent.change(screen.getByLabelText('Team B final score'), { target: { value: '2' } });
+  expect(screen.queryByLabelText('Scoring mode')).not.toBeInTheDocument();
+  expect(screen.queryByText('Open live scorer')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Final score team A'), { target: { value: '3' } });
+  fireEvent.change(screen.getByLabelText('Final score team B'), { target: { value: '2' } });
   fireEvent.submit(screen.getByRole('form', { name: 'Enter final result' }));
   await screen.findByText(/Final result submitted for approval/);
-  expect(requests).toHaveLength(2);
-  expect(requests[0]).toMatch(/PATCH .*\/matches\/fixture$/);
-  expect(requests[1]).toMatch(/POST .*\/matches\/fixture\/result$/);
-  expect(onSaved).toHaveBeenCalledTimes(2);
+  expect(requests).toHaveLength(1);
+  expect(requests[0]).toMatch(/POST .*\/matches\/fixture\/result$/);
+  expect(onSaved).toHaveBeenCalledTimes(1);
 });
 
 it('shows an IIT Jammu Google map without an API key', () => {

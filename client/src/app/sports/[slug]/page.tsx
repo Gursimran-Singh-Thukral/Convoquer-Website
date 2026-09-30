@@ -1,5 +1,6 @@
 'use client';
 
+import { resultSummary } from '@/lib/resultFormat';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -47,8 +48,19 @@ function matchStatusDisplay(m: Match): { text: string; color: string } {
     };
   }
   if (m.status === 'COMPLETED') {
-    const score =
-      m.teamAScore !== null && m.teamBScore !== null ? ` (${m.teamAScore}-${m.teamBScore})` : '';
+    const summary = resultSummary(
+      m.scoreDetails,
+      m.teamA,
+      m.teamB,
+      m.winnerTeamId,
+      m.teamAScore,
+      m.teamBScore,
+    );
+    const score = summary
+      ? ` · ${summary}`
+      : m.teamAScore !== null && m.teamBScore !== null
+        ? ` (${m.teamAScore}-${m.teamBScore})`
+        : '';
     return { text: `COMPLETED${score}`, color: 'text-emerald-400' };
   }
   if (m.status === 'CANCELLED' || m.status === 'ABANDONED') {

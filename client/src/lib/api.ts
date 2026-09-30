@@ -221,6 +221,13 @@ export interface TeamStanding {
   differential: number;
   points: number;
   rank: number;
+  rallyPointsFor?: number;
+  rallyPointsAgainst?: number;
+  byes?: number;
+  buchholz?: number;
+  placementPoints?: number;
+  killPoints?: number;
+  sonnebornBerger?: number;
 }
 
 /**
