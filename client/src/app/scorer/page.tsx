@@ -1451,15 +1451,32 @@ export default function ScorerPage() {
           </div>
         </main>
         {resultMatch && (
-          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div
               role="dialog"
               aria-label="Fixture final result"
-              className="w-full max-w-lg max-h-[90vh] overflow-auto bg-[#18161b] rounded-xl p-6"
+              className="w-full max-w-lg max-h-[90vh] overflow-auto bg-[#18161b] border border-[#FFD700]/20 rounded-2xl p-6 shadow-2xl"
             >
-              <button type="button" className="mb-4 underline" onClick={() => setResultMatch(null)}>
-                Close result editor
-              </button>
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
+                <span className="text-[10px] font-mono text-[#FFD700] uppercase tracking-widest">
+                  Fixture #{resultMatch.matchNumber || resultMatch.id.slice(0, 8)}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Close result editor"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+                  onClick={() => setResultMatch(null)}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
               <FixtureResultEditor match={resultMatch} onSaved={loadMatches} />
             </div>
           </div>
