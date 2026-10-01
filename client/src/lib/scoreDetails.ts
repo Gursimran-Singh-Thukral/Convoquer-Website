@@ -22,7 +22,7 @@ interface CricketInnings {
 interface CricketDetails {
   innings?: CricketInnings[];
 }
-interface GameRecord {
+export interface GameRecord {
   teamAPoints: number;
   teamBPoints: number;
   winnerTeamId: string | null;
@@ -31,6 +31,12 @@ interface SetsAndGamesDetails {
   games?: GameRecord[];
   gamesWon?: { teamA: number; teamB: number };
 }
+
+// Sports whose scoreDetails follow the shared "win a rally, first to X points
+// wins the game, first to win a majority of games wins the match" shape (see
+// server/src/modules/scoring/engines/setsAndGames.ts) — the manual
+// results-only entry form (FixtureResultEditor) also keys off this list.
+export const SETS_AND_GAMES_SPORTS = ['VOLLEYBALL', 'BADMINTON', 'TABLE TENNIS', 'SQUASH'];
 interface ChessDetails {
   points?: { teamA: number; teamB: number };
 }
@@ -70,7 +76,7 @@ export function formatScoreLine(match: MatchLike, teamAName = 'A', teamBName = '
     return parts.join(' · ');
   }
 
-  if (['VOLLEYBALL', 'BADMINTON', 'TABLE TENNIS', 'SQUASH'].includes(sport) && d.gamesWon) {
+  if (SETS_AND_GAMES_SPORTS.includes(sport) && d.gamesWon) {
     const setsLine = Array.isArray(d.games)
       ? d.games
           .filter((g) => g.winnerTeamId)
@@ -133,7 +139,7 @@ export function formatTeamScores(match: MatchLike): {
     return { teamA: forTeam(match.teamAId), teamB: forTeam(match.teamBId) };
   }
 
-  if (['VOLLEYBALL', 'BADMINTON', 'TABLE TENNIS', 'SQUASH'].includes(sport) && d.gamesWon) {
+  if (SETS_AND_GAMES_SPORTS.includes(sport) && d.gamesWon) {
     const currentGame = Array.isArray(d.games) ? d.games[d.games.length - 1] : null;
     const secondary = currentGame
       ? `${currentGame.teamAPoints}-${currentGame.teamBPoints} this game`
