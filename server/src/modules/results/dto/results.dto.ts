@@ -25,7 +25,7 @@ export class OverrideResultDto {
 export class AddLobbyTeamDto {
   sportId!: string;
   instituteId!: string;
-  game!: 'Free Fire' | 'BGMI';
+  game!: 'Free Fire' | 'BGMI' | 'Valorant';
   squad?: string;
 }
 

@@ -89,13 +89,33 @@ export class ParticipantsService {
     };
   }
 
-  async getParticipants(filter?: {
-    eventId?: string;
-    instituteId?: string;
-    category?: string;
-    isCheckedIn?: boolean;
-    query?: string;
-  }) {
+  /**
+   * Walk-in visitors' photograph and ID picture are visible to the sole admin
+   * only (see getWalkIns); every other listing blanks them.
+   */
+  private redactWalkIn<
+    T extends {
+      gatePassNumber?: string | null;
+      photographUrl?: string | null;
+      idDocumentUrl?: string | null;
+    },
+  >(p: T, allowSensitive: boolean): T {
+    const walkIn = /^CQ26-(AUD|GUEST)/.test(p.gatePassNumber ?? '');
+    return walkIn && !allowSensitive
+      ? { ...p, photographUrl: null, idDocumentUrl: null }
+      : p;
+  }
+
+  async getParticipants(
+    filter?: {
+      eventId?: string;
+      instituteId?: string;
+      category?: string;
+      isCheckedIn?: boolean;
+      query?: string;
+    },
+    allowSensitive = false,
+  ) {
     const where: any = {};
 
     if (filter?.eventId) where.eventId = filter.eventId;
@@ -125,7 +145,9 @@ export class ParticipantsService {
 
     // rollNumber is encrypted at rest and can't be substring-matched in SQL,
     // so text search is applied here against the decrypted value.
-    const decrypted = participants.map((p) => this.decryptParticipant(p));
+    const decrypted = participants.map((p) =>
+      this.redactWalkIn(this.decryptParticipant(p), allowSensitive),
+    );
     if (!filter?.query) return decrypted;
     const q = filter.query.toLowerCase();
     return decrypted.filter(
@@ -196,7 +218,7 @@ export class ParticipantsService {
     return { deleted: true, id, name: p.name };
   }
 
-  async getParticipantById(id: string) {
+  async getParticipantById(id: string, allowSensitive = false) {
     const participant = await this.prisma.participant.findUnique({
       where: { id },
       include: {
@@ -217,7 +239,10 @@ export class ParticipantsService {
       throw new NotFoundException(`Participant with id "${id}" not found`);
     }
 
-    return this.decryptParticipant(participant);
+    return this.redactWalkIn(
+      this.decryptParticipant(participant),
+      allowSensitive,
+    );
   }
 
   async createParticipant(dto: CreateParticipantDto) {
@@ -696,7 +721,9 @@ export class ParticipantsService {
             // several teams in the same sport — `team` disambiguates those,
             // so it's included in both the lookup and the generated name.
             let team: any = null;
-            if (sport && institute) {
+            // E-Sports teams are never created by imports: coordinators add
+            // every E-Sports team themselves, so the participant stays team-less.
+            if (sport && institute && !/e-?sports/i.test(sport.name)) {
               const squad = row.team?.trim();
               const teamName = squad
                 ? `${institute.shortName || institute.name} ${sport.name} (${squad})`

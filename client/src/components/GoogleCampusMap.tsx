@@ -146,7 +146,16 @@ export function GoogleCampusMap({
   const mapRef = useRef<MapInstance | null>(null);
   const apiRef = useRef<MapsApi | null>(null);
   const meMarkerRef = useRef<MarkerInstance | null>(null);
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  // The interactive (JavaScript API) map shows Google's "For development
+  // purposes only" watermark unless billing is enabled on the key's project, so
+  // public pages use the plain embedded map. The interactive map is kept for the
+  // venue editor (it needs click-to-pin) and can be switched on for public pages
+  // with NEXT_PUBLIC_GOOGLE_MAPS_INTERACTIVE=true once billing is set up.
+  const configuredKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const key =
+    configuredKey && (onSelect || process.env.NEXT_PUBLIC_GOOGLE_MAPS_INTERACTIVE === 'true')
+      ? configuredKey
+      : undefined;
   const latitude = point?.latitude,
     longitude = point?.longitude;
   const serializedVenues = JSON.stringify(

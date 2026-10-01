@@ -405,6 +405,18 @@ async function main() {
     bySport.set(key, [...(bySport.get(key) ?? []), fixture]);
   }
 
+  // Free Fire and BGMI are played as numbered games across both days
+  // (BGMI: 4 a day, Free Fire: 5 a day) — "BGMI - Game 5" is the first game of day 2.
+  for (const [key, list] of bySport) {
+    const game = key.split('::')[1];
+    if (game !== 'Free Fire' && game !== 'BGMI') continue;
+    [...list]
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .forEach((f, i) => {
+        f.label = `${game} - Game ${i + 1}`;
+      });
+  }
+
   // Venue capacity = peak simultaneous matches the PDF itself schedules there.
   const peak = new Map<string, number>();
   const all = [...bySport.values()].flat();
@@ -476,6 +488,9 @@ async function main() {
           sport: { id: string; name: string },
           fixtureLabel: string,
         ) {
+          // E-Sports teams are NOT created here: coordinators add every
+          // E-Sports team themselves (+ Add team on the result form).
+          if (sport.name === 'E-Sports') return null;
           const alias = INSTITUTE_ALIASES[text.trim().toLowerCase()];
           if (!alias) {
             if (PLACEHOLDER.test(text.trim())) return null;

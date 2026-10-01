@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { apiAuthedGet, apiPost, type Institute, type Match, type Team } from '@/lib/api';
+import { apiAuthedGet, apiPatch, apiPost, type Institute, type Match, type Team } from '@/lib/api';
 import {
   dash,
   formatHalf,
@@ -8,7 +8,6 @@ import {
   type GamesConfig,
   isRankedKind,
   resultKindFor,
-  suggestedPlacementPoints,
   type ResultKind,
 } from '@/lib/resultFormat';
 
@@ -904,10 +903,11 @@ function AddLobbyTeam({
   onAdded,
 }: {
   sportId: string;
-  game: 'Free Fire' | 'BGMI';
-  onAdded: () => void;
+  game: 'Free Fire' | 'BGMI' | 'Valorant';
+  onAdded: (team: Team) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [added, setAdded] = useState('');
   const [institutes, setInstitutes] = useState<Institute[]>([]);
   const [instituteId, setInstituteId] = useState('');
   const [squad, setSquad] = useState('');
@@ -927,7 +927,7 @@ function AddLobbyTeam({
     setBusy(true);
     setMessage('');
     try {
-      await apiPost('/lobby-teams', {
+      const team = await apiPost<Team>('/lobby-teams', {
         sportId,
         instituteId,
         game,
@@ -935,7 +935,8 @@ function AddLobbyTeam({
       });
       setSquad('');
       setOpen(false);
-      onAdded();
+      setAdded(team?.name ? `Added “${team.name}”. It is now in the list above.` : 'Team added.');
+      onAdded(team);
     } catch (err) {
       setMessage((err as Error).message);
     } finally {
@@ -944,13 +945,23 @@ function AddLobbyTeam({
   }
   if (!open)
     return (
-      <button
-        type="button"
-        className="text-sm underline text-[#FFD700]"
-        onClick={() => setOpen(true)}
-      >
-        + Add team
-      </button>
+      <div className="space-y-1">
+        <button
+          type="button"
+          className="text-sm underline text-[#FFD700]"
+          onClick={() => {
+            setAdded('');
+            setOpen(true);
+          }}
+        >
+          + Add team
+        </button>
+        {added && (
+          <p role="status" className="text-sm text-emerald-300">
+            {added}
+          </p>
+        )}
+      </div>
     );
   return (
     <fieldset className="space-y-2 rounded border border-white/15 p-3">
@@ -980,6 +991,12 @@ function AddLobbyTeam({
           maxLength={40}
           value={squad}
           onChange={(e) => setSquad(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (instituteId && !busy) void add();
+            }
+          }}
         />
         <button
           type="button"
@@ -1006,6 +1023,38 @@ function AddLobbyTeam({
   );
 }
 
+/**
+ * Position of each team in a lobby, from the points alone: highest total first;
+ * level teams are split by the game's own rule (Free Fire: kill points then
+ * placement points; BGMI: placement points then kill points); teams level on
+ * everything share a position. Mirrors the server, which recomputes it.
+ */
+function lobbyPositions(
+  rows: { teamId: string; kills: number; pp: number; kp: number }[],
+  bgmi: boolean,
+): Map<string, number> {
+  const key = (r: { kills: number; pp: number; kp: number }) => [
+    r.pp + r.kp,
+    bgmi ? r.pp : r.kp,
+    bgmi ? r.kp : r.pp,
+  ];
+  const cmp = (x: (typeof rows)[number], y: (typeof rows)[number]) => {
+    const kx = key(x);
+    const ky = key(y);
+    for (let i = 0; i < kx.length; i++) if (kx[i] !== ky[i]) return ky[i] - kx[i];
+    return 0;
+  };
+  const sorted = [...rows].sort(cmp);
+  const out = new Map<string, number>();
+  sorted.forEach((r, i) =>
+    out.set(
+      r.teamId,
+      i > 0 && cmp(sorted[i - 1], r) === 0 ? out.get(sorted[i - 1].teamId)! : i + 1,
+    ),
+  );
+  return out;
+}
+
 function LobbyForm({
   match,
   teams,
@@ -1015,105 +1064,137 @@ function LobbyForm({
   match: Match;
   teams: Team[];
   emit: (p: Payload | null) => void;
-  onTeamAdded: () => void;
+  onTeamAdded: (team: Team) => void;
 }) {
   const game = /bgmi/i.test(match.matchNumber ?? '') ? 'BGMI' : 'Free Fire';
   const field = useMemo(
     () => teams.filter((t) => t.name.toLowerCase().includes(`(${game.toLowerCase()}`)),
     [teams, game],
   );
-  const [edits, setEdits] = useState<Record<string, Partial<Row>>>({});
-  const rows = useMemo(
-    () => field.map((t, i) => ({ ...blankRow(i + 1, t.id), ...edits[t.id] })),
+  // Only what the coordinator types per team; positions are calculated.
+  const [edits, setEdits] = useState<Record<string, { kills: string; pp: string; kp: string }>>({});
+  const read = (id: string) => edits[id] ?? { kills: '', pp: '', kp: '' };
+  const played = useMemo(
+    () =>
+      field
+        .map((t) => {
+          const e = edits[t.id] ?? { kills: '', pp: '', kp: '' };
+          const touched = e.kills.trim() !== '' || e.pp.trim() !== '' || e.kp.trim() !== '';
+          const kills = Number(e.kills || 0);
+          return {
+            teamId: t.id,
+            touched,
+            kills,
+            pp: Number(e.pp || 0),
+            kp: e.kp.trim() === '' ? kills : Number(e.kp),
+          };
+        })
+        .filter((r) => r.touched),
     [field, edits],
   );
+  const positions = useMemo(() => lobbyPositions(played, game === 'BGMI'), [played, game]);
   useEffect(() => {
-    const entries = rows
-      .filter((r) => r.teamId && r.rank)
-      .map((r) => {
-        const rank = Number(r.rank);
-        const kills = Number(r.kills || 0);
-        return {
-          teamId: r.teamId,
-          rank,
-          kills,
-          placementPoints: r.pp.trim() === '' ? suggestedPlacementPoints(game, rank) : Number(r.pp),
-          killPoints: r.kp.trim() === '' ? kills : Number(r.kp),
-        };
-      });
-    emit(entries.length >= 2 ? { kind: 'LOBBY', entries } : null);
-  }, [rows, emit, game]);
-  const upd = (id: string, patch: Partial<Row>) =>
-    setEdits((all) => ({ ...all, [id]: { ...all[id], ...patch } }));
-  const name = (id: string) => field.find((t) => t.id === id)?.name ?? '';
-  const total = (r: Row) => {
-    const rank = Number(r.rank);
-    const kills = Number(r.kills || 0);
-    return (
-      (r.pp.trim() === '' ? suggestedPlacementPoints(game, rank) : Number(r.pp)) +
-      (r.kp.trim() === '' ? kills : Number(r.kp))
+    emit(
+      played.length >= 2
+        ? {
+            kind: 'LOBBY',
+            entries: played.map((r) => ({
+              teamId: r.teamId,
+              kills: r.kills,
+              placementPoints: r.pp,
+              killPoints: r.kp,
+            })),
+          }
+        : null,
     );
-  };
+  }, [played, emit]);
+  const upd = (id: string, patch: Partial<{ kills: string; pp: string; kp: string }>) =>
+    setEdits((all) => ({
+      ...all,
+      [id]: { ...(all[id] ?? { kills: '', pp: '', kp: '' }), ...patch },
+    }));
+  const ordered = field; // stable order while typing; only the position is calculated
   return (
     <div className="space-y-2">
       <Legend>
-        {game} game: give each team its finishing position and kills. Placement points (PP) default
-        to the standard {game} table and kill points (KP) to 1 per kill — type a value to override
-        either. The overall points table adds up every game.
+        {game} game: for every team that played, enter its <strong>kills</strong> and its{' '}
+        <strong>placement points (PP)</strong> from the results screen. Kill points (KP) default to
+        the kills, so type a value only if they differ. The position is calculated automatically
+        from the total points
+        {game === 'BGMI'
+          ? ' (a tie goes to the higher placement points, then kill points)'
+          : ' (a tie goes to the higher kill points, then placement points)'}
+        . Leave a team blank if it did not play. The overall table adds up every game.
       </Legend>
-      <div className="grid grid-cols-[3rem_1fr_4rem_4.5rem_4.5rem_3.5rem] gap-2 text-[10px] uppercase tracking-widest text-zinc-400">
-        <span>Pos</span>
-        <span>Team</span>
-        <span>Kills</span>
-        <span>PP</span>
-        <span>KP</span>
-        <span className="text-[#FFD700]">Total</span>
-      </div>
-      {rows.map((r) => (
-        <div
-          key={r.teamId}
-          className="grid grid-cols-[3rem_1fr_4rem_4.5rem_4.5rem_3.5rem] gap-2 items-center"
-        >
-          <input
-            aria-label={`Position ${name(r.teamId)}`}
-            className={numBox}
-            type="number"
-            min={1}
-            value={r.rank}
-            onChange={(e) => upd(r.teamId, { rank: e.target.value })}
-          />
-          <span className="truncate" title={name(r.teamId)}>
-            {name(r.teamId)}
-          </span>
-          <input
-            aria-label={`Kills ${name(r.teamId)}`}
-            className={numBox}
-            type="number"
-            min={0}
-            value={r.kills}
-            onChange={(e) => upd(r.teamId, { kills: e.target.value })}
-          />
-          <input
-            aria-label={`Placement points ${name(r.teamId)}`}
-            className={numBox}
-            type="number"
-            min={0}
-            placeholder={String(suggestedPlacementPoints(game, Number(r.rank) || null))}
-            value={r.pp}
-            onChange={(e) => upd(r.teamId, { pp: e.target.value })}
-          />
-          <input
-            aria-label={`Kill points ${name(r.teamId)}`}
-            className={numBox}
-            type="number"
-            min={0}
-            placeholder={String(Number(r.kills || 0))}
-            value={r.kp}
-            onChange={(e) => upd(r.teamId, { kp: e.target.value })}
-          />
-          <span className="text-center font-mono font-bold text-[#FFD700]">{total(r)}</span>
-        </div>
-      ))}
+      {field.length === 0 && (
+        <p className="text-sm text-zinc-400">
+          No {game} teams yet. Add each team with <strong>+ Add team</strong> below.
+        </p>
+      )}
+      {ordered.map((t) => {
+        const e = read(t.id);
+        const row = played.find((r) => r.teamId === t.id);
+        const pos = positions.get(t.id);
+        const cell = 'text-[10px] uppercase tracking-widest text-zinc-400';
+        return (
+          <div key={t.id} className="space-y-2 rounded-lg border border-white/10 p-3">
+            {/* The team name gets the full width and wraps — long names stay readable. */}
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 break-words text-sm font-semibold leading-snug">{t.name}</p>
+              <span
+                title="Position: calculated automatically from the points"
+                className={`shrink-0 rounded px-2 py-0.5 font-mono text-sm font-bold ${
+                  pos === 1 ? 'bg-[#FFD700]/15 text-[#FFD700]' : 'bg-white/10 text-zinc-300'
+                }`}
+              >
+                {pos ? `Pos ${pos}` : 'Pos —'}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <label className={cell}>
+                Kills
+                <input
+                  aria-label={`Kills ${t.name}`}
+                  className={numBox}
+                  type="number"
+                  min={0}
+                  value={e.kills}
+                  onChange={(ev) => upd(t.id, { kills: ev.target.value })}
+                />
+              </label>
+              <label className={cell}>
+                PP
+                <input
+                  aria-label={`Placement points ${t.name}`}
+                  className={numBox}
+                  type="number"
+                  min={0}
+                  value={e.pp}
+                  onChange={(ev) => upd(t.id, { pp: ev.target.value })}
+                />
+              </label>
+              <label className={cell}>
+                KP
+                <input
+                  aria-label={`Kill points ${t.name}`}
+                  className={numBox}
+                  type="number"
+                  min={0}
+                  placeholder={String(Number(e.kills || 0))}
+                  value={e.kp}
+                  onChange={(ev) => upd(t.id, { kp: ev.target.value })}
+                />
+              </label>
+              <div className={cell}>
+                Total
+                <p className="mt-1 rounded border border-transparent p-2 text-center font-mono text-lg font-bold text-[#FFD700]">
+                  {row ? row.pp + row.kp : '—'}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
       {match.tournament?.sport?.id && (
         <AddLobbyTeam sportId={match.tournament.sport.id} game={game} onAdded={onTeamAdded} />
       )}
@@ -1170,14 +1251,29 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [pickA, setPickA] = useState('');
+  const [pickB, setPickB] = useState('');
   const names = useMemo<SideNames>(
-    () => ({ a: match.teamA?.name || 'Team A', b: match.teamB?.name || 'Team B' }),
-    [match.teamA?.name, match.teamB?.name],
+    () => ({
+      a: match.teamA?.name || teams.find((t) => t.id === pickA)?.name || 'Team A',
+      b: match.teamB?.name || teams.find((t) => t.id === pickB)?.name || 'Team B',
+    }),
+    [match.teamA?.name, match.teamB?.name, teams, pickA, pickB],
   );
   const sportId = match.tournament?.sport?.id;
   const [teamsVersion, setTeamsVersion] = useState(0);
+  // E-Sports (Valorant) matches are created without teams: the coordinator
+  // picks or adds the two teams here before entering the score.
+  const pickTeams =
+    kind === 'SCORE' &&
+    /e-?sports/i.test(match.tournament?.sport?.name ?? '') &&
+    (!match.teamAId || !match.teamBId);
+  const addTeam = (t: Team) => {
+    if (t?.id && t.name) setTeams((all) => (all.some((x) => x.id === t.id) ? all : [...all, t]));
+    setTeamsVersion((v) => v + 1);
+  };
   useEffect(() => {
-    if (!ranked || !sportId) return;
+    if (!(ranked || pickTeams) || !sportId) return;
     let live = true;
     apiAuthedGet<Team[]>(`/teams?sportId=${sportId}`)
       .then((t) => live && setTeams(t))
@@ -1185,7 +1281,7 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
     return () => {
       live = false;
     };
-  }, [ranked, sportId, teamsVersion]);
+  }, [ranked, pickTeams, sportId, teamsVersion]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -1194,10 +1290,16 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
       setMessage('Complete the scorecard before submitting.');
       return;
     }
+    if (pickTeams && (!pickA || !pickB || pickA === pickB)) {
+      setError(true);
+      setMessage('Choose the two different teams that played this match.');
+      return;
+    }
     setBusy(true);
     setMessage('');
     setError(false);
     try {
+      if (pickTeams) await apiPatch(`/matches/${match.id}`, { teamAId: pickA, teamBId: pickB });
       await apiPost(`/matches/${match.id}/result`, {
         scoreDetails: payload,
         ...(winner ? { winnerTeamId: winner } : {}),
@@ -1216,7 +1318,7 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
     }
   }
 
-  const needTeams = !ranked && (!match.teamAId || !match.teamBId);
+  const needTeams = !ranked && !pickTeams && (!match.teamAId || !match.teamBId);
   return (
     <form aria-label="Enter final result" onSubmit={submit} className="space-y-4">
       <h4 className="font-bold">{KIND_TITLE[kind]}</h4>
@@ -1253,12 +1355,42 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
       {kind === 'CHESS' && <ChessForm match={match} names={names} emit={setPayload} />}
       {kind === 'TRACK' && <TrackForm match={match} teams={teams} emit={setPayload} />}
       {kind === 'LOBBY' && (
-        <LobbyForm
-          match={match}
-          teams={teams}
-          emit={setPayload}
-          onTeamAdded={() => setTeamsVersion((v) => v + 1)}
-        />
+        <LobbyForm match={match} teams={teams} emit={setPayload} onTeamAdded={addTeam} />
+      )}
+      {pickTeams && (
+        <div className="space-y-3 rounded border border-white/15 p-3">
+          <p className="text-sm text-zinc-300">
+            This Valorant match has no teams yet. Choose the two teams that played, or add them.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {(
+              [
+                ['Team A', pickA, setPickA],
+                ['Team B', pickB, setPickB],
+              ] as const
+            ).map(([label, value, set]) => (
+              <label key={label} className="text-sm">
+                {label}
+                <select
+                  aria-label={label}
+                  className={box}
+                  value={value}
+                  onChange={(e) => set(e.target.value)}
+                >
+                  <option value="">Choose team…</option>
+                  {teams
+                    .filter((t) => /valorant/i.test(t.name))
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            ))}
+          </div>
+          {sportId && <AddLobbyTeam sportId={sportId} game="Valorant" onAdded={addTeam} />}
+        </div>
       )}
       {kind === 'SCORE' && <ScoreForm names={names} emit={setPayload} />}
       <label className="block">

@@ -149,16 +149,25 @@ it('enters a BGMI game with placement and kill points for that game’s teams on
   expect(screen.queryByLabelText('Kills CU E-Sports (Free Fire)')).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Kills CU E-Sports (Valorant)')).not.toBeInTheDocument();
   type('Kills MIET E-Sports (BGMI)', '7');
+  type('Placement points MIET E-Sports (BGMI)', '10');
+  type('Kills CU E-Sports (BGMI)', '12');
+  type('Placement points CU E-Sports (BGMI)', '4');
+  // Positions are calculated, never typed.
   fireEvent.submit(screen.getByRole('form', { name: 'Enter final result' }));
   await waitFor(() => expect(bodies).toHaveLength(1));
   const d = bodies[0].scoreDetails as { entries: Record<string, number>[] };
-  // Position 1 in BGMI = 15 placement points; kill points default to kills.
+  expect(d.entries.map((e) => e.rank)).toEqual([undefined, undefined]);
   expect(d.entries[0]).toMatchObject({
     teamId: 't1',
-    rank: 1,
     kills: 7,
-    placementPoints: 15,
+    placementPoints: 10,
     killPoints: 7,
+  });
+  expect(d.entries[1]).toMatchObject({
+    teamId: 't2',
+    kills: 12,
+    placementPoints: 4,
+    killPoints: 12,
   });
 });
 
@@ -377,8 +386,9 @@ it('lets a coordinator add another BGMI team and shows it in the lobby', async (
     vi.fn(async (url: string, init: RequestInit) => {
       if (init?.body) {
         posts.push({ url, body: JSON.parse(String(init.body)) });
-        teams = [...teams, { id: 't9', name: 'GCET E-Sports (BGMI - Team 2)' }];
-        return new Response('{}', { status: 200 });
+        const created = { id: 't9', name: 'GCET E-Sports (BGMI - Team 2)' };
+        teams = [...teams, created];
+        return new Response(JSON.stringify(created), { status: 200 });
       }
       if (url.endsWith('/institutes'))
         return new Response(JSON.stringify([{ id: 'i1', name: 'GCET', shortName: 'GCET' }]), {
@@ -394,5 +404,80 @@ it('lets a coordinator add another BGMI team and shows it in the lobby', async (
   fireEvent.change(screen.getByLabelText('College'), { target: { value: 'i1' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add' }));
   await screen.findByLabelText('Kills GCET E-Sports (BGMI - Team 2)');
+  expect(screen.getByRole('status')).toHaveTextContent('Added “GCET E-Sports (BGMI - Team 2)”');
   expect(posts[0].body).toEqual({ sportId: 's', instituteId: 'i1', game: 'BGMI' });
+});
+
+it('Valorant: asks which two teams played, then sets them before saving the score', async () => {
+  const calls: { method: string; url: string; body: Record<string, unknown> }[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init: RequestInit) => {
+      if (init?.body) {
+        calls.push({ method: init.method as string, url, body: JSON.parse(String(init.body)) });
+        return new Response('{}', { status: 200 });
+      }
+      return new Response(
+        JSON.stringify([
+          { id: 'v1', name: 'IIMJ E-Sports (Valorant)' },
+          { id: 'v2', name: 'CU E-Sports (Valorant)' },
+          { id: 'b1', name: 'MIET E-Sports (BGMI)' },
+        ]),
+        { status: 200 },
+      );
+    }),
+  );
+  const m = {
+    ...fixture('E-Sports', 'Valorant Match 1: IIM Jammu vs SMVDU'),
+    teamAId: null,
+    teamBId: null,
+    teamA: undefined,
+    teamB: undefined,
+  } as Match;
+  render(<ResultEntryForm match={m} onSaved={vi.fn()} />);
+  await screen.findAllByRole('option', { name: 'IIMJ E-Sports (Valorant)' });
+  expect(screen.queryAllByRole('option', { name: 'MIET E-Sports (BGMI)' })).toHaveLength(0);
+  fireEvent.change(screen.getByLabelText('Team A'), { target: { value: 'v1' } });
+  fireEvent.change(screen.getByLabelText('Team B'), { target: { value: 'v2' } });
+  fireEvent.change(screen.getByLabelText('Final score team A'), { target: { value: '13' } });
+  fireEvent.change(screen.getByLabelText('Final score team B'), { target: { value: '9' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Enter final result' }));
+  await waitFor(() => expect(calls).toHaveLength(2));
+  expect(calls[0]).toMatchObject({ method: 'PATCH', body: { teamAId: 'v1', teamBId: 'v2' } });
+  expect(calls[1].url).toMatch(/\/result$/);
+});
+
+it('shows each lobby position calculated from the points, with no position box to type in', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (_u: string, init: RequestInit) =>
+      init?.body
+        ? new Response('{}', { status: 200 })
+        : new Response(
+            JSON.stringify([
+              { id: 't1', name: 'MIET E-Sports (BGMI)' },
+              { id: 't2', name: 'CU E-Sports (BGMI)' },
+              { id: 't3', name: 'LPU E-Sports (BGMI)' },
+            ]),
+            { status: 200 },
+          ),
+    ),
+  );
+  render(<ResultEntryForm match={fixture('E-Sports', 'BGMI - Game 2')} onSaved={vi.fn()} />);
+  await screen.findByLabelText('Kills MIET E-Sports (BGMI)');
+  expect(screen.queryByLabelText(/^Position/)).not.toBeInTheDocument();
+  type('Kills MIET E-Sports (BGMI)', '3');
+  type('Placement points MIET E-Sports (BGMI)', '8');
+  type('Kills CU E-Sports (BGMI)', '9');
+  type('Placement points CU E-Sports (BGMI)', '15');
+  type('Kills LPU E-Sports (BGMI)', '1');
+  type('Placement points LPU E-Sports (BGMI)', '6');
+  const pos = (name: string) => screen.getByText(name).parentElement!.textContent;
+  expect(pos('CU E-Sports (BGMI)')).toContain('Pos 1'); // 24
+  expect(pos('MIET E-Sports (BGMI)')).toContain('Pos 2'); // 11
+  expect(pos('LPU E-Sports (BGMI)')).toContain('Pos 3'); // 7
+  // It updates the instant a score changes: a big kill count lifts LPU to first.
+  type('Kills LPU E-Sports (BGMI)', '30');
+  expect(pos('LPU E-Sports (BGMI)')).toContain('Pos 1');
+  expect(pos('CU E-Sports (BGMI)')).toContain('Pos 2');
 });

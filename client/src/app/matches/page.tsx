@@ -1,5 +1,6 @@
 'use client';
 
+import { eventTitle, isTeamless } from '@/lib/matchDisplay';
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FixtureResultEditor } from '@/components/FixtureResultEditor';
@@ -910,7 +911,9 @@ function MatchManagerContent() {
       if (filterVenueId !== 'ALL') params.set('venueId', filterVenueId);
       if (filterDate) params.set('date', filterDate);
       const qs = params.toString();
-      const data = await apiAuthedGet<Match[]>(`/matches${qs ? `?${qs}` : ''}`);
+      // The server returns only the sports this user is scoped to (a coordinator
+      // sees their own sport's matches, never the others').
+      const data = await apiAuthedGet<Match[]>(`/matches/managed${qs ? `?${qs}` : ''}`);
       setMatches(data);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load matches');
@@ -1216,17 +1219,21 @@ function MatchManagerContent() {
                       </span>
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2 font-bold text-white">
-                        <span>{formatTeamName(fix.teamA)}</span>
-                        {fix.teamAScore !== null && fix.teamAScore !== undefined && (
-                          <span className="font-mono text-[#FFD700]">({fix.teamAScore})</span>
-                        )}
-                        <span className="text-zinc-500 font-normal">vs</span>
-                        <span>{formatTeamName(fix.teamB)}</span>
-                        {fix.teamBScore !== null && fix.teamBScore !== undefined && (
-                          <span className="font-mono text-[#FFD700]">({fix.teamBScore})</span>
-                        )}
-                      </div>
+                      {isTeamless(fix) ? (
+                        <div className="font-bold text-white">{eventTitle(fix)}</div>
+                      ) : (
+                        <div className="flex items-center gap-2 font-bold text-white">
+                          <span>{formatTeamName(fix.teamA)}</span>
+                          {fix.teamAScore !== null && fix.teamAScore !== undefined && (
+                            <span className="font-mono text-[#FFD700]">({fix.teamAScore})</span>
+                          )}
+                          <span className="text-zinc-500 font-normal">vs</span>
+                          <span>{formatTeamName(fix.teamB)}</span>
+                          {fix.teamBScore !== null && fix.teamBScore !== undefined && (
+                            <span className="font-mono text-[#FFD700]">({fix.teamBScore})</span>
+                          )}
+                        </div>
+                      )}
                       <span className="text-[11px] text-zinc-400 font-mono block mt-0.5">
                         {new Date(fix.scheduledStartTime).toLocaleString()}
                       </span>

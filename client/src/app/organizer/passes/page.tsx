@@ -315,7 +315,7 @@ function PassesContent() {
 
 export default function PassesPage() {
   return (
-    <RequireOrganizer anyPermission={['participant.view']}>
+    <RequireOrganizer requireRole={['WEB_DEV_HEAD']}>
       <PassesContent />
     </RequireOrganizer>
   );

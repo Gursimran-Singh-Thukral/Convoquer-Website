@@ -1,14 +1,25 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { DashboardService } from './dashboard.service.js';
 import { SessionGuard } from '../../common/guards/session.guard.js';
 import { PermissionsGuard } from '../../common/guards/permissions.guard.js';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
+import { RbacService } from '../rbac/rbac.service.js';
 import { DashboardQueryDto } from './dto/dashboard.dto.js';
 
 @Controller('api/dashboard')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardService: DashboardService,
+    private readonly rbacService: RbacService,
+  ) {}
 
   /**
    * Primary adaptive endpoint: inspects user session, resolves their active role,
@@ -25,13 +36,38 @@ export class DashboardController {
    * Queue of submitted results awaiting coordinator/convener review.
    */
   @Get('pending-approvals')
-  @UseGuards(SessionGuard, PermissionsGuard)
-  @RequirePermissions('result.approve')
+  @UseGuards(SessionGuard)
   async getPendingApprovals(
+    @Req() req: Request,
     @Query('sportId') sportId?: string,
     @Query('eventId') eventId?: string,
   ) {
-    return this.dashboardService.getPendingApprovals(sportId, eventId);
+    // The queue is limited to the sports the user may approve, however many
+    // that is (a badminton coordinator holds both Men and Women). Nothing needs
+    // to be passed in; asking for a sport outside the scope is refused.
+    const auth = await this.rbacService.getUserEffectiveAuth(
+      (req as any).user.id,
+    );
+    const entry = auth.permissions['result.approve'];
+    if (!entry)
+      throw new ForbiddenException(
+        'Insufficient permissions: Missing permission "result.approve"',
+      );
+    if (entry.isGlobal)
+      return this.dashboardService.getPendingApprovals(sportId, eventId);
+    if (
+      (sportId &&
+        !entry.sportIds.includes(sportId) &&
+        !entry.eventIds.length) ||
+      (eventId && !entry.eventIds.includes(eventId))
+    )
+      throw new ForbiddenException(
+        'You may only review results of your own sport',
+      );
+    return this.dashboardService.getPendingApprovals(sportId, undefined, {
+      sportIds: entry.sportIds,
+      eventIds: entry.eventIds,
+    });
   }
 
   /**

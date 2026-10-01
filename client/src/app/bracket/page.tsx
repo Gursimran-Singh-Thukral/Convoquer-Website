@@ -1,4 +1,5 @@
 'use client';
+import { eventTitle, isTeamless } from '@/lib/matchDisplay';
 import { EventDates } from '@/components/EventDates';
 
 import React, { useEffect, useState } from 'react';
@@ -279,20 +280,26 @@ export default function TournamentBracketPage() {
                                 {matchStatusLabel(m.status)}
                               </span>
                             </div>
-                            <div className="space-y-1.5">
-                              <BracketTeamRow
-                                team={m.teamA}
-                                score={m.teamAScore}
-                                isWinner={teamAWins}
-                                seedNumber={m.teamAId ? seedByTeamId.get(m.teamAId) : undefined}
-                              />
-                              <BracketTeamRow
-                                team={m.teamB}
-                                score={m.teamBScore}
-                                isWinner={teamBWins}
-                                seedNumber={m.teamBId ? seedByTeamId.get(m.teamBId) : undefined}
-                              />
-                            </div>
+                            {isTeamless(m) ? (
+                              <p className="text-sm font-semibold text-white leading-snug">
+                                {eventTitle(m)}
+                              </p>
+                            ) : (
+                              <div className="space-y-1.5">
+                                <BracketTeamRow
+                                  team={m.teamA}
+                                  score={m.teamAScore}
+                                  isWinner={teamAWins}
+                                  seedNumber={m.teamAId ? seedByTeamId.get(m.teamAId) : undefined}
+                                />
+                                <BracketTeamRow
+                                  team={m.teamB}
+                                  score={m.teamBScore}
+                                  isWinner={teamBWins}
+                                  seedNumber={m.teamBId ? seedByTeamId.get(m.teamBId) : undefined}
+                                />
+                              </div>
+                            )}
                           </div>
                         );
                       })

@@ -1,4 +1,5 @@
 'use client';
+import { eventSubtitle, eventTitle, isTeamless } from '@/lib/matchDisplay';
 import { useEffect, useState } from 'react';
 import { apiGet, getApiBaseUrl, type LiveMatchDetail } from '@/lib/api';
 import { ResultScorecard } from '@/components/results/ResultScorecard';
@@ -57,6 +58,14 @@ export function MatchCenter({ id }: { id: string }) {
                 winnerTeamId={match.winnerTeamId ?? match.winnerTeam?.id}
                 stageName={match.stage?.name}
               />
+            </div>
+          ) : isTeamless(match) ? (
+            <div aria-live="polite" className="py-10 text-center">
+              <h2 className="text-2xl font-bold">{eventTitle(match)}</h2>
+              <p className="mt-2 text-zinc-400">
+                {eventSubtitle(match.tournament?.sport?.name)}. The official result appears here
+                once it is published.
+              </p>
             </div>
           ) : (
             <div aria-live="polite" className="grid grid-cols-2 gap-6 text-center py-10">

@@ -310,9 +310,9 @@ export default function ScorerPage() {
       // that sport's matches; a Convener/Overall Coordinator (global) and a
       // Sports Volunteer (no sport-wide grant at all — scoped per match via
       // MatchOfficial instead) both see the unfiltered list.
-      const scopedSportId = myScopedSportId('competition.manage', 'match.update', 'score.update');
-      const qs = scopedSportId ? `?sportId=${encodeURIComponent(scopedSportId)}` : '';
-      const data = await apiAuthedGet<Match[]>(`/matches${qs}`);
+      // The server limits the list to this user's sports (any number of them)
+      // plus fixtures they are an assigned official of.
+      const data = await apiAuthedGet<Match[]>('/matches/managed');
       setMatches(Array.isArray(data) ? data : []);
     } catch (err) {
       setMatchesError(
@@ -323,7 +323,7 @@ export default function ScorerPage() {
     } finally {
       setLoadingMatches(false);
     }
-  }, [myScopedSportId]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

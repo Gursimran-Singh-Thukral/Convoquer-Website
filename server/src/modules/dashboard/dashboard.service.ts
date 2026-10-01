@@ -863,10 +863,34 @@ export class DashboardService {
   // REUSABLE QUERY PIPELINES
   // ===================================
 
-  async getPendingApprovals(sportId?: string, eventId?: string) {
+  async getPendingApprovals(
+    sportId?: string,
+    eventId?: string,
+    restrict?: { sportIds: string[]; eventIds: string[] },
+  ) {
     return this.prisma.result.findMany({
       where: {
         status: 'SUBMITTED',
+        ...(restrict
+          ? {
+              AND: [
+                {
+                  OR: [
+                    {
+                      match: {
+                        tournament: { sportId: { in: restrict.sportIds } },
+                      },
+                    },
+                    {
+                      match: {
+                        tournament: { eventId: { in: restrict.eventIds } },
+                      },
+                    },
+                  ],
+                },
+              ],
+            }
+          : {}),
         ...(sportId ? { match: { tournament: { sportId } } } : {}),
         ...(eventId ? { match: { tournament: { eventId } } } : {}),
       },

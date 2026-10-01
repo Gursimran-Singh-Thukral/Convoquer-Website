@@ -480,6 +480,7 @@ function buildRanked(
       bad(`${where}: unknown status "${note}"`);
     if (
       !note &&
+      kind === 'TRACK' &&
       (!Number.isSafeInteger(rank) ||
         (rank as number) < 1 ||
         (rank as number) > 64)
@@ -586,6 +587,28 @@ function buildRanked(
   const entries = (d.entries as unknown[]).map((e, i) =>
     checkEntry(e, `Team #${i + 1}`),
   );
+  // Positions are never typed in: they follow from the points. Highest total
+  // first; level teams are separated by the game's own rule — Free Fire: kill
+  // points then placement points; BGMI: placement points then kill points.
+  // Teams level on every figure share a position.
+  const bgmi = /bgmi/i.test(ctx.label ?? '');
+  const key = (e: Record<string, unknown>) => [
+    e.points as number,
+    (bgmi ? e.placementPoints : e.killPoints) as number,
+    (bgmi ? e.killPoints : e.placementPoints) as number,
+  ];
+  const cmp = (a: Record<string, unknown>, b: Record<string, unknown>) => {
+    const ka = key(a);
+    const kb = key(b);
+    for (let i = 0; i < ka.length; i++)
+      if (ka[i] !== kb[i]) return kb[i] - ka[i];
+    return 0;
+  };
+  entries.sort(cmp);
+  entries.forEach((e, i) => {
+    e.rank =
+      i > 0 && cmp(entries[i - 1], e) === 0 ? entries[i - 1].rank : i + 1;
+  });
   assertPositions(entries, 'Lobby');
   const ids = entries.map((e) => e.teamId);
   if (new Set(ids).size !== ids.length)

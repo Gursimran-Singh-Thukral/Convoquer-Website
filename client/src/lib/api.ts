@@ -224,7 +224,7 @@ export interface TeamStanding {
   rallyPointsFor?: number;
   rallyPointsAgainst?: number;
   byes?: number;
-  buchholz?: number;
+  buchholzCut1?: number;
   placementPoints?: number;
   killPoints?: number;
   sonnebornBerger?: number;

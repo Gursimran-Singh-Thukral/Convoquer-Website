@@ -471,7 +471,66 @@ describe('Teams, Institutes & Participants Services', () => {
       ).rejects.toThrow(/needs a gender/);
     });
 
-    it('creates separate teams for the same institute and sport when rows carry different team labels (e.g. E-Sports squads)', async () => {
+    it('creates separate teams for the same institute and sport when rows carry different team labels (squads of one college)', async () => {
+      prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
+      prismaMock.institute.findFirst.mockResolvedValue({
+        id: 'inst-1',
+        name: 'IIT Delhi',
+        shortName: 'IITD',
+      });
+      prismaMock.sport.findFirst.mockResolvedValue({
+        id: 'sport-football',
+        name: 'Football',
+      });
+      // No existing team matches either squad's generated name yet.
+      prismaMock.team.findFirst.mockResolvedValue(null);
+      let createdTeams = 0;
+      prismaMock.team.create.mockImplementation(({ data }: any) => {
+        createdTeams += 1;
+        return { id: `team-${createdTeams}`, ...data };
+      });
+      prismaMock.participant.findFirst.mockResolvedValue(null);
+      prismaMock.participant.create.mockImplementation(({ data }: any) => ({
+        id: `participant-${data.rollNumber}`,
+        ...data,
+      }));
+
+      const summary = await participantsService.bulkImport({
+        eventId: 'event-1',
+        rows: [
+          {
+            name: 'Player One',
+            college: 'IIT Delhi',
+            rollNumber: '2022CS001',
+            sport: 'Football',
+            team: 'Squad A',
+          },
+          {
+            name: 'Player Two',
+            college: 'IIT Delhi',
+            rollNumber: '2022CS002',
+            sport: 'Football',
+            team: 'Squad B',
+          },
+        ],
+      });
+
+      expect(summary.importedCount).toBe(2);
+      expect(summary.errors).toHaveLength(0);
+      expect(prismaMock.team.create).toHaveBeenCalledTimes(2);
+      expect(prismaMock.team.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ name: 'IITD Football (Squad A)' }),
+        }),
+      );
+      expect(prismaMock.team.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ name: 'IITD Football (Squad B)' }),
+        }),
+      );
+    });
+
+    it('never creates E-Sports teams: coordinators add them, so the players stay team-less', async () => {
       prismaMock.event.findUnique.mockResolvedValue({ id: 'event-1' });
       prismaMock.institute.findFirst.mockResolvedValue({
         id: 'inst-1',
@@ -517,17 +576,8 @@ describe('Teams, Institutes & Participants Services', () => {
 
       expect(summary.importedCount).toBe(2);
       expect(summary.errors).toHaveLength(0);
-      expect(prismaMock.team.create).toHaveBeenCalledTimes(2);
-      expect(prismaMock.team.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ name: 'IITD E-Sports (Squad A)' }),
-        }),
-      );
-      expect(prismaMock.team.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ name: 'IITD E-Sports (Squad B)' }),
-        }),
-      );
+      expect(prismaMock.team.create).not.toHaveBeenCalled();
+      expect(prismaMock.participant.create).toHaveBeenCalledTimes(2);
     });
 
     it('adds the same participant to a second sport team instead of duplicating them', async () => {

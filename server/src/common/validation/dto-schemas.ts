@@ -727,7 +727,7 @@ export const dtoSchemas: Record<
       required: true,
     },
     game: {
-      type: "'Free Fire' | 'BGMI'",
+      type: "'Free Fire' | 'BGMI' | 'Valorant'",
       required: true,
     },
     squad: {

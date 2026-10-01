@@ -41,3 +41,70 @@ describe('ParticipantsService.getWalkIns', () => {
     expect(findMany.mock.calls[3][0].where.category).toBe('GUEST');
   });
 });
+
+describe('walk-in pass access', () => {
+  it('is locked to the sole-admin account on top of participant.view', async () => {
+    const { TeamsController } = await import('./teams.controller.js');
+    const guards = Reflect.getMetadata(
+      '__guards__',
+      TeamsController.prototype.getWalkIns,
+    ) as { name: string }[];
+    expect(guards.map((g) => g.name)).toEqual([
+      'SessionGuard',
+      'PermissionsGuard',
+      'StrictSoleAdminGuard',
+    ]);
+    const delGuards = Reflect.getMetadata(
+      '__guards__',
+      TeamsController.prototype.deleteParticipant,
+    ) as { name: string }[];
+    expect(delGuards.map((g) => g.name)).toContain('StrictSoleAdminGuard');
+  });
+});
+
+describe('sole-admin checks', () => {
+  it('the strict guard fails closed when no sole admin is configured', async () => {
+    const { StrictSoleAdminGuard } =
+      await import('../../common/guards/sole-admin.guard.js');
+    const old = process.env.SOLE_ADMIN_EMAIL;
+    delete process.env.SOLE_ADMIN_EMAIL;
+    const ctx = (user: unknown) =>
+      ({ switchToHttp: () => ({ getRequest: () => ({ user }) }) }) as never;
+    expect(() =>
+      new StrictSoleAdminGuard().canActivate(ctx({ email: 'a@x.com' })),
+    ).toThrow();
+    process.env.SOLE_ADMIN_EMAIL = 'boss@x.com';
+    expect(() =>
+      new StrictSoleAdminGuard().canActivate(ctx({ email: 'other@x.com' })),
+    ).toThrow();
+    expect(
+      new StrictSoleAdminGuard().canActivate(ctx({ email: 'boss@x.com' })),
+    ).toBe(true);
+    process.env.SOLE_ADMIN_EMAIL = old;
+  });
+
+  it('hides walk-in photos and ID pictures from everyone but the sole admin', async () => {
+    const row = {
+      id: '1',
+      name: 'A',
+      gatePassNumber: 'CQ26-AUD-1',
+      photographUrl: 'p',
+      idDocumentUrl: 'i',
+      category: 'AUDIENCE',
+      institute: null,
+      teamMembers: [],
+      rollNumber: null,
+      contactNumber: null,
+    };
+    const findMany = vi.fn().mockResolvedValue([row]);
+    const svc = new ParticipantsService({ participant: { findMany } } as never);
+    expect((await svc.getParticipants({}))[0]).toMatchObject({
+      photographUrl: null,
+      idDocumentUrl: null,
+    });
+    expect((await svc.getParticipants({}, true))[0]).toMatchObject({
+      photographUrl: 'p',
+      idDocumentUrl: 'i',
+    });
+  });
+});

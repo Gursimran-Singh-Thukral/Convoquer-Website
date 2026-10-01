@@ -128,8 +128,8 @@ function ChessStandings() {
           {tournament?.name}
           {shownRound ? ` · standings after round ${shownRound}` : ''}. Win 2, draw 1, loss 0.{' '}
           {swiss
-            ? 'Ties: Sonneborn–Berger, then the direct encounter.'
-            : 'Ties: Buchholz, then Sonneborn–Berger.'}
+            ? 'Ties: Buchholz Cut-1, then Sonneborn–Berger.'
+            : 'Ties: Sonneborn–Berger, then the direct encounter.'}
         </p>
         <div className="overflow-x-auto rounded-lg border border-white/15">
           <table className="w-full text-sm">
@@ -147,8 +147,8 @@ function ChessStandings() {
                 <th className="p-3" title="Sonneborn-Berger">
                   SB
                 </th>
-                <th className="p-3" title="Buchholz">
-                  BH
+                <th className="p-3" title="Buchholz Cut-1">
+                  BC1
                 </th>
                 <th className="p-3 text-[#FFD700]">Pts</th>
               </tr>
@@ -179,7 +179,7 @@ function ChessStandings() {
                     <td className="p-3">{r.lost}</td>
                     <td className="p-3">{fmt(r.scoreFor)}</td>
                     <td className="p-3">{fmt(r.sonnebornBerger)}</td>
-                    <td className="p-3">{fmt(r.buchholz)}</td>
+                    <td className="p-3">{fmt(r.buchholzCut1)}</td>
                     <td className="p-3 font-black text-[#FFD700]">{r.points}</td>
                   </tr>
                 ))

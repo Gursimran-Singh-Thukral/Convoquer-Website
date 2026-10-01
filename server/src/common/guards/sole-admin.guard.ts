@@ -40,3 +40,28 @@ export class SoleAdminGuard implements CanActivate {
     return true;
   }
 }
+
+/** True when the signed-in user is the configured sole-admin account. */
+export function isSoleAdmin(user?: { email?: string | null } | null): boolean {
+  const adminEmail = process.env.SOLE_ADMIN_EMAIL?.trim().toLowerCase();
+  if (!adminEmail || !user?.email) return false;
+  return decryptField(user.email)?.trim().toLowerCase() === adminEmail;
+}
+
+/**
+ * Like SoleAdminGuard, but FAILS CLOSED: if SOLE_ADMIN_EMAIL is not configured
+ * nobody gets in (SoleAdminGuard lets everyone through in that case). Used for
+ * the most sensitive data — walk-in visitors' photographs and ID pictures.
+ */
+@Injectable()
+export class StrictSoleAdminGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const user = context.switchToHttp().getRequest().user;
+    if (!user) throw new UnauthorizedException('Authentication required');
+    if (!isSoleAdmin(user))
+      throw new ForbiddenException(
+        'This section is restricted to the administrator account.',
+      );
+    return true;
+  }
+}

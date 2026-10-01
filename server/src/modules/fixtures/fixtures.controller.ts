@@ -213,6 +213,28 @@ export class FixturesController {
     });
   }
 
+  /** Matches the signed-in user may manage (their own sport only). */
+  @Get('matches/managed')
+  @UseGuards(SessionGuard)
+  async getManagedMatches(
+    @Req() req: Request,
+    @Query('tournamentId') tournamentId?: string,
+    @Query('stageId') stageId?: string,
+    @Query('venueId') venueId?: string,
+    @Query('sportId') sportId?: string,
+    @Query('status') status?: string,
+    @Query('date') date?: string,
+  ) {
+    return this.matchesService.getManagedMatches((req as any).user.id, {
+      tournamentId,
+      stageId,
+      venueId,
+      sportId,
+      status,
+      date,
+    });
+  }
+
   @Get('matches/:id')
   async getMatchById(@Param('id') id: string) {
     return this.matchesService.getMatchById(id);

@@ -21,7 +21,7 @@ export interface TeamStanding {
   rallyPointsAgainst?: number;
   /** Chess only. */
   byes?: number;
-  buchholz?: number;
+  buchholzCut1?: number;
   sonnebornBerger?: number;
   /** E-Sports lobbies (Free Fire / BGMI): placement and kill points. */
   placementPoints?: number;
@@ -110,9 +110,9 @@ export class StandingsService {
     const ptsWin = isChess ? 2 : (tournament.pointsForWin ?? 3);
     const ptsDraw = isChess ? 1 : (tournament.pointsForDraw ?? 1);
     const ptsLoss = isChess ? 0 : (tournament.pointsForLoss ?? 0);
-    // Tie-breaks after match points — Chess (Men), the Swiss: Sonneborn-Berger
-    // then the direct encounter. Chess (Women), the round robin: Buchholz then
-    // Sonneborn-Berger.
+    // Tie-breaks after match points (as in the printed chess rules) —
+    // Chess (Men), the Swiss: Buchholz Cut-1, then Sonneborn-Berger.
+    // Chess (Women), the round robin: Sonneborn-Berger, then the direct encounter.
     const swiss =
       isChess &&
       /men/i.test(tournament.sport?.name ?? '') &&
@@ -297,8 +297,11 @@ export class StandingsService {
         const opp = mine.map((g) =>
           g.a === t.teamId ? { id: g.b, g: g.ga } : { id: g.a, g: g.gb },
         );
-        // Buchholz: the sum of all opponents' points.
-        t.buchholz = opp.reduce((x, o) => x + pts(o.id), 0);
+        // Buchholz Cut-1: the sum of the opponents' points, without the lowest.
+        const theirs = opp.map((o) => pts(o.id)).sort((x, y) => x - y);
+        t.buchholzCut1 = theirs
+          .slice(theirs.length > 1 ? 1 : 0)
+          .reduce((x, y) => x + y, 0);
         // Sonneborn-Berger: opponents' points weighted by the result against them.
         t.sonnebornBerger = opp.reduce((x, o) => x + pts(o.id) * o.g, 0);
       }
@@ -320,8 +323,8 @@ export class StandingsService {
       if (isChess) {
         const sb = (b.sonnebornBerger ?? 0) - (a.sonnebornBerger ?? 0);
         const order = swiss
-          ? [sb, direct(a, b)]
-          : [(b.buchholz ?? 0) - (a.buchholz ?? 0), sb];
+          ? [(b.buchholzCut1 ?? 0) - (a.buchholzCut1 ?? 0), sb]
+          : [sb, direct(a, b)];
         const hit = order.find((d) => d !== 0);
         if (hit) return hit;
       }

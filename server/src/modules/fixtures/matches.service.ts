@@ -180,6 +180,13 @@ export class MatchesService {
     status?: string;
     teamId?: string;
     date?: string; // YYYY-MM-DD
+    /** Limit to these sports / events (a coordinator's own scope). */
+    restrict?: {
+      sportIds: string[];
+      eventIds: string[];
+      /** Also include fixtures this user is an assigned official of. */
+      officialUserId?: string;
+    };
   }) {
     let dateFilter: any = undefined;
     if (filters.date) {
@@ -208,6 +215,35 @@ export class MatchesService {
         ...(filters.teamId
           ? {
               OR: [{ teamAId: filters.teamId }, { teamBId: filters.teamId }],
+            }
+          : {}),
+        ...(filters.restrict
+          ? {
+              AND: [
+                {
+                  OR: [
+                    {
+                      tournament: {
+                        sportId: { in: filters.restrict.sportIds },
+                      },
+                    },
+                    {
+                      tournament: {
+                        eventId: { in: filters.restrict.eventIds },
+                      },
+                    },
+                    ...(filters.restrict.officialUserId
+                      ? [
+                          {
+                            officials: {
+                              some: { userId: filters.restrict.officialUserId },
+                            },
+                          },
+                        ]
+                      : []),
+                  ],
+                },
+              ],
             }
           : {}),
         ...(dateFilter ? { scheduledStartTime: dateFilter } : {}),
@@ -244,6 +280,40 @@ export class MatchesService {
         },
       },
       orderBy: { scheduledStartTime: 'asc' },
+    });
+  }
+
+  /**
+   * The matches this user may manage: everything for a global grant, otherwise
+   * only the sports (or events) their match/result roles are scoped to — the
+   * athletics coordinator sees athletics, the badminton coordinator badminton.
+   */
+  async getManagedMatches(
+    userId: string,
+    filters: Parameters<MatchesService['getMatches']>[0],
+  ) {
+    const auth = await this.rbacService.getUserEffectiveAuth(userId);
+    const sportIds = new Set<string>();
+    const eventIds = new Set<string>();
+    for (const action of [
+      'match.update',
+      'match.create',
+      'competition.manage',
+      'result.submit',
+    ]) {
+      const entry = auth.permissions[action];
+      if (!entry) continue;
+      if (entry.isGlobal) return this.getMatches(filters);
+      entry.sportIds.forEach((id) => sportIds.add(id));
+      entry.eventIds.forEach((id) => eventIds.add(id));
+    }
+    return this.getMatches({
+      ...filters,
+      restrict: {
+        sportIds: [...sportIds],
+        eventIds: [...eventIds],
+        officialUserId: userId,
+      },
     });
   }
 
@@ -527,12 +597,17 @@ export class MatchesService {
         'Started or completed fixtures cannot be changed here',
       );
     }
-    if (
-      existing.nextMatchId &&
-      (dto.teamAId !== undefined ||
-        dto.teamBId !== undefined ||
-        dto.stageId !== undefined)
-    ) {
+    // A knockout feeder's stage is fixed, and a team already placed in it
+    // cannot be swapped out — but an EMPTY side may be filled in by hand (for
+    // example group winners or Valorant semi-finalists, which nothing feeds).
+    const reassigning =
+      (dto.teamAId !== undefined &&
+        !!existing.teamAId &&
+        dto.teamAId !== existing.teamAId) ||
+      (dto.teamBId !== undefined &&
+        !!existing.teamBId &&
+        dto.teamBId !== existing.teamBId);
+    if (existing.nextMatchId && (dto.stageId !== undefined || reassigning)) {
       throw new BadRequestException(
         'Generated bracket teams and stages cannot be reassigned',
       );

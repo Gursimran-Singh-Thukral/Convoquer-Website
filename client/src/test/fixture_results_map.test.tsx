@@ -88,8 +88,16 @@ it('centers the configured map on IIT Jammu and returns clicked geographic coord
   expect(onSelect).toHaveBeenCalledWith({ latitude: 32.802, longitude: 74.896 });
 });
 
+it('uses the plain embedded map on public pages even when a key is configured (no dev watermark)', () => {
+  vi.stubEnv('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY', 'test-key-not-a-real-credential');
+  render(<GoogleCampusMap venues={[]} />);
+  expect(screen.getByTitle('IIT Jammu Google Map')).toBeInTheDocument();
+  expect(screen.queryByText('Loading Google Maps...')).not.toBeInTheDocument();
+});
+
 it('shows each backend venue name directly on its map pin', async () => {
   vi.stubEnv('NEXT_PUBLIC_GOOGLE_MAPS_API_KEY', 'test-key-not-a-real-credential');
+  vi.stubEnv('NEXT_PUBLIC_GOOGLE_MAPS_INTERACTIVE', 'true');
   const markerOptions: Record<string, unknown>[] = [];
   class FakeMap {
     addListener = vi.fn(() => ({ remove: vi.fn() }));

@@ -143,7 +143,7 @@ export default function StandingsPage() {
     };
   }, [selectedSport, sports, tournamentChoice]);
 
-  const chessTable = !!sportStandings?.some((r) => r.buchholz !== undefined);
+  const chessTable = !!sportStandings?.some((r) => r.buchholzCut1 !== undefined);
   const lobbyTable = !!sportStandings?.some((r) => r.placementPoints !== undefined);
   const podiumRows = useMemo(() => standings.slice(0, 3), [standings]);
 
@@ -623,8 +623,8 @@ export default function StandingsPage() {
                       )}
                       {chessTable && (
                         <>
-                          <th className="py-3.5 px-3 text-center" title="Buchholz">
-                            BH
+                          <th className="py-3.5 px-3 text-center" title="Buchholz Cut-1">
+                            BC1
                           </th>
                           <th className="py-3.5 px-3 text-center" title="Sonneborn-Berger">
                             SB
@@ -711,7 +711,7 @@ export default function StandingsPage() {
                           {chessTable && (
                             <>
                               <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
-                                {row.buchholz ?? 0}
+                                {row.buchholzCut1 ?? 0}
                               </td>
                               <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
                                 {row.sonnebornBerger ?? 0}

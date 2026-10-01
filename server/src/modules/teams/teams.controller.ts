@@ -16,7 +16,10 @@ import { TeamsService } from './teams.service.js';
 import { ParticipantsService } from './participants.service.js';
 import { SessionGuard } from '../../common/guards/session.guard.js';
 import { PermissionsGuard } from '../../common/guards/permissions.guard.js';
-import { SoleAdminGuard } from '../../common/guards/sole-admin.guard.js';
+import {
+  StrictSoleAdminGuard,
+  isSoleAdmin,
+} from '../../common/guards/sole-admin.guard.js';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 import {
   CreateInstituteDto,
@@ -152,6 +155,7 @@ export class TeamsController {
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('participant.view')
   async getParticipants(
+    @Req() req: Request,
     @Query('eventId') eventId?: string,
     @Query('instituteId') instituteId?: string,
     @Query('category') category?: string,
@@ -164,18 +168,25 @@ export class TeamsController {
         : isCheckedIn === 'false'
           ? false
           : undefined;
-    return this.participantsService.getParticipants({
-      eventId,
-      instituteId,
-      category,
-      isCheckedIn: checkedInBool,
-      query,
-    });
+    return this.participantsService.getParticipants(
+      {
+        eventId,
+        instituteId,
+        category,
+        isCheckedIn: checkedInBool,
+        query,
+      },
+      isSoleAdmin((req as any).user),
+    );
   }
 
-  /** Walk-in (gate-registered) visitors with their full record and photos. */
+  /**
+   * Walk-in (gate-registered) visitors with their full record and photos.
+   * Locked to the sole-admin account: it exposes visitors' photographs, ID
+   * pictures and phone numbers, which other participant.view holders must not see.
+   */
   @Get('participants/walk-ins')
-  @UseGuards(SessionGuard, PermissionsGuard)
+  @UseGuards(SessionGuard, PermissionsGuard, StrictSoleAdminGuard)
   @RequirePermissions('participant.view')
   async getWalkIns(
     @Query('query') query?: string,
@@ -187,8 +198,11 @@ export class TeamsController {
   @Get('participants/:id')
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('participant.view')
-  async getParticipantById(@Param('id') id: string) {
-    return this.participantsService.getParticipantById(id);
+  async getParticipantById(@Param('id') id: string, @Req() req: Request) {
+    return this.participantsService.getParticipantById(
+      id,
+      isSoleAdmin((req as any).user),
+    );
   }
 
   @Post('participants')
@@ -214,7 +228,7 @@ export class TeamsController {
    * top of participant.update, and written to the audit log.
    */
   @Delete('participants/:id')
-  @UseGuards(SessionGuard, PermissionsGuard, SoleAdminGuard)
+  @UseGuards(SessionGuard, PermissionsGuard, StrictSoleAdminGuard)
   @RequirePermissions('participant.update')
   async deleteParticipant(@Param('id') id: string, @Req() req: Request) {
     return this.participantsService.deleteParticipant(id, (req as any).user.id);

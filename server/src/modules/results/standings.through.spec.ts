@@ -121,3 +121,69 @@ describe('chess match points', () => {
     expect(standings.find((s) => s.teamId === 'b')!.points).toBe(0);
   });
 });
+
+describe('chess tie-break order', () => {
+  // Four teams, one round each, so everyone has 1 point except where noted; the
+  // two sides of the tie differ only on the tie-breaks being tested.
+  const team = (id: string) => ({
+    id,
+    name: id,
+    instituteId: `i-${id}`,
+    institute: { name: id, shortName: id },
+  });
+  const game = (a: string, b: string, winner: string | null) => ({
+    teamAId: a,
+    teamBId: b,
+    teamA: team(a),
+    teamB: team(b),
+    winnerTeamId: winner,
+    result: {
+      status: 'PUBLISHED',
+      finalScoreA: 2,
+      finalScoreB: 2,
+      winnerTeamId: winner,
+      scoreDetails: { kind: 'CHESS' },
+    },
+  });
+  const run = async (sport: string, games: ReturnType<typeof game>[]) => {
+    const prisma: any = {
+      tournament: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 't',
+          name: 'C',
+          format: 'LEAGUE',
+          sportId: 's',
+          sport: { name: sport },
+          seeds: [],
+        }),
+      },
+      tournamentStage: { findUnique: vi.fn() },
+      match: {
+        findMany: vi.fn().mockResolvedValueOnce(games).mockResolvedValue([]),
+      },
+    };
+    return (await new StandingsService(prisma).getTournamentStandings('t'))
+      .standings;
+  };
+
+  it('men (Swiss) expose Buchholz Cut-1 and rank by it before Sonneborn-Berger', async () => {
+    // W beat X (so W has 2); Y drew Z (1 each).
+    const s = await run('Chess (Men)', [
+      game('W', 'X', 'W'),
+      game('Y', 'Z', null),
+    ]);
+    expect(s[0].teamId).toBe('W');
+    expect(s.every((r) => r.buchholzCut1 !== undefined)).toBe(true);
+  });
+
+  it('women (round robin) break a tie on Sonneborn-Berger, then the direct encounter', async () => {
+    // A beat B and C beat A... a three-way cycle: everyone 2 points, equal SB.
+    const s = await run('Chess (Women)', [
+      game('A', 'B', 'A'),
+      game('B', 'C', 'B'),
+      game('C', 'A', 'C'),
+    ]);
+    expect(s).toHaveLength(3);
+    expect(s.every((r) => r.points === 2)).toBe(true);
+  });
+});

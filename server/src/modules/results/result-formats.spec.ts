@@ -583,6 +583,60 @@ describe('LOBBY (Free Fire / BGMI)', () => {
   });
 });
 
+describe('LOBBY positions are calculated from the points', () => {
+  const lctx: FormatContext = {
+    teamAId: null,
+    teamBId: null,
+    knockout: false,
+    fieldTeams: new Map([
+      ['A', { name: 'A' }],
+      ['B', { name: 'B' }],
+      ['C', { name: 'C' }],
+    ]),
+  };
+  const e = (teamId: string, pp: number, kp: number, rank?: number) => ({
+    teamId,
+    placementPoints: pp,
+    killPoints: kp,
+    kills: kp,
+    ...(rank ? { rank } : {}),
+  });
+  it('ranks by total and ignores any position the client sends', () => {
+    const r = buildResult(
+      'LOBBY',
+      { entries: [e('A', 4, 2, 1), e('B', 12, 8, 3), e('C', 6, 3, 2)] },
+      { ...lctx, label: 'Free Fire - Game 1' },
+    );
+    const entries = (r.scoreDetails as any).entries;
+    expect(entries.map((x: any) => [x.teamId, x.rank, x.points])).toEqual([
+      ['B', 1, 20],
+      ['C', 2, 9],
+      ['A', 3, 6],
+    ]);
+    expect(r.winnerTeamId).toBe('B');
+  });
+  it('splits a tie by kill points in Free Fire but placement points in BGMI, and shares a dead heat', () => {
+    const tie = [e('A', 10, 5), e('B', 8, 7), e('C', 8, 7)]; // A and B/C all total 15
+    const ff = (
+      buildResult(
+        'LOBBY',
+        { entries: tie },
+        { ...lctx, label: 'Free Fire - Game 2' },
+      ).scoreDetails as any
+    ).entries;
+    expect(ff.map((x: any) => x.teamId).slice(0, 1)).toEqual(['B']); // more kill points than A
+    const bgmi = (
+      buildResult(
+        'LOBBY',
+        { entries: tie },
+        { ...lctx, label: 'BGMI - Game 2' },
+      ).scoreDetails as any
+    ).entries;
+    expect(bgmi[0].teamId).toBe('A'); // more placement points
+    expect(bgmi.map((x: any) => x.rank)).toEqual([1, 2, 2]); // B and C level: shared 2nd
+  });
+});
+
 describe('SCORE', () => {
   it('never lets a must-decide match (Valorant) end level', () => {
     expect(() =>

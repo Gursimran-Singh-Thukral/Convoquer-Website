@@ -34,14 +34,10 @@ Teams level on total points are separated by — Free Fire: **wins → kill poin
 
 ## Chess standings
 
-Points are 2 / 1 / 0. Tie-breaks after match points — Men (5-round Swiss): **Sonneborn–Berger**, then
-the **direct encounter**. Women (round robin): **Buchholz**, then **Sonneborn–Berger**. Swiss byes
-score a win but are not an opponent. Badminton, table tennis and volleyball tables also break ties on
-rally-point difference after set/game difference.
-
-> The printed chess fixture PDFs list these the other way round (Swiss: Buchholz Cut-1 then
-> Sonneborn–Berger; round robin: Sonneborn–Berger then direct encounter). The app follows the latest
-> instruction. To change it, edit the `order` in `StandingsService` (`standings.service.ts`).
+Points are 2 / 1 / 0. Tie-breaks after match points — Men (5-round Swiss): **Buchholz Cut-1** (opponents'
+points without the lowest), then **Sonneborn–Berger**. Women (round robin): **Sonneborn–Berger**, then the
+**direct encounter**. Swiss byes score a win but are not an opponent. Badminton, table tennis and volleyball
+tables also break ties on rally-point difference after set/game difference.
 
 ## Men's chess Swiss
 

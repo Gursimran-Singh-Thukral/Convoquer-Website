@@ -6,6 +6,7 @@ import { Navbar } from '@/components/Navbar';
 import { LiveTickerRibbon } from '@/components/LiveTickerRibbon';
 import { Footer } from '@/components/Footer';
 import { apiGet, teamCodeFromName, type Match } from '@/lib/api';
+import { eventSubtitle, eventTitle, isTeamless } from '@/lib/matchDisplay';
 
 interface MatchItem {
   id: string;
@@ -20,6 +21,8 @@ interface MatchItem {
   teamA: { name: string; code: string; seed?: string; score?: string };
   teamB: { name: string; code: string; seed?: string; score?: string };
   referee: string;
+  /** Set for one-go events (athletics, E-Sports lobbies): shown instead of two teams. */
+  event?: { title: string; subtitle: string };
 }
 
 function formatClockTime(iso: string): string {
@@ -105,6 +108,9 @@ function mapMatchToItem(m: Match): MatchItem {
       code: teamCodeFromName(m.teamB?.institute?.shortName || m.teamB?.name),
       score: m.teamBScore !== null && m.teamBScore !== undefined ? String(m.teamBScore) : undefined,
     },
+    event: isTeamless(m)
+      ? { title: eventTitle(m), subtitle: eventSubtitle(m.tournament?.sport?.name) }
+      : undefined,
     referee:
       m.officials
         ?.map((o) => o.user?.name)
@@ -170,7 +176,11 @@ export default function SchedulePage() {
       cells: slots.map((slot) =>
         filteredMatches
           .filter((m) => m.venue === venue && m.timeSlot === slot)
-          .map((m) => `${m.sport}: ${m.teamA.code} vs ${m.teamB.code}`)
+          .map((m) =>
+            m.event
+              ? `${m.sport}: ${m.event.title}`
+              : `${m.sport}: ${m.teamA.code} vs ${m.teamB.code}`,
+          )
           .join(', '),
       ),
     }));
@@ -390,45 +400,58 @@ export default function SchedulePage() {
                           </div>
 
                           {/* Teams & Scoreboard */}
-                          <div className="bg-[#0B0A0D] border border-white/5 rounded-lg p-3.5 space-y-2 mb-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2.5">
-                                <span className="px-1.5 py-0.5 rounded bg-[#701A2B] text-[#FFD700] text-xs font-mono font-bold">
-                                  {m.teamA.code}
-                                </span>
-                                <span className="font-display font-bold text-white text-base">
-                                  {m.teamA.name}
-                                </span>
-                                {m.teamA.seed && (
-                                  <span className="text-[10px] font-mono text-[#FFD700]">
-                                    ({m.teamA.seed})
-                                  </span>
-                                )}
-                              </div>
-                              <span className="font-mono font-bold text-base text-[#FFD700]">
-                                {m.teamA.score || '-'}
-                              </span>
+                          {m.event ? (
+                            <div className="bg-[#0B0A0D] border border-white/5 rounded-lg p-3.5 mb-3">
+                              <p className="font-display font-bold text-white text-base leading-snug">
+                                {m.event.title}
+                              </p>
+                              <p className="text-[11px] font-mono text-gray-400 mt-1">
+                                {m.event.subtitle}
+                              </p>
                             </div>
+                          ) : (
+                            <>
+                              <div className="bg-[#0B0A0D] border border-white/5 rounded-lg p-3.5 space-y-2 mb-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="px-1.5 py-0.5 rounded bg-[#701A2B] text-[#FFD700] text-xs font-mono font-bold">
+                                      {m.teamA.code}
+                                    </span>
+                                    <span className="font-display font-bold text-white text-base">
+                                      {m.teamA.name}
+                                    </span>
+                                    {m.teamA.seed && (
+                                      <span className="text-[10px] font-mono text-[#FFD700]">
+                                        ({m.teamA.seed})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="font-mono font-bold text-base text-[#FFD700]">
+                                    {m.teamA.score || '-'}
+                                  </span>
+                                </div>
 
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2.5">
-                                <span className="px-1.5 py-0.5 rounded bg-[#1C191E] text-gray-300 text-xs font-mono font-bold">
-                                  {m.teamB.code}
-                                </span>
-                                <span className="font-display font-bold text-white text-base">
-                                  {m.teamB.name}
-                                </span>
-                                {m.teamB.seed && (
-                                  <span className="text-[10px] font-mono text-[#FFD700]">
-                                    ({m.teamB.seed})
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="px-1.5 py-0.5 rounded bg-[#1C191E] text-gray-300 text-xs font-mono font-bold">
+                                      {m.teamB.code}
+                                    </span>
+                                    <span className="font-display font-bold text-white text-base">
+                                      {m.teamB.name}
+                                    </span>
+                                    {m.teamB.seed && (
+                                      <span className="text-[10px] font-mono text-[#FFD700]">
+                                        ({m.teamB.seed})
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="font-mono font-bold text-base text-[#FFD700]">
+                                    {m.teamB.score || '-'}
                                   </span>
-                                )}
+                                </div>
                               </div>
-                              <span className="font-mono font-bold text-base text-[#FFD700]">
-                                {m.teamB.score || '-'}
-                              </span>
-                            </div>
-                          </div>
+                            </>
+                          )}
 
                           <div className="text-[11px] font-mono text-gray-400 space-y-1">
                             <div className="flex items-center gap-1.5">

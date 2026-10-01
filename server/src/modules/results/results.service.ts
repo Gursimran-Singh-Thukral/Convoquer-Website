@@ -718,8 +718,8 @@ export class ResultsService {
       sport.id,
       sport.eventId,
     );
-    if (dto.game !== 'Free Fire' && dto.game !== 'BGMI')
-      throw new BadRequestException('Game must be Free Fire or BGMI');
+    if (!['Free Fire', 'BGMI', 'Valorant'].includes(dto.game))
+      throw new BadRequestException('Game must be Free Fire, BGMI or Valorant');
     const institute = await this.prisma.institute.findUnique({
       where: { id: dto.instituteId },
     });
