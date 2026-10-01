@@ -42,7 +42,7 @@ describe('ResultsService: sport-specific final results', () => {
   });
 
   it('derives sets won and the winner from the set scores, ignoring client totals', async () => {
-    prisma.match.findUnique.mockResolvedValue(match('Badminton (Women)'));
+    prisma.match.findUnique.mockResolvedValue(match('Volleyball (Women)'));
     await service.submitResult(
       'm1',
       {
@@ -51,21 +51,22 @@ describe('ResultsService: sport-specific final results', () => {
         scoreDetails: {
           kind: 'SETS',
           sets: [
-            { a: 21, b: 10 },
-            { a: 21, b: 12 },
+            { a: 25, b: 10 },
+            { a: 25, b: 12 },
+            { a: 25, b: 9 },
           ],
         },
       },
       'u1',
     );
     expect(prisma.result.upsert.mock.calls[0][0].create).toMatchObject({
-      finalScoreA: 2,
+      finalScoreA: 3,
       finalScoreB: 0,
       winnerTeamId: 'A',
-      scoreDetails: { kind: 'SETS', bestOf: 3 },
+      scoreDetails: { kind: 'SETS', bestOf: 5 },
     });
     expect(prisma.match.update.mock.calls[0][0].data).toMatchObject({
-      teamAScore: 2,
+      teamAScore: 3,
       teamBScore: 0,
       winnerTeamId: 'A',
       status: 'COMPLETED',

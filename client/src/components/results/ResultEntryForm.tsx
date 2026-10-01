@@ -4,6 +4,8 @@ import { apiAuthedGet, apiPost, type Institute, type Match, type Team } from '@/
 import {
   dash,
   formatHalf,
+  gamesConfigFor,
+  type GamesConfig,
   isRankedKind,
   resultKindFor,
   suggestedPlacementPoints,
@@ -192,102 +194,118 @@ function evalGame(g: SetRow[]) {
   return { level, played, a, b, decided: a === 2 || b === 2 };
 }
 
-function GamesForm({ names, emit }: { names: SideNames; emit: (p: Payload | null) => void }) {
-  const [games, setGames] = useState<SetRow[][]>(() => Array.from({ length: 5 }, blankSets));
-  const [who, setWho] = useState(() => Array.from({ length: 5 }, () => ({ a: '', b: '' })));
-  useEffect(() => {
-    const out: Payload[] = [];
+function GamesForm({
+  names,
+  emit,
+  cfg,
+}: {
+  names: SideNames;
+  emit: (p: Payload | null) => void;
+  cfg: GamesConfig;
+}) {
+  const total = cfg.count;
+  const need = (total + 1) / 2; // majority
+  const unit = cfg.unit;
+  const plural = unit === 'Match' ? 'matches' : 'games';
+  const [games, setGames] = useState<SetRow[][]>(() => Array.from({ length: total }, blankSets));
+  const [who, setWho] = useState(() => Array.from({ length: total }, () => ({ a: '', b: '' })));
+
+  // Which games are in play and the running tally. A tie that stops at a
+  // majority hides later games once decided; "play all" ties show every game.
+  const walk = (all: SetRow[][]) => {
     let gA = 0;
     let gB = 0;
-    for (let i = 0; i < 5 && gA < 3 && gB < 3; i++) {
+    const rows: number[] = [];
+    for (let i = 0; i < total; i++) {
+      if (!cfg.playAll && (gA === need || gB === need)) break;
+      rows.push(i);
+      const g = evalGame(all[i]);
+      if (g.decided) {
+        if (g.a > g.b) gA++;
+        else gB++;
+      } else if (!cfg.playAll) break;
+    }
+    return { rows, gA, gB };
+  };
+  useEffect(() => {
+    const out: Payload[] = [];
+    for (const i of walk(games).rows) {
       const g = evalGame(games[i]);
-      if (!g.played.length) break;
+      if (!g.played.length) {
+        if (cfg.playAll) continue;
+        break;
+      }
       out.push({
         sets: g.played.map((x) => ({ a: n(x.a), b: n(x.b) })),
         ...(who[i].a.trim() ? { playerA: who[i].a.trim() } : {}),
         ...(who[i].b.trim() ? { playerB: who[i].b.trim() } : {}),
       });
-      if (!g.decided) break;
-      if (g.a > g.b) gA++;
-      else gB++;
     }
     emit(out.length ? { kind: 'GAMES', games: out } : null);
-  }, [games, who, emit]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [games, who, emit, total]);
 
-  let gA = 0;
-  let gB = 0;
-  const blocks: ReactNode[] = [];
-  for (let i = 0; i < 5 && gA < 3 && gB < 3; i++) {
-    const g = evalGame(games[i]);
-    const shown = g.level ? games[i] : games[i].slice(0, 2);
-    blocks.push(
-      <fieldset key={i} className="space-y-2 rounded border border-white/10 p-3">
-        <legend className="px-1 font-bold text-[#FFD700]">
-          Game {i + 1}
-          {g.decided ? ` — ${g.a}${dash}${g.b} sets` : ''}
-        </legend>
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            aria-label={`Game ${i + 1} team A players`}
-            placeholder={`${names.a} player(s)`}
-            className={box}
-            maxLength={80}
-            value={who[i].a}
-            onChange={(e) =>
-              setWho((w) => w.map((x, j) => (j === i ? { ...x, a: e.target.value } : x)))
-            }
-          />
-          <input
-            aria-label={`Game ${i + 1} team B players`}
-            placeholder={`${names.b} player(s)`}
-            className={box}
-            maxLength={80}
-            value={who[i].b}
-            onChange={(e) =>
-              setWho((w) => w.map((x, j) => (j === i ? { ...x, b: e.target.value } : x)))
-            }
-          />
-        </div>
-        {shown.map((s, k) => (
-          <PairRow
-            key={k}
-            label={k === 2 ? 'Set 3 (decider)' : `Set ${k + 1}`}
-            a={s.a}
-            b={s.b}
-            max={99}
-            ariaPrefix={`Game ${i + 1} `}
-            onA={(v) =>
-              setGames((all) =>
-                all.map((gm, j) =>
-                  j === i ? gm.map((x, m) => (m === k ? { ...x, a: v } : x)) : gm,
-                ),
-              )
-            }
-            onB={(v) =>
-              setGames((all) =>
-                all.map((gm, j) =>
-                  j === i ? gm.map((x, m) => (m === k ? { ...x, b: v } : x)) : gm,
-                ),
-              )
-            }
-          />
-        ))}
-      </fieldset>,
+  const { rows, gA, gB } = walk(games);
+  const setAt = (i: number, k: number, side: 'a' | 'b', v: string) =>
+    setGames((all) =>
+      all.map((gm, j) => (j === i ? gm.map((x, m) => (m === k ? { ...x, [side]: v } : x)) : gm)),
     );
-    if (!g.decided) break;
-    if (g.a > g.b) gA++;
-    else gB++;
-  }
   return (
     <div className="space-y-3">
       <Legend>
-        Best of 5 games. Each game is best of 3 sets: enter the set scores. The tie ends as soon as
-        one team wins 3 games, so the next game only appears while it is still open.
+        {cfg.playAll
+          ? `${total} ${plural} are played, each best of 3 sets to ${cfg.setTo ?? 21} points (win by 2). Enter every ${unit.toLowerCase()}: the team that wins more ${plural} wins the tie.`
+          : `Best of ${total} ${plural}. Each ${unit.toLowerCase()} is best of 3 sets: enter the set scores. The tie ends as soon as one team wins ${need} ${plural}, so the next ${unit.toLowerCase()} only appears while it is still open.`}
       </Legend>
       <Heads names={names} />
-      {blocks}
+      {rows.map((i) => {
+        const g = evalGame(games[i]);
+        const shown = g.level ? games[i] : games[i].slice(0, 2);
+        return (
+          <fieldset key={i} className="space-y-2 rounded border border-white/10 p-3">
+            <legend className="px-1 font-bold text-[#FFD700]">
+              {unit} {i + 1}
+              {g.decided ? ` — ${g.a}${dash}${g.b} sets` : ''}
+            </legend>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                aria-label={`${unit} ${i + 1} team A players`}
+                placeholder={`${names.a} player(s)`}
+                className={box}
+                maxLength={80}
+                value={who[i].a}
+                onChange={(e) =>
+                  setWho((w) => w.map((x, j) => (j === i ? { ...x, a: e.target.value } : x)))
+                }
+              />
+              <input
+                aria-label={`${unit} ${i + 1} team B players`}
+                placeholder={`${names.b} player(s)`}
+                className={box}
+                maxLength={80}
+                value={who[i].b}
+                onChange={(e) =>
+                  setWho((w) => w.map((x, j) => (j === i ? { ...x, b: e.target.value } : x)))
+                }
+              />
+            </div>
+            {shown.map((st, k) => (
+              <PairRow
+                key={k}
+                label={k === 2 ? 'Set 3 (decider)' : `Set ${k + 1}`}
+                a={st.a}
+                b={st.b}
+                max={99}
+                ariaPrefix={`${unit} ${i + 1} `}
+                onA={(v) => setAt(i, k, 'a', v)}
+                onB={(v) => setAt(i, k, 'b', v)}
+              />
+            ))}
+          </fieldset>
+        );
+      })}
       <p className="text-sm font-bold text-[#FFD700]">
-        Games: {gA}
+        {unit === 'Match' ? 'Matches' : 'Games'}: {gA}
         {dash}
         {gB}
       </p>
@@ -1214,7 +1232,19 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
           bestOf={/volleyball/i.test(match.tournament?.sport?.name ?? '') ? 5 : 3}
         />
       )}
-      {kind === 'GAMES' && <GamesForm names={names} emit={setPayload} />}
+      {kind === 'GAMES' && (
+        <GamesForm
+          names={names}
+          emit={setPayload}
+          cfg={
+            gamesConfigFor(match.tournament?.sport?.name) ?? {
+              count: 5,
+              playAll: false,
+              unit: 'Game',
+            }
+          }
+        />
+      )}
       {kind === 'QUARTERS' && <QuartersForm names={names} emit={setPayload} />}
       {kind === 'CRICKET' && (
         <CricketForm match={match} names={names} emit={setPayload} setWinner={setWinner} />

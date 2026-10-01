@@ -175,6 +175,7 @@ const CHESS_FIELD: Record<string, string[]> = {
     'AIIMS Jammu',
     'IIM Amritsar',
     'Central University',
+    'SMVDU',
   ],
 };
 

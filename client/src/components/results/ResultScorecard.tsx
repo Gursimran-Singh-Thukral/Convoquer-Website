@@ -231,7 +231,9 @@ function Sets({ d, p }: { d: SetsDetails; p: ResultScorecardProps }) {
 
 function Games({ d, p }: { d: GamesDetails; p: ResultScorecardProps }) {
   const w = sideOf(p);
-  const cols = d.games.map((_, i) => `Game ${i + 1}`);
+  const unit = d.unit ?? 'Game';
+  const plural = unit === 'Match' ? 'Matches' : 'Games';
+  const cols = d.games.map((_, i) => `${unit} ${i + 1}`);
   const cell = (side: 'setsA' | 'setsB') =>
     d.games.map((g, i) => (
       <span
@@ -255,7 +257,7 @@ function Games({ d, p }: { d: GamesDetails; p: ResultScorecardProps }) {
             cells: cell('setsA'),
             total: p.scoreA ?? 0,
             winner: w === 'A',
-            totalLabel: 'Games',
+            totalLabel: plural,
           },
           {
             key: 'b',
@@ -264,7 +266,7 @@ function Games({ d, p }: { d: GamesDetails; p: ResultScorecardProps }) {
             cells: cell('setsB'),
             total: p.scoreB ?? 0,
             winner: w === 'B',
-            totalLabel: 'Games',
+            totalLabel: plural,
           },
         ]}
       />
@@ -273,8 +275,8 @@ function Games({ d, p }: { d: GamesDetails; p: ResultScorecardProps }) {
           const gw = g.setsA > g.setsB ? p.teamA : p.teamB;
           return (
             <li key={i} className="flex flex-wrap items-baseline gap-x-2">
-              <span className="w-14 font-semibold uppercase tracking-wider text-zinc-300">
-                Game {i + 1}
+              <span className="w-16 font-semibold uppercase tracking-wider text-zinc-300">
+                {unit} {i + 1}
               </span>
               <span className="font-mono text-zinc-200">
                 {g.sets.map((x) => `${x.a}${dash}${x.b}`).join(', ')}
@@ -292,7 +294,10 @@ function Games({ d, p }: { d: GamesDetails; p: ResultScorecardProps }) {
       <ResultLine>
         {code(winner)} won {w === 'B' ? p.scoreB : p.scoreA}
         {dash}
-        {w === 'B' ? p.scoreA : p.scoreB} (best of 5 games)
+        {w === 'B' ? p.scoreA : p.scoreB}{' '}
+        {d.playAll
+          ? `(${d.bestOf ?? d.games.length} ${plural.toLowerCase()} played)`
+          : `(best of ${d.bestOf ?? 5} ${plural.toLowerCase()})`}
       </ResultLine>
     </>
   );

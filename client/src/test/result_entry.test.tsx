@@ -35,28 +35,53 @@ function capture() {
 const type = (label: string, value: string) =>
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
-it('records a badminton match set by set and only asks for set 3 at one set all', async () => {
+it('records women’s badminton as best of 3 games and stops at 2 games', async () => {
   const bodies = capture();
   render(<ResultEntryForm match={fixture('Badminton (Women)')} onSaved={vi.fn()} />);
-  expect(screen.queryByLabelText('Set 3 (decider) team A')).not.toBeInTheDocument();
-  type('Set 1 team A', '21');
-  type('Set 1 team B', '15');
-  type('Set 2 team A', '18');
-  type('Set 2 team B', '21');
-  expect(screen.getByLabelText('Set 3 (decider) team A')).toBeInTheDocument();
-  type('Set 3 (decider) team A', '21');
-  type('Set 3 (decider) team B', '19');
-  expect(screen.getByText(/Sets: 2–1/)).toBeInTheDocument();
+  expect(screen.queryByLabelText('Game 2 Set 1 team A')).not.toBeInTheDocument();
+  type('Game 1 Set 1 team A', '21');
+  type('Game 1 Set 1 team B', '15');
+  type('Game 1 Set 2 team A', '18');
+  type('Game 1 Set 2 team B', '21');
+  type('Game 1 Set 3 (decider) team A', '21');
+  type('Game 1 Set 3 (decider) team B', '19');
+  type('Game 2 Set 1 team A', '21');
+  type('Game 2 Set 1 team B', '10');
+  type('Game 2 Set 2 team A', '21');
+  type('Game 2 Set 2 team B', '12');
+  expect(screen.queryByLabelText('Game 3 Set 1 team A')).not.toBeInTheDocument();
+  expect(screen.getByText(/Games: 2–0/)).toBeInTheDocument();
   fireEvent.submit(screen.getByRole('form', { name: 'Enter final result' }));
-  await screen.findByText(/submitted for approval/);
-  expect(bodies[0].scoreDetails).toEqual({
-    kind: 'SETS',
-    sets: [
-      { a: 21, b: 15 },
-      { a: 18, b: 21 },
-      { a: 21, b: 19 },
-    ],
-  });
+  await waitFor(() => expect(bodies).toHaveLength(1));
+  expect((bodies[0].scoreDetails as { kind: string; games: unknown[] }).games).toHaveLength(2);
+});
+
+it('table tennis girls: 3 matches shown up front, each set to 11', async () => {
+  const bodies = capture();
+  render(<ResultEntryForm match={fixture('Table Tennis (Women)')} onSaved={vi.fn()} />);
+  for (const m of [1, 2, 3])
+    expect(screen.getByLabelText(`Match ${m} Set 1 team A`)).toBeInTheDocument();
+  expect(screen.queryByLabelText('Match 4 Set 1 team A')).not.toBeInTheDocument();
+  const win: [string, string][] = [
+    ['11', '7'],
+    ['11', '9'],
+  ];
+  [1, 2, 3].forEach((m) =>
+    win.forEach(([a, b], i) => {
+      type(`Match ${m} Set ${i + 1} team A`, a);
+      type(`Match ${m} Set ${i + 1} team B`, b);
+    }),
+  );
+  expect(screen.getByText(/Matches: 3–0/)).toBeInTheDocument();
+  fireEvent.submit(screen.getByRole('form', { name: 'Enter final result' }));
+  await waitFor(() => expect(bodies).toHaveLength(1));
+  expect((bodies[0].scoreDetails as { games: unknown[] }).games).toHaveLength(3);
+});
+
+it('table tennis boys: 5 matches', () => {
+  render(<ResultEntryForm match={fixture('Table Tennis (Men)')} onSaved={vi.fn()} />);
+  expect(screen.getByLabelText('Match 5 Set 1 team A')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Match 6 Set 1 team A')).not.toBeInTheDocument();
 });
 
 it('records men’s badminton as best of 5 games of 3 sets and stops at 3 games', async () => {

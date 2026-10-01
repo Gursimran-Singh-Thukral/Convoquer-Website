@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BadRequestException } from '@nestjs/common';
 import {
   buildResult,
+  gamesConfigFor,
   resultKindFor,
   type FormatContext,
 } from './result-formats.js';
@@ -12,8 +13,9 @@ const ko: FormatContext = { ...ctx, knockout: true };
 describe('resultKindFor', () => {
   it('maps sports to their scorecard', () => {
     expect(resultKindFor('Badminton (Men)')).toBe('GAMES');
-    expect(resultKindFor('Badminton (Women)')).toBe('SETS');
-    expect(resultKindFor('Table Tennis (Women)')).toBe('SETS');
+    expect(resultKindFor('Badminton (Women)')).toBe('GAMES');
+    expect(resultKindFor('Table Tennis (Women)')).toBe('GAMES');
+    expect(resultKindFor('Table Tennis (Men)')).toBe('GAMES');
     expect(resultKindFor('Volleyball (Men)')).toBe('SETS');
     expect(resultKindFor('Basketball (Women)')).toBe('QUARTERS');
     expect(resultKindFor('Cricket')).toBe('CRICKET');
@@ -174,6 +176,78 @@ describe('GAMES (badminton men, best of 5 games of 3 sets)', () => {
     expect(() => buildResult('GAMES', { games: [won, won] }, ctx)).toThrow(
       /3 to 5 games/,
     );
+  });
+});
+
+describe('GAMES (badminton women best of 3, table tennis play-all)', () => {
+  const game = (...sets: [number, number][]) => ({
+    sets: sets.map(([a, b]) => ({ a, b })),
+  });
+  const won = game([21, 10], [21, 12]);
+  const lost = game([10, 21], [12, 21]);
+  it('badminton women: best of 3 games, stopping at 2', () => {
+    const cfg = gamesConfigFor('Badminton (Women)')!;
+    expect(cfg).toMatchObject({ count: 3, playAll: false });
+    const w: FormatContext = { ...ctx, games: cfg };
+    expect(buildResult('GAMES', { games: [won, won] }, w).winnerTeamId).toBe(
+      'A',
+    );
+    expect(
+      buildResult('GAMES', { games: [won, lost, won] }, w).finalScoreA,
+    ).toBe(2);
+    expect(() => buildResult('GAMES', { games: [won, won, won] }, w)).toThrow(
+      /already decided/,
+    );
+    expect(() => buildResult('GAMES', { games: [won, lost] }, w)).toThrow(
+      /2 to 3 games|next game/,
+    );
+  });
+  const t11 = (a: number, b: number) => ({ a, b });
+  const tt = (...sets: [number, number][]) => ({
+    sets: sets.map(([a, b]) => t11(a, b)),
+  });
+  it('table tennis boys: all 5 matches, each best of 3 sets to 11', () => {
+    const cfg = gamesConfigFor('Table Tennis (Men)')!;
+    expect(cfg).toMatchObject({
+      count: 5,
+      playAll: true,
+      setTo: 11,
+      unit: 'Match',
+    });
+    const m: FormatContext = { ...ctx, games: cfg };
+    const a = tt([11, 5], [11, 9]);
+    const b = tt([4, 11], [9, 11]);
+    const r = buildResult('GAMES', { games: [a, a, b, a, b] }, m);
+    expect([r.finalScoreA, r.finalScoreB, r.winnerTeamId]).toEqual([3, 2, 'A']);
+    expect(r.scoreDetails).toMatchObject({
+      playAll: true,
+      unit: 'Match',
+      bestOf: 5,
+    });
+    // a decided tie still needs the remaining matches recorded
+    expect(() => buildResult('GAMES', { games: [a, a, a] }, m)).toThrow(
+      /all 5 matches/,
+    );
+  });
+  it('table tennis girls: all 3 matches; sets validated to 11 win-by-2', () => {
+    const m: FormatContext = {
+      ...ctx,
+      games: gamesConfigFor('Table Tennis (Women)')!,
+    };
+    const a = tt([11, 7], [12, 10]);
+    const b = tt([5, 11], [8, 11]);
+    expect(buildResult('GAMES', { games: [a, b, a] }, m).winnerTeamId).toBe(
+      'A',
+    );
+    expect(() =>
+      buildResult('GAMES', { games: [tt([11, 10], [11, 5]), b, a] }, m),
+    ).toThrow(/won by 2/);
+    expect(() =>
+      buildResult('GAMES', { games: [tt([10, 5], [11, 5]), b, a] }, m),
+    ).toThrow(/played to 11/);
+    expect(() =>
+      buildResult('GAMES', { games: [tt([13, 9], [11, 5]), b, a] }, m),
+    ).toThrow(/won by 2/);
   });
 });
 

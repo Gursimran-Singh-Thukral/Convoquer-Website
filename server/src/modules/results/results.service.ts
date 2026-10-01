@@ -1,6 +1,7 @@
 import { advanceBracket } from '../fixtures/bracket.js';
 import {
   buildResult,
+  gamesConfigFor,
   isRankedKind,
   resultKindFor,
   type BuiltResult,
@@ -132,6 +133,7 @@ export class ResultsService {
         teamBId: match.teamBId,
         knockout: !!match.nextMatchId,
         bestOf: /volleyball/i.test(match.tournament?.sport?.name ?? '') ? 5 : 3,
+        games: gamesConfigFor(match.tournament?.sport?.name) ?? undefined,
         mustDecide: /valorant/i.test(match.matchNumber ?? ''),
         label: match.matchNumber,
         fieldTeams,

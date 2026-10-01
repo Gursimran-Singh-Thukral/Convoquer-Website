@@ -10,8 +10,8 @@ import { BadRequestException } from '@nestjs/common';
  * kind      sports                         headline score (finalScoreA/B)
  * SETS      Badminton (Women), Table       sets won (best of 3)
  *           Tennis, Volleyball
- * GAMES     Badminton (Men)                games won (best of 5 games,
- *                                          each game best of 3 sets)
+ * GAMES     Badminton, Table Tennis        games/matches won in the team tie
+ *                                          (each game best of 3 sets)
  * QUARTERS  Basketball                     total points (4 quarters + OT)
  * CRICKET   Cricket                        runs (20 overs a side)
  * FOOTBALL  Football                       goals (regulation + extra time)
@@ -32,6 +32,34 @@ export type ResultKind =
   | 'LOBBY'
   | 'SCORE';
 
+/**
+ * Team ties made of individual games, each game best of 3 sets:
+ *  - Badminton (Men): best of 5 games; (Women): best of 3 games — the tie ends
+ *    as soon as one side has won a majority.
+ *  - Table Tennis (Men): 5 matches; (Women): 3 matches — every match is played,
+ *    each best of 3 sets to 11 points (win by 2).
+ */
+export interface GamesConfig {
+  count: number;
+  /** Every game is played (table tennis); otherwise the tie stops at a majority. */
+  playAll: boolean;
+  /** Points a set is played to, validated when set (table tennis: 11). */
+  setTo?: number;
+  unit: 'Game' | 'Match';
+}
+
+export function gamesConfigFor(
+  sportName: string | null | undefined,
+): GamesConfig | null {
+  const name = (sportName ?? '').toLowerCase();
+  const women = /women/.test(name);
+  if (/badminton/.test(name))
+    return { count: women ? 3 : 5, playAll: false, unit: 'Game' };
+  if (/table tennis/.test(name))
+    return { count: women ? 3 : 5, playAll: true, setTo: 11, unit: 'Match' };
+  return null;
+}
+
 export interface FormatContext {
   teamAId: string | null;
   teamBId: string | null;
@@ -43,6 +71,8 @@ export interface FormatContext {
   requestedWinnerId?: string | null;
   /** Sets in a SETS match: 3 (default) or 5 for volleyball. */
   bestOf?: number;
+  /** Shape of a GAMES tie (badminton / table tennis). */
+  games?: GamesConfig;
   /** Fixture label, used to tell E-Sports games apart. */
   label?: string | null;
   /** Two-team fixture that can never be drawn (knockouts, Valorant). */
@@ -66,10 +96,9 @@ export function resultKindFor(
   matchLabel?: string | null,
 ): ResultKind {
   const name = (sportName ?? '').toLowerCase();
-  // Men's badminton ties are best of 5 games (each game best of 3 sets).
-  if (/badminton/.test(name) && /\bmen\b/.test(name) && !/women/.test(name))
-    return 'GAMES';
-  if (/badminton|table tennis|volleyball/.test(name)) return 'SETS';
+  // Badminton and table tennis are team ties made of several games/matches.
+  if (gamesConfigFor(name)) return 'GAMES';
+  if (/volleyball/.test(name)) return 'SETS';
   if (/basketball/.test(name)) return 'QUARTERS';
   if (/cricket/.test(name)) return 'CRICKET';
   if (/football/.test(name)) return 'FOOTBALL';
@@ -149,42 +178,68 @@ function buildSets(
 }
 
 // ---------------------------------------------------------------------------
-// GAMES — Badminton (Men): best of 5 games, each game best of 3 sets
+// GAMES — badminton / table tennis ties: several games, each best of 3 sets
 // ---------------------------------------------------------------------------
 function buildGames(
   d: Record<string, unknown>,
   ctx: FormatContext,
 ): BuiltResult {
   requireTeams(ctx);
-  if (!Array.isArray(d.games) || d.games.length < 3 || d.games.length > 5)
-    bad('Enter 3 to 5 games (best of 5)');
+  const cfg: GamesConfig = ctx.games ?? {
+    count: 5,
+    playAll: false,
+    unit: 'Game',
+  };
+  const unit = cfg.unit.toLowerCase();
+  const plural = unit === 'match' ? 'matches' : 'games';
+  const need = (cfg.count + 1) / 2; // majority
+  const min = cfg.playAll ? cfg.count : need;
+  if (
+    !Array.isArray(d.games) ||
+    d.games.length < min ||
+    d.games.length > cfg.count
+  )
+    bad(
+      cfg.playAll
+        ? `Enter all ${cfg.count} ${plural}`
+        : `Enter ${min} to ${cfg.count} ${plural} (best of ${cfg.count})`,
+    );
   let gamesA = 0;
   let gamesB = 0;
   const games = (d.games as unknown[]).map((g, gi) => {
     const n = gi + 1;
-    if (gamesA === 3 || gamesB === 3)
-      bad('The tie was already decided — remove the extra game');
+    const label = `${cfg.unit} ${n}`;
+    if (!cfg.playAll && (gamesA === need || gamesB === need))
+      bad(`The tie was already decided — remove the extra ${unit}`);
     if (
       !isObject(g) ||
       !Array.isArray(g.sets) ||
       g.sets.length < 2 ||
       g.sets.length > 3
     )
-      bad(`Game ${n}: enter the score of 2 or 3 sets (best of 3)`);
+      bad(`${label}: enter the score of 2 or 3 sets (best of 3)`);
     const raw = g as { sets: unknown[]; playerA?: unknown; playerB?: unknown };
     let setsA = 0;
     let setsB = 0;
     const sets = raw.sets.map((s, si) => {
-      const score = pair(s, `Game ${n} set ${si + 1}`, 99);
-      if (score.a === score.b) bad(`Game ${n} set ${si + 1} cannot end level`);
+      const score = pair(s, `${label} set ${si + 1}`, 99);
+      if (score.a === score.b) bad(`${label} set ${si + 1} cannot end level`);
+      if (cfg.setTo) {
+        const hi = Math.max(score.a, score.b);
+        const lead = hi - Math.min(score.a, score.b);
+        if (hi < cfg.setTo || lead < 2 || (hi > cfg.setTo && lead !== 2))
+          bad(
+            `${label} set ${si + 1}: a set is played to ${cfg.setTo} and won by 2 clear points (11–9, 12–10 …)`,
+          );
+      }
       if (setsA === 2 || setsB === 2)
-        bad(`Game ${n} was already decided — remove the extra set`);
+        bad(`${label} was already decided — remove the extra set`);
       if (score.a > score.b) setsA++;
       else setsB++;
       return score;
     });
     if (setsA < 2 && setsB < 2)
-      bad(`Game ${n}: one side must win 2 sets — add the deciding set`);
+      bad(`${label}: one side must win 2 sets — add the deciding set`);
     if (setsA > setsB) gamesA++;
     else gamesB++;
     const game: Record<string, unknown> = { sets, setsA, setsB };
@@ -194,13 +249,21 @@ function buildGames(
     }
     return game;
   });
-  if (gamesA < 3 && gamesB < 3)
-    bad('Best of 5: one team must win 3 games — add the next game');
+  if (!cfg.playAll && gamesA < need && gamesB < need)
+    bad(
+      `Best of ${cfg.count}: one team must win ${need} ${plural} — add the next ${unit}`,
+    );
   return {
     finalScoreA: gamesA,
     finalScoreB: gamesB,
     winnerTeamId: gamesA > gamesB ? ctx.teamAId : ctx.teamBId,
-    scoreDetails: { kind: 'GAMES', bestOf: 5, games },
+    scoreDetails: {
+      kind: 'GAMES',
+      bestOf: cfg.count,
+      playAll: cfg.playAll,
+      unit: cfg.unit,
+      games,
+    },
   };
 }
 
