@@ -14,7 +14,7 @@
     "test": "npm run test --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky",
+    "prepare": "husky || true",
     "test:rehearsal": "node scripts/tournament-rehearsal.mjs && node scripts/event-operations-rehearsal.mjs",
     "test:rehearsal:access": "node scripts/events-access-rehearsal.mjs"
   },
