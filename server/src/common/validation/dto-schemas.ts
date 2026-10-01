@@ -727,7 +727,7 @@ export const dtoSchemas: Record<
       required: true,
     },
     game: {
-      type: "'Free Fire' | 'BGMI' | 'Valorant'",
+      type: "'Free Fire' | 'BGMI' | 'Valorant' | 'Athletics'",
       required: true,
     },
     squad: {
@@ -1147,6 +1147,12 @@ export const dtoSchemas: Record<
     notes: {
       type: 'string',
       required: false,
+    },
+  },
+  AssignSportDto: {
+    sportId: {
+      type: 'string',
+      required: true,
     },
   },
   AddTeamMemberDto: {

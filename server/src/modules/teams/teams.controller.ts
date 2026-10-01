@@ -22,6 +22,7 @@ import {
 } from '../../common/guards/sole-admin.guard.js';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 import {
+  AssignSportDto,
   CreateInstituteDto,
   UpdateInstituteDto,
   CreateTeamDto,
@@ -210,6 +211,37 @@ export class TeamsController {
   @RequirePermissions('participant.create')
   async createParticipant(@Body() dto: CreateParticipantDto) {
     return this.participantsService.createParticipant(dto);
+  }
+
+  /** Give a participant a sport: adds them to their college's team for it. */
+  @Post('participants/:id/sports')
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermissions('participant.update')
+  async assignSport(
+    @Param('id') id: string,
+    @Body() dto: AssignSportDto,
+    @Req() req: Request,
+  ) {
+    return this.participantsService.assignSport(
+      id,
+      dto.sportId,
+      (req as any).user.id,
+    );
+  }
+
+  @Delete('participants/:id/sports/:teamId')
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermissions('participant.update')
+  async removeFromTeam(
+    @Param('id') id: string,
+    @Param('teamId') teamId: string,
+    @Req() req: Request,
+  ) {
+    return this.participantsService.removeFromTeam(
+      id,
+      teamId,
+      (req as any).user.id,
+    );
   }
 
   @Patch('participants/:id')

@@ -191,6 +191,74 @@ export class ParticipantsService {
     );
   }
 
+  /**
+   * Puts a participant into their college's team for a sport, creating that
+   * team ("<college> <sport>") if it does not exist yet. E-Sports is excluded:
+   * its teams are created by the coordinator on the result form.
+   */
+  async assignSport(participantId: string, sportId: string, userId: string) {
+    const p = await this.prisma.participant.findUnique({
+      where: { id: participantId },
+      include: { institute: true },
+    });
+    if (!p) throw new NotFoundException('Participant not found');
+    const sport = await this.prisma.sport.findUnique({
+      where: { id: sportId },
+    });
+    if (!sport || sport.eventId !== p.eventId)
+      throw new BadRequestException('Choose a sport of this event');
+    if (/e-?sports/i.test(sport.name))
+      throw new BadRequestException(
+        'E-Sports teams are created by the E-Sports coordinator when entering results',
+      );
+    if (!p.instituteId || !p.institute)
+      throw new BadRequestException(
+        'This person has no college, so a team cannot be chosen',
+      );
+    const name = `${p.institute.shortName || p.institute.name} ${sport.name}`;
+    let team = await this.prisma.team.findFirst({
+      where: { eventId: p.eventId, instituteId: p.instituteId, sportId, name },
+    });
+    if (!team)
+      team = await this.prisma.team.create({
+        data: { eventId: p.eventId, instituteId: p.instituteId, sportId, name },
+      });
+    await this.prisma.teamMember.upsert({
+      where: { teamId_participantId: { teamId: team.id, participantId } },
+      update: {},
+      create: { teamId: team.id, participantId, role: 'PLAYER' },
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'participant.assign-sport',
+        resource: 'Participant',
+        resourceId: participantId,
+        newState: { sport: sport.name, team: team.name },
+      },
+    });
+    return team;
+  }
+
+  /** Takes a participant out of one team (the person is not deleted). */
+  async removeFromTeam(participantId: string, teamId: string, userId: string) {
+    const res = await this.prisma.teamMember.deleteMany({
+      where: { participantId, teamId },
+    });
+    if (!res.count)
+      throw new NotFoundException('That team membership does not exist');
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'participant.remove-from-team',
+        resource: 'Participant',
+        resourceId: participantId,
+        newState: { teamId },
+      },
+    });
+    return { removed: true };
+  }
+
   /** Removes a participant, their pass, team memberships and gate movements. */
   async deleteParticipant(id: string, userId: string) {
     const p = await this.prisma.participant.findUnique({

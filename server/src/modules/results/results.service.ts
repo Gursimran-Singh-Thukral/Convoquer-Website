@@ -708,9 +708,11 @@ export class ResultsService {
       where: { id: dto.sportId },
     });
     if (!sport) throw new NotFoundException('Sport not found');
-    if (!/e-?sports/i.test(sport.name))
+    const isEsports = /e-?sports/i.test(sport.name);
+    const isAthletics = /athletics/i.test(sport.name);
+    if (!isEsports && !isAthletics)
       throw new BadRequestException(
-        'Lobby teams can only be added to E-Sports',
+        'Teams can only be added here for E-Sports and Athletics',
       );
     await this.verifyResultAuthority(
       'result.submit',
@@ -718,7 +720,7 @@ export class ResultsService {
       sport.id,
       sport.eventId,
     );
-    if (!['Free Fire', 'BGMI', 'Valorant'].includes(dto.game))
+    if (isEsports && !['Free Fire', 'BGMI', 'Valorant'].includes(dto.game))
       throw new BadRequestException('Game must be Free Fire, BGMI or Valorant');
     const institute = await this.prisma.institute.findUnique({
       where: { id: dto.instituteId },
@@ -731,9 +733,37 @@ export class ResultsService {
       where: {
         sportId: sport.id,
         instituteId: institute.id,
-        name: { contains: `(${dto.game}`, mode: 'insensitive' },
+        ...(isEsports
+          ? { name: { contains: `(${dto.game}`, mode: 'insensitive' as const } }
+          : {}),
       },
     });
+    if (isAthletics) {
+      // One athletics team per college: its athletes are named on each result.
+      if (existing.length)
+        throw new BadRequestException(
+          `"${existing[0].name}" is already registered`,
+        );
+      const team = await this.prisma.team.create({
+        data: {
+          eventId: sport.eventId,
+          instituteId: institute.id,
+          sportId: sport.id,
+          name: base,
+        },
+        include: { institute: true },
+      });
+      await this.prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'team.create',
+          resource: 'Team',
+          resourceId: team.id,
+          newState: { name: base, game: 'Athletics' },
+        },
+      });
+      return team;
+    }
     // The first team of a college is plain; later ones are numbered squads.
     const squad =
       dto.squad?.trim() ||

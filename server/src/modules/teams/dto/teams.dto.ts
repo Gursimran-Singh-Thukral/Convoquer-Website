@@ -40,6 +40,10 @@ export class CreateParticipantDto {
   category?: string; // ATHLETE, AUDIENCE, GUEST, OFFICIAL
 }
 
+export class AssignSportDto {
+  sportId!: string;
+}
+
 export class UpdateParticipantDto {
   name?: string;
   instituteId?: string;

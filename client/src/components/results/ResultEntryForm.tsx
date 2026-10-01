@@ -760,10 +760,12 @@ function TrackForm({
   match,
   teams,
   emit,
+  onTeamAdded,
 }: {
   match: Match;
   teams: Team[];
   emit: (p: Payload | null) => void;
+  onTeamAdded: (team: Team) => void;
 }) {
   const label = match.matchNumber ?? '';
   const cats = categoriesFor(label);
@@ -892,6 +894,9 @@ function TrackForm({
           </button>
         </fieldset>
       ))}
+      {match.tournament?.sport?.id && (
+        <AddLobbyTeam sportId={match.tournament.sport.id} game="Athletics" onAdded={onTeamAdded} />
+      )}
     </div>
   );
 }
@@ -903,7 +908,7 @@ function AddLobbyTeam({
   onAdded,
 }: {
   sportId: string;
-  game: 'Free Fire' | 'BGMI' | 'Valorant';
+  game: 'Free Fire' | 'BGMI' | 'Valorant' | 'Athletics';
   onAdded: (team: Team) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -965,10 +970,13 @@ function AddLobbyTeam({
     );
   return (
     <fieldset className="space-y-2 rounded border border-white/15 p-3">
-      <legend className="px-1 text-sm font-bold text-[#FFD700]">Add a {game} team</legend>
+      <legend className="px-1 text-sm font-bold text-[#FFD700]">
+        {game === 'Athletics' ? 'Add a college team' : `Add a ${game} team`}
+      </legend>
       <p className="text-xs text-zinc-400">
-        A college can field more than one team. Leave the squad name empty for its first team;
-        further teams are numbered automatically (Team 2, Team 3…).
+        {game === 'Athletics'
+          ? 'One athletics team per college. Name its athletes in each result.'
+          : 'A college can field more than one team. Leave the squad name empty for its first team; further teams are numbered automatically (Team 2, Team 3…).'}
       </p>
       <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
         <select
@@ -984,20 +992,24 @@ function AddLobbyTeam({
             </option>
           ))}
         </select>
-        <input
-          aria-label="Squad name"
-          className={box}
-          placeholder="Squad name (optional)"
-          maxLength={40}
-          value={squad}
-          onChange={(e) => setSquad(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              if (instituteId && !busy) void add();
-            }
-          }}
-        />
+        {game !== 'Athletics' ? (
+          <input
+            aria-label="Squad name"
+            className={box}
+            placeholder="Squad name (optional)"
+            maxLength={40}
+            value={squad}
+            onChange={(e) => setSquad(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (instituteId && !busy) void add();
+              }
+            }}
+          />
+        ) : (
+          <span />
+        )}
         <button
           type="button"
           disabled={busy || !instituteId}
@@ -1353,7 +1365,9 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
       )}
       {kind === 'FOOTBALL' && <FootballForm names={names} emit={setPayload} />}
       {kind === 'CHESS' && <ChessForm match={match} names={names} emit={setPayload} />}
-      {kind === 'TRACK' && <TrackForm match={match} teams={teams} emit={setPayload} />}
+      {kind === 'TRACK' && (
+        <TrackForm match={match} teams={teams} emit={setPayload} onTeamAdded={addTeam} />
+      )}
       {kind === 'LOBBY' && (
         <LobbyForm match={match} teams={teams} emit={setPayload} onTeamAdded={addTeam} />
       )}
