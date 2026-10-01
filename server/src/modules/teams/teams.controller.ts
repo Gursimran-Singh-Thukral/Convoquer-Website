@@ -173,6 +173,17 @@ export class TeamsController {
     });
   }
 
+  /** Walk-in (gate-registered) visitors with their full record and photos. */
+  @Get('participants/walk-ins')
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermissions('participant.view')
+  async getWalkIns(
+    @Query('query') query?: string,
+    @Query('category') category?: string,
+  ) {
+    return this.participantsService.getWalkIns({ query, category });
+  }
+
   @Get('participants/:id')
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermissions('participant.view')

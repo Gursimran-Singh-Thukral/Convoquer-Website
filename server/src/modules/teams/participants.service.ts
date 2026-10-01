@@ -136,6 +136,39 @@ export class ParticipantsService {
     );
   }
 
+  /**
+   * Walk-in passes: visitors who registered themselves at the gate. Their pass
+   * numbers carry the CQ26-AUD / CQ26-GUEST prefix (players' are random hex).
+   * Returns the complete record, including the decrypted phone number and the
+   * photograph / ID picture, for the pass-viewing screen.
+   */
+  async getWalkIns(filter?: { query?: string; category?: string }) {
+    const rows = await this.prisma.participant.findMany({
+      where: {
+        OR: [
+          { gatePassNumber: { startsWith: 'CQ26-AUD' } },
+          { gatePassNumber: { startsWith: 'CQ26-GUEST' } },
+        ],
+        ...(filter?.category ? { category: filter.category } : {}),
+      },
+      include: {
+        institute: { select: { id: true, name: true, shortName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const all = rows.map((p) => this.decryptParticipant(p));
+    const q = filter?.query?.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.gatePassNumber || '').toLowerCase().includes(q) ||
+        (p.contactNumber || '').toLowerCase().includes(q) ||
+        (p.rollNumber || '').toLowerCase().includes(q) ||
+        (p.institute?.name || '').toLowerCase().includes(q),
+    );
+  }
+
   /** Removes a participant, their pass, team memberships and gate movements. */
   async deleteParticipant(id: string, userId: string) {
     const p = await this.prisma.participant.findUnique({
