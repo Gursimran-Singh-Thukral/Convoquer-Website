@@ -270,13 +270,20 @@ export function SwissRoundsPanel({ onGenerated }: { onGenerated?: () => void }) 
     if (allowed) void Promise.resolve().then(load);
   }, [allowed, load, version]);
 
-  if (!allowed || tournaments.length === 0) return null;
+  // Only people whose role covers THIS chess sport (its coordinator) or who
+  // hold a global grant (convener, overall coordinator). A coordinator of any
+  // other sport never sees the panel; the server enforces the same rule.
+  const visible = tournaments.filter((t) => {
+    const scope = { sportId: t.sportId ?? t.sport?.id };
+    return hasPermission('match.update', scope) || hasPermission('competition.manage', scope);
+  });
+  if (!allowed || visible.length === 0) return null;
   return (
     <div className="space-y-4 mb-8">
       <h2 className="text-xl font-black uppercase tracking-tight">
         Chess <span className="text-[#FFD700]">Swiss rounds</span>
       </h2>
-      {tournaments.map((t) => (
+      {visible.map((t) => (
         <SwissCard
           key={t.id}
           tournament={t}
