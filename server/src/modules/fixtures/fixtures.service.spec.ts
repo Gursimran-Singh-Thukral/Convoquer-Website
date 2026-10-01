@@ -466,6 +466,92 @@ describe('Fixtures, Tournaments, Seeding & Scheduling Services', () => {
       expect(res.matches[1].teamBId).toBe('t4');
     });
 
+    it('round 1 uses the seeded field in seed order when no teams are given', async () => {
+      prismaMock.tournament.findUnique.mockResolvedValue({ id: 'tourn-swiss' });
+      prismaMock.tournamentStage.findMany.mockResolvedValue([]);
+      prismaMock.tournamentTeamSeed.findMany.mockResolvedValue(
+        ['s1', 's2', 's3', 's4', 's5', 's6', 's7'].map((teamId) => ({
+          teamId,
+        })),
+      );
+      prismaMock.tournamentStage.create.mockResolvedValue({
+        id: 'st',
+        name: 'Swiss Round 1',
+        sequence: 1,
+      });
+      prismaMock.match.create.mockImplementation(({ data }: any) => ({
+        id: `m-${data.matchNumber}`,
+        ...data,
+      }));
+      const res = await matchesService.generateSwissRound(
+        'tourn-swiss',
+        { startTime: '2026-10-03T04:30:00Z' },
+        actingUserId,
+      );
+      expect(res.totalMatches).toBe(3); // 7 teams: 3 boards + a bye
+      expect(res.byeTeamId).toBe('s7');
+      expect(res.matches[0].teamAId).toBe('s1');
+    });
+
+    it('lets the sport coordinator generate a round with match.update alone', async () => {
+      prismaMock.tournament.findUnique.mockResolvedValue({
+        id: 'tourn-swiss',
+        sportId: 'chess',
+        eventId: 'e1',
+      });
+      prismaMock.tournamentStage.findMany.mockResolvedValue([]);
+      prismaMock.tournamentStage.create.mockResolvedValue({
+        id: 'st',
+        name: 'Swiss Round 1',
+        sequence: 1,
+      });
+      prismaMock.match.create.mockImplementation(({ data }: any) => ({
+        id: 'm',
+        ...data,
+      }));
+      prismaMock.team.findMany.mockResolvedValue([
+        { id: 'a', sportId: 'chess', eventId: 'e1' },
+        { id: 'b', sportId: 'chess', eventId: 'e1' },
+      ]);
+      rbacMock.hasPermission.mockImplementation(
+        async (_u: string, action: string) => action === 'match.update',
+      );
+      await expect(
+        matchesService.generateSwissRound(
+          'tourn-swiss',
+          { teamIds: ['a', 'b'], startTime: '2026-10-03T04:30:00Z' },
+          actingUserId,
+        ),
+      ).resolves.toBeTruthy();
+      rbacMock.hasPermission.mockResolvedValue(false);
+      await expect(
+        matchesService.generateSwissRound(
+          'tourn-swiss',
+          { teamIds: ['a', 'b'], startTime: '2026-10-03T04:30:00Z' },
+          actingUserId,
+        ),
+      ).rejects.toThrow(/not authorized/);
+    });
+
+    it('refuses a 6th round — the Swiss has 5', async () => {
+      prismaMock.tournament.findUnique.mockResolvedValue({ id: 'tourn-swiss' });
+      prismaMock.tournamentStage.findMany.mockResolvedValue(
+        [1, 2, 3, 4, 5].map((n) => ({
+          id: `s${n}`,
+          stageType: 'SWISS',
+          sequence: n,
+          matches: [],
+        })),
+      );
+      await expect(
+        matchesService.generateSwissRound(
+          'tourn-swiss',
+          { startTime: '2026-10-03T04:30:00Z' },
+          actingUserId,
+        ),
+      ).rejects.toThrow(/All 5 Swiss rounds/);
+    });
+
     it('derives round 2 pairings from round 1 results and avoids a rematch', async () => {
       prismaMock.tournament.findUnique.mockResolvedValue({ id: 'tourn-swiss' });
       // Round 1 history: t1 beat t3, t2 beat t4 -> standings t1=1, t2=1, t3=0, t4=0

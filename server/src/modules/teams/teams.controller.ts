@@ -16,6 +16,7 @@ import { TeamsService } from './teams.service.js';
 import { ParticipantsService } from './participants.service.js';
 import { SessionGuard } from '../../common/guards/session.guard.js';
 import { PermissionsGuard } from '../../common/guards/permissions.guard.js';
+import { SoleAdminGuard } from '../../common/guards/sole-admin.guard.js';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator.js';
 import {
   CreateInstituteDto,
@@ -194,6 +195,18 @@ export class TeamsController {
     @Body() dto: UpdateParticipantDto,
   ) {
     return this.participantsService.updateParticipant(id, dto);
+  }
+
+  /**
+   * Deletes a participant and their gate pass (e.g. a fake or duplicate on-spot
+   * registration). Irreversible, so it is locked to the sole-admin account on
+   * top of participant.update, and written to the audit log.
+   */
+  @Delete('participants/:id')
+  @UseGuards(SessionGuard, PermissionsGuard, SoleAdminGuard)
+  @RequirePermissions('participant.update')
+  async deleteParticipant(@Param('id') id: string, @Req() req: Request) {
+    return this.participantsService.deleteParticipant(id, (req as any).user.id);
   }
 
   // ====================================================

@@ -29,6 +29,7 @@ const LINKS: RailLink[] = [
     anyPermission: ['volunteer.manage'],
   },
   { href: '/organizer/import', label: 'Import teams', anyPermission: ['participant.create'] },
+  { href: '/organizer/passes', label: 'Passes', anyPermission: ['participant.view'] },
   // /organizer/content is the site news/rules/committee article tool — its
   // form drafts AND publishes in one step, so it genuinely needs media.publish;
   // it is NOT where Media Team submits photos (that's the Media dept card on

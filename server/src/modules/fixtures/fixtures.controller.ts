@@ -171,12 +171,14 @@ export class FixturesController {
   }
 
   /**
-   * Generates the next Swiss round (chess, etc). Round 1 needs `teamIds`;
-   * every later round is derived automatically from standings in prior Swiss
-   * stages of this tournament — see MatchesService.generateSwissRound.
+   * Generates the next Swiss round (chess, etc). Round 1 uses the seeded field
+   * unless `teamIds` is given; every later round is derived automatically from
+   * standings in prior Swiss stages — see MatchesService.generateSwissRound.
+   * Deliberately NOT sole-admin-locked: the sport's own coordinator
+   * (match.update scoped to the sport) may generate rounds.
    */
   @Post('tournaments/:id/generate-swiss-round')
-  @UseGuards(SessionGuard, SoleAdminGuard)
+  @UseGuards(SessionGuard)
   async generateSwissRound(
     @Param('id') tournamentId: string,
     @Body() dto: GenerateSwissRoundDto,

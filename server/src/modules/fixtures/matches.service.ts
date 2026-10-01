@@ -1232,7 +1232,10 @@ export class MatchesService {
     if (!tournament)
       throw new NotFoundException(`Tournament "${tournamentId}" not found`);
 
-    await this.verifyStructureAuthority(
+    // Swiss pairings populate matches inside an existing tournament, so the
+    // sport's own coordinator (match.update scoped to the sport) may generate
+    // them — not only the structure administrator.
+    await this.verifyCompetitionAuthority(
       userId,
       tournament.sportId,
       tournament.eventId,
@@ -1262,18 +1265,35 @@ export class MatchesService {
       );
     }
     const roundNumber = priorStages.length + 1;
+    const maxRounds =
+      Number(
+        (tournament.rulesJson as { swissRounds?: number } | null)?.swissRounds,
+      ) || 5;
+    if (roundNumber > maxRounds)
+      throw new ConflictException(
+        `All ${maxRounds} Swiss rounds have already been generated`,
+      );
 
     let teamIds: string[];
     let pairing: [string, string][];
     let byeTeamId: string | undefined;
 
     if (roundNumber === 1) {
-      if (!dto.teamIds || dto.teamIds.length < 2) {
+      // Round 1 defaults to the tournament's seeded field, in seed order.
+      let field = dto.teamIds;
+      if (!field || field.length < 2) {
+        const seeds = await this.prisma.tournamentTeamSeed.findMany({
+          where: { tournamentId },
+          orderBy: { seedNumber: 'asc' },
+        });
+        field = seeds.map((x) => x.teamId);
+      }
+      if (field.length < 2) {
         throw new BadRequestException(
-          'At least 2 teams required to start a Swiss tournament (round 1).',
+          'At least 2 teams required to start a Swiss tournament (round 1) — seed the teams first.',
         );
       }
-      teamIds = [...dto.teamIds];
+      teamIds = [...field];
       if (teamIds.length % 2 !== 0) {
         byeTeamId = teamIds.pop();
       }

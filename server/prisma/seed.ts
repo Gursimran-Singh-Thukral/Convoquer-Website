@@ -535,6 +535,10 @@ async function main() {
 
   // Web Dev Head permissions (RBAC administration + technical/site configuration)
   const webDevPermActions = [
+    // Gate passes: view the list of passes/participants and delete bogus ones
+    // (deletion is further locked to the sole-admin account in the controller).
+    'participant.view',
+    'participant.update',
     'role.view',
     'role.assign',
     'role.revoke',

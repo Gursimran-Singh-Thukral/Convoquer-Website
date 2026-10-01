@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { FixtureResultEditor } from '@/components/FixtureResultEditor';
+import { SwissRoundsPanel } from '@/components/SwissRoundsPanel';
 import { Footer } from '@/components/Footer';
 import { Navbar } from '@/components/Navbar';
 import { OrganizerNavRail } from '@/components/OrganizerNavRail';
@@ -878,6 +879,7 @@ export default function ScorerPage() {
         {/* Main Content Area */}
         <main className="w-full flex-1 pb-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+            <SwissRoundsPanel onGenerated={() => void loadMatches()} />
             {/* Section Title */}
             <div className="flex flex-col md:flex-row md:items-end justify-between pb-6 border-b border-white/10 gap-4">
               <div>

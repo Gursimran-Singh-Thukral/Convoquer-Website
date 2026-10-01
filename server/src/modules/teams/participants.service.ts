@@ -136,6 +136,33 @@ export class ParticipantsService {
     );
   }
 
+  /** Removes a participant, their pass, team memberships and gate movements. */
+  async deleteParticipant(id: string, userId: string) {
+    const p = await this.prisma.participant.findUnique({
+      where: { id },
+      include: { institute: true },
+    });
+    if (!p) throw new NotFoundException(`Participant "${id}" not found`);
+    // Audit trail keeps what was removed, but no personal contact data.
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'participant.delete',
+        resource: 'Participant',
+        resourceId: id,
+        previousState: {
+          name: p.name,
+          category: p.category,
+          gatePassNumber: p.gatePassNumber,
+          institute: p.institute?.name ?? null,
+          isCheckedIn: p.isCheckedIn,
+        },
+      },
+    });
+    await this.prisma.participant.delete({ where: { id } });
+    return { deleted: true, id, name: p.name };
+  }
+
   async getParticipantById(id: string) {
     const participant = await this.prisma.participant.findUnique({
       where: { id },

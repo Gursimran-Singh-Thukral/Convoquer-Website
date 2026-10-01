@@ -116,8 +116,13 @@ export class ResultsController {
   async getTournamentStandings(
     @Param('id') tournamentId: string,
     @Query('stageId') stageId?: string,
+    @Query('throughStageId') throughStageId?: string,
   ) {
-    return this.standingsService.getTournamentStandings(tournamentId, stageId);
+    return this.standingsService.getTournamentStandings(
+      tournamentId,
+      stageId,
+      throughStageId,
+    );
   }
 
   // ===================================

@@ -1,0 +1,320 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[most]{tcolorbox}
+\usepackage[colorlinks=true,linkcolor=maroon,urlcolor=maroon]{hyperref}
+
+\definecolor{maroon}{HTML}{800020}
+\definecolor{gold}{HTML}{B8860B}
+\definecolor{softgrey}{HTML}{F3F1F4}
+
+\titleformat{\section}{\Large\bfseries\color{maroon}}{\thesection}{0.6em}{}[\color{gold}\titlerule]
+\titleformat{\subsection}{\large\bfseries\color{maroon}}{\thesubsection}{0.6em}{}
+\setlist{itemsep=2pt,topsep=4pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textcolor{maroon}{\textbf{Convoquer'26}} \quad Sports Coordinator Guide}
+\rhead{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\newtcolorbox{tip}{colback=softgrey,colframe=gold,boxrule=0.6pt,left=6pt,right=6pt,top=4pt,bottom=4pt,title=Tip,fonttitle=\bfseries}
+\newtcolorbox{warn}{colback=red!4,colframe=maroon,boxrule=0.6pt,left=6pt,right=6pt,top=4pt,bottom=4pt,title=Careful,fonttitle=\bfseries}
+\newcommand{\ui}[1]{\textbf{\textcolor{maroon}{#1}}}
+
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{3cm}
+{\Huge\bfseries\color{maroon} Convoquer'26\par}
+\vspace{0.4cm}
+{\Large Sports Coordinator Guide\par}
+\vspace{0.8cm}
+{\large How to enter results, publish them, reschedule matches\\ and run the chess Swiss rounds\par}
+\vspace{2cm}
+\begin{tcolorbox}[colback=softgrey,colframe=gold,width=0.8\textwidth]
+\textbf{In one line:} when a match ends, \emph{you enter the final scorecard}, then \emph{approve and publish} it.
+There is no live scoring this year. Standings and knockout brackets update only when a result is published.
+\end{tcolorbox}
+\vfill
+{\large IIT Jammu \quad $\bullet$ \quad 1--4 October 2026}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+%--------------------------------------------------------------------
+\section{The big picture}
+
+Every match follows the same short path:
+
+\begin{center}
+\begin{tabular}{ccccc}
+\fbox{Match ends} & $\rightarrow$ & \fbox{Enter result} & $\rightarrow$ & \fbox{Approve \& publish}\\[2pt]
+\small on the ground & & \small Match Manager & & \small Approvals desk
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+  \item \textbf{No live scoring.} You record only the \emph{final} scorecard of a match, in the format of your sport.
+  \item \textbf{Two steps.} \emph{Submitting} a result sends it for approval. It is not public yet.
+  \item \textbf{Publishing} makes it official: it appears on the public \ui{Results} page, updates the points table and, in a knockout, moves the winner into the next match.
+  \item You can only work on \textbf{your own sport}. You will not see controls for other sports.
+\end{itemize}
+
+%--------------------------------------------------------------------
+\section{Signing in}
+
+\begin{enumerate}
+  \item Open the website and choose \ui{Login}.
+  \item Sign in with the \textbf{Google account} you gave the organisers. It is the only login method.
+  \item After signing in, the organiser menu shows the pages you may use. If a page is missing, ask the Web Development team to check your role.
+\end{enumerate}
+
+The pages you will use:
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Page} & \textbf{What it is for}\\
+\midrule
+\ui{Match Manager} (\texttt{/matches}) & Find a fixture, enter its result, reschedule, edit, assign officials.\\
+\ui{Scorer} (\texttt{/scorer}) & The same result entry in a card layout. Chess coordinators also generate Swiss rounds here.\\
+\ui{Approvals} (\texttt{/results/approvals}) & Approve and publish results, send one back, or correct a published result.\\
+\ui{Standings} (\texttt{/standings}) & Points tables for your sport.\\
+\ui{Bracket} (\texttt{/bracket}) & Knockout draws.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+%--------------------------------------------------------------------
+\section{Entering a result}
+
+\subsection{Step by step}
+\begin{enumerate}
+  \item Open \ui{Match Manager}. Use the filters (sport, tournament, venue, date) to find the fixture.
+  \item Click \ui{Enter result} on the fixture. A window opens on the \ui{Result} tab.
+  \item Fill in the scorecard for your sport (see Section~\ref{sec:sports}).
+  \item Optionally add \emph{Result notes} (for example, ``walkover'' or ``retired hurt'').
+  \item Click \ui{Submit final result}. A green message says the result was \emph{submitted for approval}.
+  \item Go to \ui{Approvals} and publish it (Section~\ref{sec:approvals}).
+\end{enumerate}
+
+\begin{tip}
+The form does the arithmetic for you. You never type the winner or the final total: they are worked out from the
+sets, quarters, innings or boards you enter, so the headline score can never disagree with the detail.
+\end{tip}
+
+\begin{warn}
+Both teams must be known before a result can be entered. In a knockout, a match like ``Winner of QF~1 vs Winner of QF~2''
+cannot take a result until the earlier matches are \emph{published}.
+\end{warn}
+
+%--------------------------------------------------------------------
+\section{What to enter, sport by sport}
+\label{sec:sports}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}lXl@{}}
+\toprule
+\textbf{Sport} & \textbf{You enter} & \textbf{Shown as}\\
+\midrule
+Badminton (Men) & Best of 5 \emph{games}; each game best of 3 sets & 3--2\\
+Badminton (Women) & Best of 3 \emph{games}; each game best of 3 sets & 2--1\\
+Table Tennis (Men) & 5 \emph{matches}, all played; each best of 3 sets to 11 & 3--2\\
+Table Tennis (Women) & 3 \emph{matches}, all played; each best of 3 sets to 11 & 2--1\\
+Volleyball & Best of 5 sets (first to 3) & 3--1\\
+Basketball & 4 quarters, plus overtime if level & 79--71\\
+Cricket & Runs, wickets and overs for each innings (20 overs) & ``won by 12 runs''\\
+Football & Full time; extra time and penalties if needed & 1--1 (4--3 pens)\\
+Chess & 4 boards: win / draw / loss on each & 2\textonehalf--1\textonehalf\\
+Athletics & Position, team, athlete and time/mark per category & results table\\
+E-Sports & Valorant: final score. Free Fire / BGMI: lobby results & points table\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Badminton and table tennis (team ties)}
+A tie is made of several games (badminton) or matches (table tennis). Each one is best of 3 sets.
+\begin{itemize}
+  \item Enter the points of every set. The third set only appears when the first two are one set each.
+  \item \textbf{Badminton} stops at a majority: when one team has won enough games, no further game is shown.
+  \item \textbf{Table tennis} plays every match: enter all of them. A set is played to \textbf{11 points and won by 2} (11--9, 12--10\ldots). A score such as 11--10 is rejected.
+  \item The boxes above each game let you type the players' names (optional).
+\end{itemize}
+
+\subsection{Volleyball}
+Enter set scores. Sets 1 to 3 are always shown; the 4th and 5th appear only if the match is still open.
+
+\subsection{Basketball}
+Enter the four quarters. A basketball game cannot end level: if the total is equal, add an \ui{overtime period}.
+
+\subsection{Cricket}
+\begin{itemize}
+  \item Choose \ui{Batted first}, then enter runs, wickets and overs for both innings. Write overs as \texttt{20} or \texttt{18.3} (18 overs, 3 balls). The maximum is 20 overs.
+  \item The result line is worked out for you (``won by 12 runs'' if the side batting first wins, ``won by 4 wickets'' otherwise).
+  \item If runs are level: tick \ui{Decided by a super over} and enter it, or choose the winner. In a knockout one of these is required.
+\end{itemize}
+
+\subsection{Football}
+\begin{itemize}
+  \item Enter the full-time score. Tick \ui{Went to extra time} for semi-finals and the final.
+  \item If still level in a knockout, tick \ui{Decided on penalties} and enter the shoot-out score. The goals stay level; the shoot-out only decides who goes through.
+\end{itemize}
+
+\subsection{Chess}
+Each team fields \textbf{four players}. Board~1 of one team meets board~1 of the other, and so on. For each board choose $1-0$, $\frac12-\frac12$ or $0-1$. Player names are optional (the team roster is suggested). A $2$--$2$ is a drawn match.
+Match points: win 2, draw 1, loss 0.
+
+\subsection{Athletics}
+One form covers a whole event, so all teams are entered at once.
+\begin{itemize}
+  \item Men and women are separate blocks (the relay mix is one block).
+  \item For each finisher give the \textbf{position}, team, athlete and time or distance. Use \ui{DNS}, \ui{DNF}, \ui{DQ} or \ui{NM} in the status box when there is no valid mark.
+  \item \textbf{100\,m, 200\,m and 400\,m} have a semi-final and a final. In the semi-final tick the \textbf{Q} box for the teams that qualify for the final.
+  \item Leave unused rows without a team. Use \ui{+ Add row} for extra finishers.
+\end{itemize}
+
+\subsection{E-Sports}
+\begin{itemize}
+  \item \textbf{Valorant} is a knockout. Enter the final score; it cannot end level.
+  \item \textbf{Free Fire and BGMI} are played in games (Match~1, Match~2\ldots). Each game is its own result: for every team enter the \textbf{position} and \textbf{kills}. Placement points (PP) and kill points (KP) are pre-filled with the usual tables; type a value to override. The overall table adds every game up.
+  \item A college may have more than one team. If a team is missing, click \ui{+ Add team}, choose the college, optionally name the squad, and click \ui{Add}. The next one is numbered automatically (``Team~2'').
+  \item \textbf{Ties on total points} are broken by: Free Fire --- wins, kill points, placement points. BGMI --- wins, placement points, kill points.
+\end{itemize}
+
+%--------------------------------------------------------------------
+\section{Approving and publishing}
+\label{sec:approvals}
+
+Open \ui{Approvals}. Submitted results wait there.
+
+\begin{enumerate}
+  \item Check the scorecard shown for each result.
+  \item Click \ui{Approve \& publish leaderboard}. The result becomes official.
+  \item If something is wrong, click \ui{Reject (send back)} and write a reason. The entry returns for correction and can be submitted again.
+  \item \ui{Bulk publish approved} publishes everything shown in one go. Check the list first.
+\end{enumerate}
+
+\begin{tip}
+In a knockout the winner moves into the next match \emph{when you publish}. If the next match still shows ``Winner of\ldots'',
+the earlier result simply has not been published yet.
+\end{tip}
+
+\subsection{Correcting a result that is already published}
+A published result is protected. If it is wrong, use \ui{Override} on the \ui{Approvals} page (visible only if you hold that permission),
+enter the corrected scorecard and a \textbf{reason}. Every override is logged.
+The winner of a match whose winner has already moved on in a bracket cannot be changed; ask the organisers.
+
+%--------------------------------------------------------------------
+\section{Rescheduling and editing a match}
+
+Open \ui{Match Manager}, find the fixture and click \ui{Manage}. The window has tabs.
+
+\subsection{Reschedule}
+\begin{enumerate}
+  \item Open the \ui{Reschedule} tab.
+  \item Set the \ui{New Start Time}, optionally the \ui{New End Time}, and the \ui{Venue}.
+  \item Add a \ui{Reason} (optional but helpful).
+  \item Click \ui{Confirm Reschedule}.
+\end{enumerate}
+The system refuses a time that clashes with another match at the same venue or involves a team already playing at that time.
+Read the message, pick another slot or venue, and try again. A venue with several courts or tables can host that many matches at once.
+
+\subsection{Edit}
+The \ui{Edit} tab changes the match number/label, the venue, the status (for example \emph{Cancelled}) and the \ui{Telecast} flag.
+It can also set the two teams of a match that has no automatic feeder.
+
+\begin{tip}
+\textbf{3rd-place matches} (``Loser of semi-final 1 vs Loser of semi-final 2'') are not filled automatically.
+After the semi-finals are published, open \ui{Manage} $\rightarrow$ \ui{Edit} and choose the two losing teams yourself.
+\end{tip}
+
+\subsection{Officials}
+The \ui{Officials} tab lists the people assigned to the match and lets you \ui{Assign} another.
+
+%--------------------------------------------------------------------
+\section{Chess: running the Swiss rounds}
+
+The boys' chess is a \textbf{5-round Swiss} with the seven registered teams. Rounds are created one at a time.
+
+\begin{enumerate}
+  \item Open the \ui{Scorer} page. At the top you will find the panel \ui{Chess Swiss rounds}. (It is only shown to people who manage chess.)
+  \item For round~1 the start time is pre-filled (3 Oct, 10:00). Check the \ui{Venue}, \ui{Boards at once} and \ui{Match length}, then click \ui{Generate round 1}.
+  \item The pairings appear below the button. With 7 teams, one team has a \textbf{bye} and is credited with a win.
+  \item Play the round, then \textbf{enter every result and publish it} (Sections 3 and 6).
+  \item After each round the panel shows links \ui{After round 1}, \ui{After round 2}\ldots\ under \ui{Standings}. They open the chess standings page (\texttt{/standings/chess}) as they stood \emph{up to that round}. The same page is public: share the link, or use the round buttons at the top of it.
+  \item Return to the panel and click \ui{Generate round 2}. The server pairs teams on similar scores, and nobody meets the same opponent twice. Repeat up to round 5.
+\end{enumerate}
+
+\begin{warn}
+The next round can only be generated after \emph{every} result of the previous round is published. If you get the message
+``Publish all results in the previous Swiss round before generating the next round'', open \ui{Approvals} and publish the remaining ones.
+\end{warn}
+
+\textbf{Tie-breaks.} Boys (Swiss): match points, then Sonneborn--Berger, then the direct encounter.
+Girls (round robin, 6 teams): match points, then Buchholz, then Sonneborn--Berger.
+
+%--------------------------------------------------------------------
+\section{Standings and brackets}
+
+\begin{itemize}
+  \item \ui{Standings} shows a points table per sport. Open the sport's tab. For E-Sports, choose Valorant, Free Fire or BGMI above the table.
+  \item A team gets points only from \emph{published} results.
+  \item \ui{Bracket} shows the knockout draw; winners appear in the next round after publishing.
+\end{itemize}
+
+%--------------------------------------------------------------------
+\section{If something goes wrong}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{5.2cm}X@{}}
+\toprule
+\textbf{Message or problem} & \textbf{What to do}\\
+\midrule
+``Both teams must be determined\ldots'' & The earlier knockout matches are not published yet. Publish them first.\\
+``\ldots cannot end level'' & A set, a quarter or a Valorant match was entered level. Correct the score or add overtime.\\
+``Best of 3: one team must win 2 sets'' & Enter the deciding set.\\
+``The match was already decided --- remove the extra set'' & Clear the surplus set or game.\\
+``Each team plays 4 players: enter all 4 boards'' & Chess always needs exactly four boards.\\
+A table tennis set is rejected & Sets are to 11 and won by 2 (11--9, 12--10, 13--11).\\
+``Knockout match is level --- enter the penalty shoot-out'' & Tick \ui{Decided on penalties} and enter it.\\
+``Official result has already been published'' & Use \ui{Override} on Approvals with a reason.\\
+``You are not authorized\ldots'' & You are working on a sport that is not yours, or your role is missing. Contact the Web Development team.\\
+A team is missing from an E-Sports lobby & Use \ui{+ Add team}.\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{tip}
+Before a busy session, refresh the page. If a result seems not to save, wait a moment and check \ui{Approvals}: it may already be there.
+Do not submit the same result twice.
+\end{tip}
+
+%--------------------------------------------------------------------
+\section{Quick reference}
+
+\begin{tcolorbox}[colback=softgrey,colframe=maroon]
+\textbf{Enter a result:} Match Manager $\rightarrow$ \ui{Enter result} $\rightarrow$ fill scorecard $\rightarrow$ \ui{Submit final result}.\\
+\textbf{Publish it:} Approvals $\rightarrow$ \ui{Approve \& publish leaderboard}.\\
+\textbf{Change a time or venue:} Match Manager $\rightarrow$ \ui{Manage} $\rightarrow$ \ui{Reschedule} $\rightarrow$ \ui{Confirm Reschedule}.\\
+\textbf{Fill a 3rd-place match:} \ui{Manage} $\rightarrow$ \ui{Edit} $\rightarrow$ choose both teams.\\
+\textbf{Next chess round:} Scorer $\rightarrow$ \ui{Chess Swiss rounds} $\rightarrow$ \ui{Generate round N} (after publishing round N--1).\\
+\textbf{Add a Free Fire / BGMI team:} open the lobby form $\rightarrow$ \ui{+ Add team}.\\
+\textbf{Wrong published result:} Approvals $\rightarrow$ \ui{Override} + reason.
+\end{tcolorbox}
+
+\vspace{0.5cm}
+\textbf{Need help during the event?} Contact the Web Development team at the control desk.
+
+\end{document}

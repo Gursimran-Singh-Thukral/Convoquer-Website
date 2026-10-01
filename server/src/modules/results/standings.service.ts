@@ -50,6 +50,8 @@ export class StandingsService {
   async getTournamentStandings(
     tournamentId: string,
     stageId?: string,
+    /** Cumulative: every stage up to and including this one (e.g. "after Swiss round 3"). */
+    throughStageId?: string,
   ): Promise<{
     tournament: { id: string; name: string; format: string; sport: string };
     stage?: { id: string; name: string };
@@ -74,7 +76,24 @@ export class StandingsService {
     }
 
     let stageInfo = undefined;
-    if (stageId) {
+    let throughSequence: number | undefined;
+    if (throughStageId) {
+      const through = await this.prisma.tournamentStage.findUnique({
+        where: { id: throughStageId },
+      });
+      if (through && through.tournamentId === tournamentId) {
+        throughSequence = through.sequence;
+        stageInfo = { id: through.id, name: `After ${through.name}` };
+      }
+    }
+    // A cumulative request wins over a single-stage one.
+    const stageWhere =
+      throughSequence !== undefined
+        ? { stage: { sequence: { lte: throughSequence } } }
+        : stageId
+          ? { stageId }
+          : {};
+    if (stageId && throughSequence === undefined) {
       const stage = await this.prisma.tournamentStage.findUnique({
         where: { id: stageId },
       });
@@ -84,11 +103,13 @@ export class StandingsService {
     }
 
     // Points system
-    const ptsWin = tournament.pointsForWin ?? 3;
-    const ptsDraw = tournament.pointsForDraw ?? 1;
-    const ptsLoss = tournament.pointsForLoss ?? 0;
-
     const isChess = /chess/i.test(tournament.sport?.name ?? '');
+    // Chess is always 2 points for a win, 1 for a draw, 0 for a loss (match
+    // points in the printed rules), whatever the tournament row says — a
+    // tournament created by hand defaults to football-style 3/1/0.
+    const ptsWin = isChess ? 2 : (tournament.pointsForWin ?? 3);
+    const ptsDraw = isChess ? 1 : (tournament.pointsForDraw ?? 1);
+    const ptsLoss = isChess ? 0 : (tournament.pointsForLoss ?? 0);
     // Tie-breaks after match points — Chess (Men), the Swiss: Sonneborn-Berger
     // then the direct encounter. Chess (Women), the round robin: Buchholz then
     // Sonneborn-Berger.
@@ -101,7 +122,7 @@ export class StandingsService {
     const matches = await this.prisma.match.findMany({
       where: {
         tournamentId,
-        ...(stageId ? { stageId } : {}),
+        ...stageWhere,
         result: { status: 'PUBLISHED' },
       },
       include: {
@@ -173,7 +194,7 @@ export class StandingsService {
       const byeMatches = await this.prisma.match.findMany({
         where: {
           tournamentId,
-          ...(stageId ? { stageId } : {}),
+          ...stageWhere,
           teamAId: { not: null },
           teamBId: null,
           status: 'COMPLETED',
