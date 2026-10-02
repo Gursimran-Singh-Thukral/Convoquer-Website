@@ -10,11 +10,29 @@ import { CreateInstituteDto, UpdateInstituteDto } from './dto/teams.dto.js';
 export class InstitutesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getInstitutes(eventId?: string, status?: string) {
+  /**
+   * By default only PARTICIPATING institutes: those with at least one team, or
+   * an athlete/official on the roster. Anything else (for example a stray record
+   * left by a walk-in visitor) is not a participant and is not counted or listed.
+   * Organiser tools that need every record pass `all`.
+   */
+  async getInstitutes(eventId?: string, status?: string, all = false) {
     return this.prisma.institute.findMany({
       where: {
         ...(eventId ? { eventId } : {}),
         ...(status ? { status } : {}),
+        ...(all
+          ? {}
+          : {
+              OR: [
+                { teams: { some: {} } },
+                {
+                  participants: {
+                    some: { category: { in: ['ATHLETE', 'OFFICIAL'] } },
+                  },
+                },
+              ],
+            }),
       },
       include: {
         event: { select: { id: true, name: true, slug: true } },

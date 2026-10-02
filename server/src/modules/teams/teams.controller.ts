@@ -53,8 +53,13 @@ export class TeamsController {
   async getInstitutes(
     @Query('eventId') eventId?: string,
     @Query('status') status?: string,
+    @Query('all') all?: string,
   ) {
-    return this.institutesService.getInstitutes(eventId, status);
+    return this.institutesService.getInstitutes(
+      eventId,
+      status,
+      all === 'true',
+    );
   }
 
   @Get('institutes/:id')

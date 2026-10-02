@@ -1110,6 +1110,10 @@ export const dtoSchemas: Record<
       type: 'string',
       required: false,
     },
+    instituteId: {
+      type: 'string',
+      required: false,
+    },
     instituteName: {
       type: 'string',
       required: false,

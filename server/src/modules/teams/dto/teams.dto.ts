@@ -62,6 +62,9 @@ export class RegisterOnSpotAttendeeDto {
   name!: string;
   contactNumber!: string;
   category?: string; // AUDIENCE, GUEST, ATHLETE
+  /** Chosen from the list of participating institutes; never typed in. */
+  instituteId?: string;
+  /** Deprecated: matched against existing institutes only, never creates one. */
   instituteName?: string;
   rollNumber?: string;
   gender?: string;

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { LiveTickerRibbon } from '@/components/LiveTickerRibbon';
 import { Footer } from '@/components/Footer';
-import { apiPost, ApiError, fetchActiveEventId, type Participant } from '@/lib/api';
+import { apiGet, apiPost, ApiError, fetchActiveEventId, type Participant } from '@/lib/api';
 import { compressImageToDataUrl } from '@/lib/image';
 
 function initialsOf(name: string): string {
@@ -24,7 +24,10 @@ export default function AudiencePassPage() {
   const [eventLoading, setEventLoading] = useState(true);
 
   const [name, setName] = useState('');
-  const [college, setCollege] = useState('');
+  const [college, setCollege] = useState(''); // institute id chosen from the list
+  const [institutes, setInstitutes] = useState<
+    { id: string; name: string; shortName: string | null }[]
+  >([]);
   const [rollNo, setRollNo] = useState('');
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState('');
@@ -71,6 +74,12 @@ export default function AudiencePassPage() {
       if (!cancelled) {
         setEventId(id);
         setEventLoading(false);
+        if (id)
+          apiGet<{ id: string; name: string; shortName: string | null }[]>(
+            `/institutes?eventId=${encodeURIComponent(id)}`,
+          )
+            .then((list) => !cancelled && setInstitutes(list))
+            .catch(() => !cancelled && setInstitutes([]));
       }
     });
     return () => {
@@ -124,7 +133,7 @@ export default function AudiencePassPage() {
           name: name.trim(),
           contactNumber: `+91${phone.trim()}`,
           category,
-          instituteName: college.trim() || undefined,
+          instituteId: college || undefined,
           rollNumber: rollNo.trim() || undefined,
           gender: gender || undefined,
           photographUrl: photoDataUrl,
@@ -225,13 +234,20 @@ export default function AudiencePassPage() {
                   <label className="block text-gray-300 uppercase mb-1.5 font-bold">
                     College / Institute / Affiliation
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={college}
                     onChange={(e) => setCollege(e.target.value)}
-                    placeholder="e.g. University of Jammu / SMVDU Katra"
-                    className="w-full bg-[#1B191E] border border-white/15 focus:border-[#FFD700] text-white px-3.5 py-2.5 rounded-xl focus:outline-none transition-all placeholder:text-zinc-600 text-sm"
-                  />
+                    className="w-full bg-[#1B191E] border border-white/15 focus:border-[#FFD700] text-white px-3.5 py-2.5 rounded-xl focus:outline-none transition-all text-sm"
+                  >
+                    <option value="">General public / not from a participating college</option>
+                    {[...institutes]
+                      .sort((x, y) => x.name.localeCompare(y.name))
+                      .map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.name}
+                        </option>
+                      ))}
+                  </select>
                 </div>
               </div>
 

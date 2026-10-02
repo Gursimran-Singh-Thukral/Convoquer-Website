@@ -433,20 +433,25 @@ export class ParticipantsService {
     });
     if (!event) throw new NotFoundException(`Event "${dto.eventId}" not found`);
 
+    // A walk-in's college is picked from the participating institutes. It is only
+    // ever LOOKED UP here — a visitor can no longer create an institute (that is
+    // what used to inflate the "participating institutes" count).
     let instituteId: string | undefined = undefined;
-    if (dto.instituteName) {
-      let inst = await this.prisma.institute.findFirst({
-        where: { eventId: dto.eventId, name: dto.instituteName },
+    if (dto.instituteId) {
+      const inst = await this.prisma.institute.findUnique({
+        where: { id: dto.instituteId },
       });
-      if (!inst) {
-        inst = await this.prisma.institute.create({
-          data: {
-            eventId: dto.eventId,
-            name: dto.instituteName,
-          },
-        });
-      }
+      if (!inst || inst.eventId !== dto.eventId)
+        throw new BadRequestException('Choose a college from the list.');
       instituteId = inst.id;
+    } else if (dto.instituteName) {
+      const inst = await this.prisma.institute.findFirst({
+        where: {
+          eventId: dto.eventId,
+          name: { equals: dto.instituteName.trim(), mode: 'insensitive' },
+        },
+      });
+      instituteId = inst?.id;
     }
 
     const prefix = dto.category === 'AUDIENCE' ? 'CQ26-AUD' : 'CQ26-GUEST';

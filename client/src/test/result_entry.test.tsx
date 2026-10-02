@@ -398,7 +398,7 @@ it('lets a coordinator add another BGMI team and shows it in the lobby', async (
         teams = [...teams, created];
         return new Response(JSON.stringify(created), { status: 200 });
       }
-      if (url.endsWith('/institutes'))
+      if (url.includes('/institutes'))
         return new Response(JSON.stringify([{ id: 'i1', name: 'GCET', shortName: 'GCET' }]), {
           status: 200,
         });

@@ -921,7 +921,7 @@ function AddLobbyTeam({
   useEffect(() => {
     if (!open || institutes.length) return;
     let live = true;
-    apiAuthedGet<Institute[]>('/institutes')
+    apiAuthedGet<Institute[]>('/institutes?all=true')
       .then((list) => live && setInstitutes(list))
       .catch(() => live && setMessage('Could not load the colleges.'));
     return () => {
