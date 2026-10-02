@@ -41,6 +41,10 @@ function mapTallyToStandings(tally: MedalTallyRow[]): StandingRow[] {
   }));
 }
 
+/** "Badminton (Men)" and "Badminton (Women)" share one tab: "Badminton". */
+const baseName = (name: string) => name.replace(/\s*\((men|women)\)\s*$/i, '').trim();
+const slugOf = (name: string) => baseName(name).toLowerCase().replace(/\s+/g, '-');
+
 export default function StandingsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   useEffect(() => {
@@ -98,20 +102,22 @@ export default function StandingsPage() {
         setSportTournaments([]);
         return;
       }
-      const matchingSport = sports.find(
-        (s) => s.name.toLowerCase().replace(/\s+/g, '-') === selectedSport,
-      );
-      if (!matchingSport) {
+      const matchingSports = sports.filter((s) => slugOf(s.name) === selectedSport);
+      if (!matchingSports.length) {
         setSportStandings(null);
         setSportStandingsTournament(null);
         return;
       }
 
       setSportStandingsLoading(true);
-      apiGet<Tournament[]>(`/tournaments?sportId=${matchingSport.id}`)
-        .then(async (tournaments) => {
+      Promise.all(
+        matchingSports.map((s) =>
+          apiGet<Tournament[]>(`/tournaments?sportId=${s.id}`).catch(() => [] as Tournament[]),
+        ),
+      )
+        .then(async (groups) => {
           if (cancelled) return;
-          const list = Array.isArray(tournaments) ? tournaments : [];
+          const list = groups.flat();
           setSportTournaments(list);
           const tournament = list.find((t) => t.id === tournamentChoice) ?? list[0] ?? null;
           if (!tournament) {
@@ -143,6 +149,17 @@ export default function StandingsPage() {
     };
   }, [selectedSport, sports, tournamentChoice]);
 
+  // One tab per sport, built from the sports in the database (men's and
+  // women's draws of a sport share a tab).
+  const sportTabs = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const s of sports)
+      if (!seen.has(slugOf(s.name))) seen.set(slugOf(s.name), baseName(s.name).toUpperCase());
+    return [
+      { key: 'all', label: `ALL SPORTS (${seen.size})` },
+      ...[...seen].map(([key, label]) => ({ key, label })),
+    ];
+  }, [sports]);
   const chessTable = !!sportStandings?.some((r) => r.buchholzCut1 !== undefined);
   const lobbyTable = !!sportStandings?.some((r) => r.placementPoints !== undefined);
   const podiumRows = useMemo(() => standings.slice(0, 3), [standings]);
@@ -427,17 +444,7 @@ export default function StandingsPage() {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
               {/* Discipline Filters */}
               <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-2">
-                {[
-                  { key: 'all', label: 'ALL SPORTS (8)' },
-                  { key: 'football', label: 'FOOTBALL' },
-                  { key: 'cricket', label: 'CRICKET' },
-                  { key: 'basketball', label: 'BASKETBALL' },
-                  { key: 'volleyball', label: 'VOLLEYBALL' },
-                  { key: 'athletics', label: 'ATHLETICS' },
-                  { key: 'badminton', label: 'BADMINTON' },
-                  { key: 'table-tennis', label: 'TABLE TENNIS' },
-                  { key: 'chess', label: 'CHESS' },
-                ].map((sport) => {
+                {sportTabs.map((sport) => {
                   const isActive = selectedSport === sport.key;
                   return (
                     <button
@@ -585,12 +592,21 @@ export default function StandingsPage() {
                                 : 'border-white/20 text-gray-300 hover:border-white/50'
                             }`}
                           >
-                            {t.name.replace(/^.*— /, '')}
+                            {/\((men|women)\)/i
+                              .exec(t.sport?.name ?? '')?.[1]
+                              .replace(/^./, (c) => c.toUpperCase()) ?? t.name.replace(/^.*— /, '')}
                           </button>
                         ))}
                       </span>
                     )}
                   </div>
+                )}
+                {chessTable && (
+                  <p className="px-4 py-2 text-xs text-gray-400">
+                    <a href="/standings/chess" className="underline text-[#FFD700]">
+                      See the table after each round or match
+                    </a>
+                  </p>
                 )}
                 <table className="w-full text-left border-collapse min-w-[850px]">
                   <thead>

@@ -80,6 +80,12 @@ export interface LobbyDetails {
   game?: string;
   entries: RankedEntry[];
 }
+/** A team did not turn up; the other team is awarded the match (walkover). */
+export interface ForfeitDetails {
+  kind: 'FORFEIT';
+  forfeitedBy: 'A' | 'B';
+  reason?: string;
+}
 export interface ScoreDetails {
   kind: 'SCORE';
   a: number;
@@ -94,7 +100,8 @@ export type ResultDetails =
   | ChessDetails
   | TrackDetails
   | LobbyDetails
-  | ScoreDetails;
+  | ScoreDetails
+  | ForfeitDetails;
 
 /**
  * Team ties made of individual games, each game best of 3 sets. Mirrors
@@ -152,6 +159,7 @@ export function isResultDetails(details: unknown): details is ResultDetails {
       'TRACK',
       'LOBBY',
       'SCORE',
+      'FORFEIT',
     ].includes((details as { kind: string }).kind)
   );
 }
@@ -286,6 +294,8 @@ export function resultSummary(
       return `${formatHalf(scoreA ?? 0)}${dash}${formatHalf(scoreB ?? 0)}`;
     case 'SCORE':
       return `${details.a}${dash}${details.b}`;
+    case 'FORFEIT':
+      return `Won by forfeit${side ? ` — ${side === 'A' ? nameB : nameA} did not play` : ''}`;
     case 'TRACK': {
       const first = details.sections[0]?.entries.find((e) => e.rank === 1);
       return first

@@ -140,6 +140,8 @@ export interface Participant {
   id: string;
   eventId: string;
   instituteId: string | null;
+  /** Walk-in from a non-participating college (free text). */
+  otherInstitute?: string | null;
   name: string;
   photographUrl: string | null;
   idDocumentUrl: string | null;

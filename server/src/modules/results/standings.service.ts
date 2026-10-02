@@ -52,6 +52,8 @@ export class StandingsService {
     stageId?: string,
     /** Cumulative: every stage up to and including this one (e.g. "after Swiss round 3"). */
     throughStageId?: string,
+    /** Cumulative: every published match up to and including this one (round robin, "after match 3"). */
+    throughMatchId?: string,
   ): Promise<{
     tournament: { id: string; name: string; format: string; sport: string };
     stage?: { id: string; name: string };
@@ -119,7 +121,7 @@ export class StandingsService {
       !/women/i.test(tournament.sport?.name ?? '');
 
     // Fetch matches for this tournament/stage
-    const matches = await this.prisma.match.findMany({
+    let matches = await this.prisma.match.findMany({
       where: {
         tournamentId,
         ...stageWhere,
@@ -131,6 +133,23 @@ export class StandingsService {
         result: true,
       },
     });
+    if (throughMatchId) {
+      const ordered = [...matches].sort(
+        (x, y) =>
+          x.scheduledStartTime.getTime() - y.scheduledStartTime.getTime() ||
+          (x.matchNumber ?? '').localeCompare(y.matchNumber ?? '', undefined, {
+            numeric: true,
+          }),
+      );
+      const at = ordered.findIndex((m) => m.id === throughMatchId);
+      if (at >= 0) {
+        matches = ordered.slice(0, at + 1);
+        stageInfo = {
+          id: throughMatchId,
+          name: `After ${ordered[at].matchNumber ?? `match ${at + 1}`}`,
+        };
+      }
+    }
 
     // E-Sports lobbies (Free Fire / BGMI) are ranked by points over every game.
     const lobbyGames = matches.filter(

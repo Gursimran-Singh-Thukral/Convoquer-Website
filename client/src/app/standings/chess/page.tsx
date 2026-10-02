@@ -12,6 +12,17 @@ import {
   type TournamentStage,
 } from '@/lib/api';
 
+interface PlayedMatch {
+  id: string;
+  matchNumber: string | null;
+  scheduledStartTime: string;
+  teamA: { name: string; institute?: { shortName?: string | null } | null } | null;
+  teamB: { name: string; institute?: { shortName?: string | null } | null } | null;
+  scoreA: number;
+  scoreB: number;
+}
+const short = (t: PlayedMatch['teamA']) => t?.institute?.shortName || t?.name || 'TBD';
+
 const fmt = (n: number | undefined) =>
   n === undefined ? '—' : Number.isInteger(n) ? String(n) : n.toFixed(1);
 
@@ -20,6 +31,10 @@ function ChessStandings() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [tournamentId, setTournamentId] = useState(params.get('tournament') ?? '');
   const [round, setRound] = useState(Number(params.get('round')) || 0);
+  // Round robin (women): the published matches in play order, and the one the
+  // table is shown "after" (0 = all of them).
+  const [played, setPlayed] = useState<PlayedMatch[]>([]);
+  const [matchNo, setMatchNo] = useState(0);
   const [rows, setRows] = useState<TeamStanding[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -50,13 +65,46 @@ function ChessStandings() {
     return swiss.length ? swiss : [];
   }, [tournament]);
   const stage = stages.find((_, i) => i + 1 === round) ?? stages[stages.length - 1];
+  const roundRobin = !!tournament && stages.length === 0;
+
+  useEffect(() => {
+    if (!tournament || !roundRobin) return;
+    let live = true;
+    apiGet<
+      {
+        finalScoreA: number;
+        finalScoreB: number;
+        match: Omit<PlayedMatch, 'scoreA' | 'scoreB'>;
+      }[]
+    >(`/tournaments/${tournament.id}/results`)
+      .then((rs) => {
+        if (!live) return;
+        const list = rs
+          .map((x) => ({ ...x.match, scoreA: x.finalScoreA, scoreB: x.finalScoreB }))
+          .sort(
+            (x, y) =>
+              new Date(x.scheduledStartTime).getTime() - new Date(y.scheduledStartTime).getTime() ||
+              (x.matchNumber ?? '').localeCompare(y.matchNumber ?? '', undefined, {
+                numeric: true,
+              }),
+          );
+        setPlayed(list);
+      })
+      .catch(() => live && setPlayed([]));
+    return () => {
+      live = false;
+    };
+  }, [tournament, roundRobin]);
+  const upTo = roundRobin && matchNo > 0 ? played[matchNo - 1] : undefined;
 
   useEffect(() => {
     if (!tournament) return;
     let live = true;
     const url = stage
       ? `/tournaments/${tournament.id}/standings?throughStageId=${stage.id}`
-      : `/tournaments/${tournament.id}/standings`;
+      : upTo
+        ? `/tournaments/${tournament.id}/standings?throughMatchId=${upTo.id}`
+        : `/tournaments/${tournament.id}/standings`;
     apiGet<{ standings: TeamStanding[] }>(url)
       .then((r) => live && setRows(r.standings))
       .catch(() => live && setFailed(true))
@@ -64,7 +112,7 @@ function ChessStandings() {
     return () => {
       live = false;
     };
-  }, [tournament, stage]);
+  }, [tournament, stage, upTo]);
 
   const swiss =
     /\bmen\b/i.test(tournament?.sport?.name ?? '') && !/women/i.test(tournament?.sport?.name ?? '');
@@ -89,6 +137,7 @@ function ChessStandings() {
                 onClick={() => {
                   setTournamentId(t.id);
                   setRound(0);
+                  setMatchNo(0);
                   setLoading(true);
                 }}
                 className={`px-3 py-1 rounded border text-sm ${
@@ -124,9 +173,58 @@ function ChessStandings() {
             ))}
           </nav>
         )}
+        {roundRobin && played.length > 0 && (
+          <nav aria-label="Match" className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMatchNo(0);
+                setLoading(true);
+              }}
+              aria-current={matchNo === 0 ? 'true' : undefined}
+              className={`px-3 py-1 rounded border text-sm ${
+                matchNo === 0
+                  ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]'
+                  : 'border-white/20 text-zinc-300 hover:border-white/50'
+              }`}
+            >
+              Latest
+            </button>
+            {played.map((m, i) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  setMatchNo(i + 1);
+                  setLoading(true);
+                }}
+                aria-current={i + 1 === matchNo ? 'true' : undefined}
+                title={`${short(m.teamA)} ${fmt(m.scoreA)}–${fmt(m.scoreB)} ${short(m.teamB)}`}
+                className={`px-3 py-1 rounded border text-sm ${
+                  i + 1 === matchNo
+                    ? 'border-[#FFD700] bg-[#FFD700]/10 text-[#FFD700]'
+                    : 'border-white/20 text-zinc-300 hover:border-white/50'
+                }`}
+              >
+                After match {i + 1}
+              </button>
+            ))}
+          </nav>
+        )}
+        {upTo && (
+          <p className="text-sm text-zinc-300">
+            Match {matchNo}: {short(upTo.teamA)} {fmt(upTo.scoreA)}–{fmt(upTo.scoreB)}{' '}
+            {short(upTo.teamB)}
+          </p>
+        )}
         <p className="text-sm text-zinc-400">
           {tournament?.name}
-          {shownRound ? ` · standings after round ${shownRound}` : ''}. Win 2, draw 1, loss 0.{' '}
+          {shownRound
+            ? ` · standings after round ${shownRound}`
+            : upTo
+              ? ` · standings after match ${matchNo}`
+              : ''}
+          . Win 2, draw 1, loss 0.{' '}
           {swiss
             ? 'Ties: Buchholz Cut-1, then Sonneborn–Berger.'
             : 'Ties: Sonneborn–Berger, then the direct encounter.'}

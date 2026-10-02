@@ -64,6 +64,8 @@ export class RegisterOnSpotAttendeeDto {
   category?: string; // AUDIENCE, GUEST, ATHLETE
   /** Chosen from the list of participating institutes; never typed in. */
   instituteId?: string;
+  /** "Other": the visitor's non-participating college, as free text. */
+  otherInstitute?: string;
   /** Deprecated: matched against existing institutes only, never creates one. */
   instituteName?: string;
   rollNumber?: string;

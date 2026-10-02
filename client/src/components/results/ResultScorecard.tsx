@@ -660,6 +660,30 @@ export function ResultScorecard(props: ResultScorecardProps) {
       </Frame>
     );
   }
+  if (details.kind === 'FORFEIT') {
+    const lost = details.forfeitedBy;
+    const row = (side: 'A' | 'B', t?: ScorecardTeam | null) => ({
+      key: side,
+      name: code(t),
+      sub: t?.name ?? undefined,
+      cells: [],
+      total: lost === side ? 'Forfeit' : 'W/O',
+      winner: lost !== side,
+      totalLabel: 'Result',
+    });
+    return (
+      <Frame label="Final result" stageName={stageName} compact={compact}>
+        <Board compact={compact} columns={[]} rows={[row('A', teamA), row('B', teamB)]} />
+        <ResultLine>
+          {code(lost === 'A' ? teamB : teamA)} awarded the match —{' '}
+          {code(lost === 'A' ? teamA : teamB)} did not turn up
+        </ResultLine>
+        {details.reason && (
+          <p className="mt-1 text-center text-xs text-zinc-400">{details.reason}</p>
+        )}
+      </Frame>
+    );
+  }
   const label =
     details.kind === 'TRACK'
       ? 'Official results'

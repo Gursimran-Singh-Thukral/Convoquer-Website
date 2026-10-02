@@ -117,11 +117,13 @@ export class ResultsController {
     @Param('id') tournamentId: string,
     @Query('stageId') stageId?: string,
     @Query('throughStageId') throughStageId?: string,
+    @Query('throughMatchId') throughMatchId?: string,
   ) {
     return this.standingsService.getTournamentStandings(
       tournamentId,
       stageId,
       throughStageId,
+      throughMatchId,
     );
   }
 

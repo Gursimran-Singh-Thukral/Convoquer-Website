@@ -22,6 +22,7 @@ interface WalkIn {
   photographUrl?: string | null;
   idDocumentUrl?: string | null;
   institute?: { name: string; shortName: string | null } | null;
+  otherInstitute?: string | null;
 }
 
 const when = (iso?: string | null) =>
@@ -110,7 +111,10 @@ function Detail({
           <Field label="Name" value={pass.name} />
           <Field label="Phone / WhatsApp" value={pass.contactNumber} />
           <Field label="Category" value={pass.category} />
-          <Field label="College / organisation" value={pass.institute?.name} />
+          <Field
+            label="College / organisation"
+            value={pass.institute?.name || pass.otherInstitute}
+          />
           <Field label="ID number" value={pass.rollNumber} />
           <Field label="Gender" value={pass.gender} />
           <Field label="Registered" value={when(pass.createdAt)} />
@@ -281,7 +285,9 @@ function PassesContent() {
                     <td className="p-3 font-semibold">{r.name}</td>
                     <td className="p-3 font-mono">{r.gatePassNumber}</td>
                     <td className="p-3">{r.contactNumber ?? '—'}</td>
-                    <td className="p-3">{r.institute?.shortName || r.institute?.name || '—'}</td>
+                    <td className="p-3">
+                      {r.institute?.shortName || r.institute?.name || r.otherInstitute || '—'}
+                    </td>
                     <td className="p-3">{r.isCheckedIn ? 'Yes' : 'No'}</td>
                     <td className="p-3 text-zinc-400">{when(r.createdAt)}</td>
                     <td className="p-3 text-right">

@@ -15,6 +15,8 @@ function initialsOf(name: string): string {
 }
 
 // India-format WhatsApp/mobile number: a 6-9 leading digit and 9 more digits (10 total, no country code — that's fixed to +91 in the UI).
+/** Dropdown value for a college that is not in the participating list. */
+const OTHER = '__other__';
 const PHONE_PATTERN = /^[6-9]\d{9}$/;
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // source file cap before compression; the compressed result sent to the server is much smaller
@@ -24,7 +26,8 @@ export default function AudiencePassPage() {
   const [eventLoading, setEventLoading] = useState(true);
 
   const [name, setName] = useState('');
-  const [college, setCollege] = useState(''); // institute id chosen from the list
+  const [college, setCollege] = useState(''); // institute id chosen from the list, or OTHER
+  const [otherCollege, setOtherCollege] = useState('');
   const [institutes, setInstitutes] = useState<
     { id: string; name: string; shortName: string | null }[]
   >([]);
@@ -133,7 +136,8 @@ export default function AudiencePassPage() {
           name: name.trim(),
           contactNumber: `+91${phone.trim()}`,
           category,
-          instituteId: college || undefined,
+          instituteId: college && college !== OTHER ? college : undefined,
+          otherInstitute: college === OTHER ? otherCollege.trim() || undefined : undefined,
           rollNumber: rollNo.trim() || undefined,
           gender: gender || undefined,
           photographUrl: photoDataUrl,
@@ -239,7 +243,7 @@ export default function AudiencePassPage() {
                     onChange={(e) => setCollege(e.target.value)}
                     className="w-full bg-[#1B191E] border border-white/15 focus:border-[#FFD700] text-white px-3.5 py-2.5 rounded-xl focus:outline-none transition-all text-sm"
                   >
-                    <option value="">General public / not from a participating college</option>
+                    <option value="">General public / not from a college</option>
                     {[...institutes]
                       .sort((x, y) => x.name.localeCompare(y.name))
                       .map((i) => (
@@ -247,7 +251,19 @@ export default function AudiencePassPage() {
                           {i.name}
                         </option>
                       ))}
+                    <option value={OTHER}>Other (college not in this list)</option>
                   </select>
+                  {college === OTHER && (
+                    <input
+                      type="text"
+                      value={otherCollege}
+                      onChange={(e) => setOtherCollege(e.target.value)}
+                      maxLength={120}
+                      required
+                      placeholder="Name of your college / organisation"
+                      className="mt-2 w-full bg-[#1B191E] border border-white/15 focus:border-[#FFD700] text-white px-3.5 py-2.5 rounded-xl focus:outline-none transition-all placeholder:text-zinc-600 text-sm"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -470,7 +486,9 @@ export default function AudiencePassPage() {
                       {submittedPass.name}
                     </h3>
                     <p className="text-xs text-zinc-300 font-mono">
-                      {submittedPass.institute?.name || 'General Public / Spectator'}
+                      {submittedPass.institute?.name ||
+                        submittedPass.otherInstitute ||
+                        'General Public / Spectator'}
                       {submittedPass.rollNumber ? (
                         <>
                           {' '}

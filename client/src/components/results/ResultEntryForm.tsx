@@ -1258,6 +1258,8 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
   const [payload, setPayload] = useState<Payload | null>(null);
   const [winner, setWinner] = useState('');
   const [notes, setNotes] = useState('');
+  // A team that did not turn up: the other team is awarded the match.
+  const [forfeit, setForfeit] = useState<'' | 'A' | 'B'>('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -1297,7 +1299,7 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!payload) {
+    if (!payload && !forfeit) {
       setError(true);
       setMessage('Complete the scorecard before submitting.');
       return;
@@ -1313,8 +1315,8 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
     try {
       if (pickTeams) await apiPatch(`/matches/${match.id}`, { teamAId: pickA, teamBId: pickB });
       await apiPost(`/matches/${match.id}/result`, {
-        scoreDetails: payload,
-        ...(winner ? { winnerTeamId: winner } : {}),
+        scoreDetails: forfeit ? { kind: 'FORFEIT', forfeitedBy: forfeit } : payload,
+        ...(winner && !forfeit ? { winnerTeamId: winner } : {}),
         ...(notes.trim() ? { notes } : {}),
       });
       setDone(true);
@@ -1339,38 +1341,60 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
           Both teams must be decided (the earlier rounds published) before a result can be entered.
         </p>
       )}
-      {kind === 'SETS' && (
-        <SetsForm
-          names={names}
-          emit={setPayload}
-          bestOf={/volleyball/i.test(match.tournament?.sport?.name ?? '') ? 5 : 3}
-        />
+      {!ranked && !needTeams && (
+        <label className="block text-sm">
+          Did both teams play?
+          <select
+            aria-label="Forfeit"
+            className={`${box} mt-1`}
+            value={forfeit}
+            onChange={(e) => setForfeit(e.target.value as '' | 'A' | 'B')}
+          >
+            <option value="">Yes — enter the scorecard</option>
+            <option value="A">No — {names.a} did not turn up (forfeit)</option>
+            <option value="B">No — {names.b} did not turn up (forfeit)</option>
+          </select>
+        </label>
       )}
-      {kind === 'GAMES' && (
-        <GamesForm
-          names={names}
-          emit={setPayload}
-          cfg={
-            gamesConfigFor(match.tournament?.sport?.name) ?? {
-              count: 5,
-              playAll: false,
-              unit: 'Game',
+      {forfeit && (
+        <p role="note" className="text-amber-300 text-sm">
+          {forfeit === 'A' ? names.b : names.a} will be awarded the match by walkover (W/O).
+        </p>
+      )}
+      <div hidden={!!forfeit} className="space-y-4">
+        {kind === 'SETS' && (
+          <SetsForm
+            names={names}
+            emit={setPayload}
+            bestOf={/volleyball/i.test(match.tournament?.sport?.name ?? '') ? 5 : 3}
+          />
+        )}
+        {kind === 'GAMES' && (
+          <GamesForm
+            names={names}
+            emit={setPayload}
+            cfg={
+              gamesConfigFor(match.tournament?.sport?.name) ?? {
+                count: 5,
+                playAll: false,
+                unit: 'Game',
+              }
             }
-          }
-        />
-      )}
-      {kind === 'QUARTERS' && <QuartersForm names={names} emit={setPayload} />}
-      {kind === 'CRICKET' && (
-        <CricketForm match={match} names={names} emit={setPayload} setWinner={setWinner} />
-      )}
-      {kind === 'FOOTBALL' && <FootballForm names={names} emit={setPayload} />}
-      {kind === 'CHESS' && <ChessForm match={match} names={names} emit={setPayload} />}
-      {kind === 'TRACK' && (
-        <TrackForm match={match} teams={teams} emit={setPayload} onTeamAdded={addTeam} />
-      )}
-      {kind === 'LOBBY' && (
-        <LobbyForm match={match} teams={teams} emit={setPayload} onTeamAdded={addTeam} />
-      )}
+          />
+        )}
+        {kind === 'QUARTERS' && <QuartersForm names={names} emit={setPayload} />}
+        {kind === 'CRICKET' && (
+          <CricketForm match={match} names={names} emit={setPayload} setWinner={setWinner} />
+        )}
+        {kind === 'FOOTBALL' && <FootballForm names={names} emit={setPayload} />}
+        {kind === 'CHESS' && <ChessForm match={match} names={names} emit={setPayload} />}
+        {kind === 'TRACK' && (
+          <TrackForm match={match} teams={teams} emit={setPayload} onTeamAdded={addTeam} />
+        )}
+        {kind === 'LOBBY' && (
+          <LobbyForm match={match} teams={teams} emit={setPayload} onTeamAdded={addTeam} />
+        )}
+      </div>
       {pickTeams && (
         <div className="space-y-3 rounded border border-white/15 p-3">
           <p className="text-sm text-zinc-300">
@@ -1406,7 +1430,9 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
           {sportId && <AddLobbyTeam sportId={sportId} game="Valorant" onAdded={addTeam} />}
         </div>
       )}
-      {kind === 'SCORE' && <ScoreForm names={names} emit={setPayload} />}
+      <div hidden={!!forfeit}>
+        {kind === 'SCORE' && <ScoreForm names={names} emit={setPayload} />}
+      </div>
       <label className="block">
         Result notes
         <textarea

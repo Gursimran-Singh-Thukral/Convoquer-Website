@@ -230,6 +230,9 @@ model Participant {
   id             String    @id @default(uuid())
   eventId        String
   instituteId    String?
+  // Walk-in visitor from a college that is not participating (the "Other" choice
+  // on the pass form). Free text; never an Institute record.
+  otherInstitute String?
   name           String
   photographUrl  String?
   // Scanned/photographed government or college ID (Aadhaar, college ID card),

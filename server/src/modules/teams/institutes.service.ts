@@ -11,9 +11,9 @@ export class InstitutesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * By default only PARTICIPATING institutes: those with at least one team, or
-   * an athlete/official on the roster. Anything else (for example a stray record
-   * left by a walk-in visitor) is not a participant and is not counted or listed.
+   * By default only PARTICIPATING institutes: those with at least one team (the
+   * teams come from the imported fixtures). Anything else (for example a stray
+   * record left by a walk-in visitor) is not a participant and is not counted.
    * Organiser tools that need every record pass `all`.
    */
   async getInstitutes(eventId?: string, status?: string, all = false) {
@@ -24,14 +24,7 @@ export class InstitutesService {
         ...(all
           ? {}
           : {
-              OR: [
-                { teams: { some: {} } },
-                {
-                  participants: {
-                    some: { category: { in: ['ATHLETE', 'OFFICIAL'] } },
-                  },
-                },
-              ],
+              teams: { some: {} },
             }),
       },
       include: {

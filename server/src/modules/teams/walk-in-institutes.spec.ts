@@ -3,16 +3,13 @@ import { InstitutesService } from './institutes.service.js';
 import { ParticipantsService } from './participants.service.js';
 
 describe('participating institutes', () => {
-  it('lists only institutes with a team or an athlete/official by default', async () => {
+  it('lists only institutes that have teams (the imported ones) by default', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const svc = new InstitutesService({ institute: { findMany } } as never);
     await svc.getInstitutes('e1');
-    expect(findMany.mock.calls[0][0].where.OR).toEqual([
-      { teams: { some: {} } },
-      { participants: { some: { category: { in: ['ATHLETE', 'OFFICIAL'] } } } },
-    ]);
+    expect(findMany.mock.calls[0][0].where.teams).toEqual({ some: {} });
     await svc.getInstitutes('e1', undefined, true);
-    expect(findMany.mock.calls[1][0].where.OR).toBeUndefined();
+    expect(findMany.mock.calls[1][0].where.teams).toBeUndefined();
   });
 });
 
@@ -63,6 +60,18 @@ describe('walk-in registration never creates an institute', () => {
     expect(
       prisma.participant.create.mock.calls[0][0].data.instituteId,
     ).toBeUndefined();
+  });
+
+  it('stores an "Other" college as free text, still creating no institute', async () => {
+    const { prisma, svc } = make(null);
+    await svc.registerOnSpotAttendee({
+      ...dto,
+      otherInstitute: '  Rayat Bahra  ',
+    });
+    const data = prisma.participant.create.mock.calls[0][0].data;
+    expect(data.otherInstitute).toBe('Rayat Bahra');
+    expect(data.instituteId).toBeUndefined();
+    expect(prisma.institute.create).not.toHaveBeenCalled();
   });
 
   it('rejects an institute id from another event', async () => {

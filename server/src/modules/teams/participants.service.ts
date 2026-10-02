@@ -187,7 +187,8 @@ export class ParticipantsService {
         (p.gatePassNumber || '').toLowerCase().includes(q) ||
         (p.contactNumber || '').toLowerCase().includes(q) ||
         (p.rollNumber || '').toLowerCase().includes(q) ||
-        (p.institute?.name || '').toLowerCase().includes(q),
+        (p.institute?.name || '').toLowerCase().includes(q) ||
+        (p.otherInstitute || '').toLowerCase().includes(q),
     );
   }
 
@@ -461,6 +462,9 @@ export class ParticipantsService {
       data: {
         eventId: dto.eventId,
         instituteId,
+        otherInstitute: instituteId
+          ? undefined
+          : dto.otherInstitute?.trim().slice(0, 120) || undefined,
         name: dto.name,
         contactNumber: encryptField(dto.contactNumber),
         category: dto.category || 'AUDIENCE',

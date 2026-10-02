@@ -672,3 +672,43 @@ describe('payload guards', () => {
     ).toThrow(BadRequestException);
   });
 });
+
+describe('FORFEIT (a team did not turn up)', () => {
+  const ctx = { teamAId: 'a', teamBId: 'b', knockout: false };
+  it('awards the match to the other team in any head-to-head sport', () => {
+    for (const kind of [
+      'SETS',
+      'GAMES',
+      'QUARTERS',
+      'CRICKET',
+      'FOOTBALL',
+      'CHESS',
+      'SCORE',
+    ] as const) {
+      const out = buildResult(kind, { kind: 'FORFEIT', forfeitedBy: 'A' }, ctx);
+      expect(out.winnerTeamId).toBe('b');
+      expect(out.scoreDetails).toEqual({ kind: 'FORFEIT', forfeitedBy: 'A' });
+    }
+    expect(
+      buildResult('SETS', { kind: 'FORFEIT', forfeitedBy: 'B' }, ctx)
+        .winnerTeamId,
+    ).toBe('a');
+  });
+  it('needs to know who forfeited and both teams', () => {
+    expect(() => buildResult('SETS', { kind: 'FORFEIT' }, ctx)).toThrow(
+      BadRequestException,
+    );
+    expect(() =>
+      buildResult(
+        'SETS',
+        { kind: 'FORFEIT', forfeitedBy: 'A' },
+        { ...ctx, teamBId: null },
+      ),
+    ).toThrow(BadRequestException);
+  });
+  it('is refused for ranked events (use DNS there)', () => {
+    expect(() =>
+      buildResult('TRACK', { kind: 'FORFEIT', forfeitedBy: 'A' }, ctx),
+    ).toThrow(BadRequestException);
+  });
+});

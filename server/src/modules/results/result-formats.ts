@@ -659,6 +659,28 @@ function buildScore(
 }
 
 /**
+ * FORFEIT — a team did not turn up (walkover). Valid for every head-to-head
+ * sport: the other team is awarded the match; the score is recorded 0–0 and the
+ * scorecard reads "W/O". Ranked events (athletics, lobbies) mark a team DNS
+ * instead.
+ */
+function buildForfeit(d: Record<string, unknown>, ctx: FormatContext) {
+  requireTeams(ctx);
+  if (d.forfeitedBy !== 'A' && d.forfeitedBy !== 'B')
+    bad('Choose which team forfeited');
+  const loser = d.forfeitedBy as 'A' | 'B';
+  const out: BuiltResult = {
+    finalScoreA: 0,
+    finalScoreB: 0,
+    winnerTeamId: loser === 'A' ? ctx.teamBId : ctx.teamAId,
+    scoreDetails: { kind: 'FORFEIT', forfeitedBy: loser },
+  };
+  if (typeof d.reason === 'string' && d.reason.trim())
+    out.scoreDetails.reason = d.reason.trim().slice(0, 200);
+  return out;
+}
+
+/**
  * Validates `details` for `kind` and derives the canonical result. Throws a
  * 400 (BadRequestException) naming the first thing wrong, in organiser terms.
  */
@@ -670,6 +692,11 @@ export function buildResult(
 ): BuiltResult {
   if (!isObject(details))
     return bad('Result details are required for this sport');
+  if (details.kind === 'FORFEIT') {
+    if (isRankedKind(kind))
+      bad('Mark a team that did not turn up as DNS in the entries instead');
+    return buildForfeit(details, ctx);
+  }
   if (details.kind !== undefined && details.kind !== kind)
     bad(`This sport records a ${kind} scorecard, not ${String(details.kind)}`);
   switch (kind) {

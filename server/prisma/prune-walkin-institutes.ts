@@ -1,7 +1,8 @@
 // Walk-in visitors used to be able to TYPE their college, and every new spelling
 // created an Institute record — which inflated "participating institutes".
-// This finds institutes that are not participating (no team and no athlete or
-// official on the roster) and, only with --apply, deletes them. Their walk-in
+// This finds institutes that are not participating (no team — only the institutes
+// that came in with the imported fixtures have teams) and, only with --apply,
+// deletes them. Their walk-in
 // visitors are kept; they simply lose the college link (their pass stays valid).
 //
 // PREVIEW BY DEFAULT — nothing is deleted without --apply:
@@ -21,25 +22,19 @@ async function main() {
     const all = await prisma.institute.findMany({
       include: {
         _count: { select: { teams: true, participants: true, medals: true } },
-        participants: {
-          where: { category: { in: ['ATHLETE', 'OFFICIAL'] } },
-          select: { id: true },
-          take: 1,
-        },
       },
       orderBy: { name: 'asc' },
     });
     const stray = all.filter(
-      (i) =>
-        i._count.teams === 0 &&
-        i.participants.length === 0 &&
-        i._count.medals === 0,
+      (i) => i._count.teams === 0 && i._count.medals === 0,
     );
     console.log(
       `${all.length} institutes: ${all.length - stray.length} participating, ${stray.length} stray.`,
     );
     for (const i of stray)
-      console.log(`  stray  ${i.name}  (${i._count.participants} visitor(s))`);
+      console.log(
+        `  stray  ${i.name}  (${i._count.participants} person(s) linked)`,
+      );
     if (!APPLY) {
       console.log(
         '\nPreview only. Run again with --apply to delete the stray ones.',
@@ -50,7 +45,7 @@ async function main() {
       where: { id: { in: stray.map((i) => i.id) } },
     });
     console.log(
-      `\nDeleted ${res.count} stray institute(s). Visitors and passes were kept.`,
+      `\nDeleted ${res.count} stray institute(s). People and passes were kept.`,
     );
   } finally {
     await prisma.$disconnect();
