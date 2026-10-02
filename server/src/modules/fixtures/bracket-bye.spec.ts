@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { advanceBracket, resolveBye } from './bracket.js';
+import { advanceBracket, repairBracket, resolveBye } from './bracket.js';
 import { buildResult } from '../results/result-formats.js';
 
 const cancelled = {
@@ -121,5 +121,56 @@ describe('cancelling a match when neither team turned up', () => {
     );
     expect(out.winnerTeamId).toBeNull();
     expect(out.scoreDetails).toEqual({ kind: 'FORFEIT', forfeitedBy: 'BOTH' });
+  });
+});
+
+describe('repairing a bracket whose winners never advanced', () => {
+  it('moves published winners into empty next-round slots, and never overwrites', async () => {
+    const rows: Record<string, any> = {
+      m1: {
+        id: 'm1',
+        nextMatchId: 'q',
+        nextMatchSlot: 'B',
+        result: { status: 'PUBLISHED', winnerTeamId: 'gmc', scoreDetails: {} },
+      },
+      m2: {
+        id: 'm2',
+        nextMatchId: 'q2',
+        nextMatchSlot: 'A',
+        result: { status: 'PUBLISHED', winnerTeamId: 'x', scoreDetails: {} },
+      },
+      q: {
+        id: 'q',
+        teamAId: 'miet',
+        teamBId: null,
+        status: 'SCHEDULED',
+        result: null,
+        previousMatches: [],
+      },
+      q2: {
+        id: 'q2',
+        teamAId: 'already',
+        teamBId: null,
+        status: 'SCHEDULED',
+        result: null,
+        previousMatches: [],
+      },
+    };
+    const update = vi.fn(async ({ where, data }: any) =>
+      Object.assign(rows[where.id], data),
+    );
+    const tx: any = {
+      match: {
+        findMany: vi.fn(async () => [rows.m1, rows.m2]),
+        findUnique: vi.fn(async ({ where }: any) => ({
+          ...rows[where.id],
+          previousMatches: [],
+        })),
+        update,
+      },
+    };
+    expect(await repairBracket(tx, 't')).toBe(1);
+    expect(rows.q.teamBId).toBe('gmc');
+    expect(rows.q2.teamAId).toBe('already');
   });
 });

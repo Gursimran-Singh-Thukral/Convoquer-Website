@@ -12,6 +12,7 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
+import { seedKnockouts } from '../src/modules/results/knockout-seeding.js';
 import {
   buildResult,
   gamesConfigFor,
@@ -349,6 +350,9 @@ async function main() {
   }
   for (const [s, n] of perSport) console.log(`  ${s}: ${n} result(s)`);
   const extra = await esports();
+  // Move winners into their next round, as approving a result does.
+  for (const t of await prisma.tournament.findMany())
+    await seedKnockouts(prisma, t.id);
   console.log(
     `Published ${[...perSport.values()].reduce((a, b) => a + b, extra)} test result(s).`,
   );

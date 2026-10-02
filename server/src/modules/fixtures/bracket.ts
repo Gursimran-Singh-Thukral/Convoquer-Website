@@ -93,3 +93,44 @@ export async function resolveBye(
   });
   if (match.nextMatchId) await advanceBracket(tx, matchId, winnerId);
 }
+
+/**
+ * Catch-up for a bracket whose published winners never reached the next match
+ * (results saved or imported without going through approval): puts every
+ * published winner into its empty "Winner of …" slot, then resolves byes.
+ * Only fills EMPTY slots of matches that have not started; returns how many.
+ */
+export async function repairBracket(
+  tx: Prisma.TransactionClient,
+  tournamentId: string,
+): Promise<number> {
+  const matches = await tx.match.findMany({
+    where: { tournamentId, nextMatchId: { not: null } },
+    include: { result: true },
+  });
+  let filled = 0;
+  for (const m of matches) {
+    const winner =
+      m.result?.status === 'PUBLISHED' ? m.result.winnerTeamId : null;
+    if (!winner || !m.nextMatchId) continue;
+    const next = await tx.match.findUnique({
+      where: { id: m.nextMatchId },
+      include: { result: true },
+    });
+    if (!next || next.result) continue;
+    if (!['SCHEDULED', 'READY', 'RESCHEDULED'].includes(next.status)) continue;
+    const field = m.nextMatchSlot === 'A' ? 'teamAId' : 'teamBId';
+    if (next[field]) continue;
+    await tx.match.update({
+      where: { id: next.id },
+      data: { [field]: winner },
+    });
+    filled++;
+    await resolveBye(tx, next.id);
+  }
+  for (const m of matches) {
+    if (isCancelledResult(m.result) && m.nextMatchId)
+      await resolveBye(tx, m.nextMatchId);
+  }
+  return filled;
+}

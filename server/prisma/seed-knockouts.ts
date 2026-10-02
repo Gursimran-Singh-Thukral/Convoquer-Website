@@ -2,6 +2,7 @@
 // Runner-up Pool-B", "Rank-1 vs Rank-2", "Loser SF 1 vs Loser SF 2") from the
 // published results, for every tournament. This now happens automatically when
 // a result is approved; run this once to catch up on results approved before.
+// It also moves published winners into their "Winner of ..." slots if that never happened.
 // It only fills EMPTY slots and is safe to run repeatedly.
 //
 //   npx tsx prisma/seed-knockouts.ts

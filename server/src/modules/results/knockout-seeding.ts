@@ -1,4 +1,5 @@
 import { StandingsService } from './standings.service.js';
+import { repairBracket } from '../fixtures/bracket.js';
 
 // Knockout fixtures printed as "Group A 1st vs Group B 2nd", "Winner Pool-A vs
 // Runner-up Pool-B", "Rank-1 vs Rank-2" or "Loser SF 1 vs Loser SF 2" have no
@@ -110,6 +111,8 @@ export async function seedKnockouts(
   prisma: Db,
   tournamentId: string,
 ): Promise<number> {
+  // First make sure every published winner has reached its next match.
+  const repaired = await repairBracket(prisma, tournamentId);
   const matches: Row[] = await prisma.match.findMany({
     where: { tournamentId },
     select: {
@@ -128,7 +131,7 @@ export async function seedKnockouts(
   const open = matches.filter(
     (m) => isKnockout(m) && (!m.teamAId || !m.teamBId) && m.matchNumber,
   );
-  if (!open.length) return 0;
+  if (!open.length) return repaired;
 
   const groupDone =
     group.length > 0 && group.every((m) => m.result?.status === 'PUBLISHED');
@@ -182,5 +185,5 @@ export async function seedKnockouts(
       filled += Object.keys(data).length;
     }
   }
-  return filled;
+  return filled + repaired;
 }
