@@ -1,4 +1,5 @@
 import { advanceBracket } from '../fixtures/bracket.js';
+import { seedKnockouts } from './knockout-seeding.js';
 import {
   buildResult,
   gamesConfigFor,
@@ -435,6 +436,10 @@ export class ResultsService {
         scoreDetails: (result.scoreDetails ?? undefined) as any,
       },
     });
+
+    // Fill "Group A 1st vs Group B 2nd" style knockout slots once the groups
+    // are decided. Never blocks the approval itself.
+    await seedKnockouts(this.prisma, result.match.tournamentId).catch(() => 0);
 
     await this.prisma.auditLog.create({
       data: {
