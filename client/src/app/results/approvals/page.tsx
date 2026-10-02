@@ -1,5 +1,6 @@
 'use client';
 
+import { matchHeading } from '@/lib/matchDisplay';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
@@ -157,7 +158,7 @@ export default function MatchApprovalsPage() {
         await apiPatch(`/results/${result.id}/approve`, {});
         setApprovedThisSession((n) => n + 1);
       },
-      `Result for ${result.match.teamA?.name || 'Team A'} vs ${result.match.teamB?.name || 'Team B'} approved and published.`,
+      `Result for ${matchHeading(result.match, 'Team')} approved and published.`,
     );
   };
 

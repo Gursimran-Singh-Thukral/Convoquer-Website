@@ -179,7 +179,7 @@ describe('GAMES (badminton men, best of 5 games of 3 sets)', () => {
   });
 });
 
-describe('GAMES (badminton women best of 3, table tennis play-all)', () => {
+describe('GAMES (badminton and table tennis: a tie stops at a majority)', () => {
   const game = (...sets: [number, number][]) => ({
     sets: sets.map(([a, b]) => ({ a, b })),
   });
@@ -206,30 +206,40 @@ describe('GAMES (badminton women best of 3, table tennis play-all)', () => {
   const tt = (...sets: [number, number][]) => ({
     sets: sets.map(([a, b]) => t11(a, b)),
   });
-  it('table tennis boys: all 5 matches, each best of 3 sets to 11', () => {
+  it('table tennis boys: best of 5 matches, stopping at 3, each best of 3 sets to 11', () => {
     const cfg = gamesConfigFor('Table Tennis (Men)')!;
     expect(cfg).toMatchObject({
       count: 5,
-      playAll: true,
+      playAll: false,
       setTo: 11,
       unit: 'Match',
     });
     const m: FormatContext = { ...ctx, games: cfg };
     const a = tt([11, 5], [11, 9]);
     const b = tt([4, 11], [9, 11]);
-    const r = buildResult('GAMES', { games: [a, a, b, a, b] }, m);
-    expect([r.finalScoreA, r.finalScoreB, r.winnerTeamId]).toEqual([3, 2, 'A']);
-    expect(r.scoreDetails).toMatchObject({
-      playAll: true,
+    // decided after three matches: the last two need not be played
+    const quick = buildResult('GAMES', { games: [a, a, a] }, m);
+    expect([quick.finalScoreA, quick.finalScoreB, quick.winnerTeamId]).toEqual([
+      3,
+      0,
+      'A',
+    ]);
+    const full = buildResult('GAMES', { games: [a, b, a, b, a] }, m);
+    expect([full.finalScoreA, full.finalScoreB]).toEqual([3, 2]);
+    expect(full.scoreDetails).toMatchObject({
+      playAll: false,
       unit: 'Match',
       bestOf: 5,
     });
-    // a decided tie still needs the remaining matches recorded
-    expect(() => buildResult('GAMES', { games: [a, a, a] }, m)).toThrow(
-      /all 5 matches/,
+    // a played match after the tie is decided, or an undecided tie, is refused
+    expect(() => buildResult('GAMES', { games: [a, a, a, b] }, m)).toThrow(
+      /already decided/,
+    );
+    expect(() => buildResult('GAMES', { games: [a, b, a] }, m)).toThrow(
+      /3 matches|next match/,
     );
   });
-  it('table tennis girls: all 3 matches; sets validated to 11 win-by-2', () => {
+  it('table tennis girls: best of 3 matches; sets validated to 11 win-by-2', () => {
     const m: FormatContext = {
       ...ctx,
       games: gamesConfigFor('Table Tennis (Women)')!,

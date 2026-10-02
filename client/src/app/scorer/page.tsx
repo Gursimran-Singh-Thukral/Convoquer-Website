@@ -1,5 +1,6 @@
 'use client';
 
+import { isTeamless, matchHeading } from '@/lib/matchDisplay';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { FixtureResultEditor } from '@/components/FixtureResultEditor';
@@ -2419,7 +2420,7 @@ export default function ScorerPage() {
                   {sheetMatch.stage?.name || sheetMatch.tournament?.name || ''}
                 </p>
                 <p>
-                  TEAMS: {sheetMatch.teamA?.name || 'TBD'} vs {sheetMatch.teamB?.name || 'TBD'}
+                  {isTeamless(sheetMatch) ? 'EVENT' : 'TEAMS'}: {matchHeading(sheetMatch)}
                 </p>
                 <p>
                   STATUS: {sheetMatch.status.toUpperCase()}

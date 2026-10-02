@@ -20,3 +20,16 @@ export const eventTitle = (m: MatchLike): string => (m.matchNumber ?? '').trim()
 /** Short description of how a one-go event is played. */
 export const eventSubtitle = (sportName?: string | null): string =>
   /athletics/i.test(sportName ?? '') ? 'All teams compete together' : 'All teams in one lobby';
+
+/**
+ * "Team A vs Team B" for a head-to-head fixture; for a one-go event
+ * (an athletics race, a lobby game) the event itself, never a fake pairing.
+ */
+export const matchHeading = (
+  m: MatchLike & {
+    teamA?: { name?: string | null } | null;
+    teamB?: { name?: string | null } | null;
+  },
+  fallback = 'TBD',
+): string =>
+  isTeamless(m) ? eventTitle(m) : `${m.teamA?.name || fallback} vs ${m.teamB?.name || fallback}`;

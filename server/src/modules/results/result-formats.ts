@@ -56,7 +56,7 @@ export function gamesConfigFor(
   if (/badminton/.test(name))
     return { count: women ? 3 : 5, playAll: false, unit: 'Game' };
   if (/table tennis/.test(name))
-    return { count: women ? 3 : 5, playAll: true, setTo: 11, unit: 'Match' };
+    return { count: women ? 3 : 5, playAll: false, setTo: 11, unit: 'Match' };
   return null;
 }
 

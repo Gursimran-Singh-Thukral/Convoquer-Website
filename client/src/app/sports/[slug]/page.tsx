@@ -1,5 +1,6 @@
 'use client';
 
+import { matchHeading } from '@/lib/matchDisplay';
 import { resultSummary } from '@/lib/resultFormat';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
@@ -475,7 +476,7 @@ export default function SportDetailPage() {
                               </span>
                             </div>
                             <div className="text-base font-display font-bold text-white uppercase">
-                              {m.teamA?.name || 'TBD'} vs {m.teamB?.name || 'TBD'}
+                              {matchHeading(m)}
                             </div>
                           </div>
                           <div className="text-right">

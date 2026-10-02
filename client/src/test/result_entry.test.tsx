@@ -56,32 +56,40 @@ it('records women’s badminton as best of 3 games and stops at 2 games', async 
   expect((bodies[0].scoreDetails as { kind: string; games: unknown[] }).games).toHaveLength(2);
 });
 
-it('table tennis girls: 3 matches shown up front, each set to 11', async () => {
+it('table tennis girls: best of 3 matches, stopping once one team has won 2', async () => {
   const bodies = capture();
   render(<ResultEntryForm match={fixture('Table Tennis (Women)')} onSaved={vi.fn()} />);
-  for (const m of [1, 2, 3])
-    expect(screen.getByLabelText(`Match ${m} Set 1 team A`)).toBeInTheDocument();
-  expect(screen.queryByLabelText('Match 4 Set 1 team A')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Match 2 Set 1 team A')).not.toBeInTheDocument();
   const win: [string, string][] = [
     ['11', '7'],
     ['11', '9'],
   ];
-  [1, 2, 3].forEach((m) =>
+  [1, 2].forEach((m) =>
     win.forEach(([a, b], i) => {
       type(`Match ${m} Set ${i + 1} team A`, a);
       type(`Match ${m} Set ${i + 1} team B`, b);
     }),
   );
-  expect(screen.getByText(/Matches: 3–0/)).toBeInTheDocument();
+  // 2-0 up after two matches: the third is not asked for
+  expect(screen.queryByLabelText('Match 3 Set 1 team A')).not.toBeInTheDocument();
+  expect(screen.getByText(/Matches: 2–0/)).toBeInTheDocument();
   fireEvent.submit(screen.getByRole('form', { name: 'Enter final result' }));
   await waitFor(() => expect(bodies).toHaveLength(1));
-  expect((bodies[0].scoreDetails as { games: unknown[] }).games).toHaveLength(3);
+  expect((bodies[0].scoreDetails as { games: unknown[] }).games).toHaveLength(2);
 });
 
-it('table tennis boys: 5 matches', () => {
+it('table tennis boys: best of 5, the fourth match only appears while the tie is open', () => {
   render(<ResultEntryForm match={fixture('Table Tennis (Men)')} onSaved={vi.fn()} />);
-  expect(screen.getByLabelText('Match 5 Set 1 team A')).toBeInTheDocument();
-  expect(screen.queryByLabelText('Match 6 Set 1 team A')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Match 1 Set 1 team A')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Match 2 Set 1 team A')).not.toBeInTheDocument();
+  [1, 2, 3].forEach((m, idx) => {
+    type(`Match ${m} Set 1 team A`, idx === 1 ? '5' : '11');
+    type(`Match ${m} Set 1 team B`, idx === 1 ? '11' : '6');
+    type(`Match ${m} Set 2 team A`, idx === 1 ? '7' : '11');
+    type(`Match ${m} Set 2 team B`, idx === 1 ? '11' : '4');
+  });
+  expect(screen.getByLabelText('Match 4 Set 1 team A')).toBeInTheDocument(); // 2-1, still open
+  expect(screen.queryByLabelText('Match 5 Set 1 team A')).not.toBeInTheDocument();
 });
 
 it('records men’s badminton as best of 5 games of 3 sets and stops at 3 games', async () => {

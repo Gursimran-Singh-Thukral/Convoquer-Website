@@ -1,5 +1,6 @@
 'use client';
 
+import { matchHeading } from '@/lib/matchDisplay';
 import { eventTitle, isTeamless } from '@/lib/matchDisplay';
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -339,9 +340,7 @@ function ManageMatchModal({
             <h3 className="text-lg font-black text-white uppercase">
               {match.matchNumber || 'Match'} — {match.tournament?.name}
             </h3>
-            <p className="text-xs text-zinc-400 font-mono mt-0.5">
-              {formatTeamName(match.teamA)} vs {formatTeamName(match.teamB)}
-            </p>
+            <p className="text-xs text-zinc-400 font-mono mt-0.5">{matchHeading(match)}</p>
           </div>
           <button onClick={onClose} className="text-zinc-400 hover:text-white" type="button">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
