@@ -36,8 +36,9 @@ export type ResultKind =
  * Team ties made of individual games, each game best of 3 sets:
  *  - Badminton (Men): best of 5 games; (Women): best of 3 games — the tie ends
  *    as soon as one side has won a majority.
- *  - Table Tennis (Men): 5 matches; (Women): 3 matches — every match is played,
- *    each best of 3 sets to 11 points (win by 2).
+ *  - Table Tennis: best of 3 matches, but best of 5 in the Men's semi-finals and
+ *    final and the Women's final (stops at a majority); each match is best of 3
+ *    sets to 11 points (win by 2).
  */
 export interface GamesConfig {
   count: number;
@@ -50,13 +51,25 @@ export interface GamesConfig {
 
 export function gamesConfigFor(
   sportName: string | null | undefined,
+  matchLabel?: string | null,
 ): GamesConfig | null {
   const name = (sportName ?? '').toLowerCase();
   const women = /women/.test(name);
   if (/badminton/.test(name))
     return { count: women ? 3 : 5, playAll: false, unit: 'Game' };
-  if (/table tennis/.test(name))
-    return { count: women ? 3 : 5, playAll: false, setTo: 11, unit: 'Match' };
+  if (/table tennis/.test(name)) {
+    // Best of 3 matches; best of 5 in the Men's semi-finals and finals and the
+    // Women's final.
+    const fixture = (matchLabel ?? '').toLowerCase();
+    const final = /\bfinal\b/.test(fixture);
+    const semi = /semi-?final/.test(fixture);
+    return {
+      count: final || (semi && !women) ? 5 : 3,
+      playAll: false,
+      setTo: 11,
+      unit: 'Match',
+    };
+  }
   return null;
 }
 

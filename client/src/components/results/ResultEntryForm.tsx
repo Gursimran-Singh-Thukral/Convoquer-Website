@@ -1374,7 +1374,7 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
             names={names}
             emit={setPayload}
             cfg={
-              gamesConfigFor(match.tournament?.sport?.name) ?? {
+              gamesConfigFor(match.tournament?.sport?.name, match.matchNumber) ?? {
                 count: 5,
                 playAll: false,
                 unit: 'Game',

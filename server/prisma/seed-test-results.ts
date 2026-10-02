@@ -305,7 +305,7 @@ async function main() {
     const sportName = m.tournament?.sport?.name ?? '';
     const kind = resultKindFor(sportName, m.matchNumber);
     const win: 'a' | 'b' = rnd() < 0.5 ? 'a' : 'b';
-    const games = gamesConfigFor(sportName) ?? undefined;
+    const games = gamesConfigFor(sportName, m.matchNumber) ?? undefined;
     const details = detailsFor(kind, sportName, win, { games });
     if (!details) continue;
     const built = buildResult(kind, details, {

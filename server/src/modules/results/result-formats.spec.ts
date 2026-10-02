@@ -206,8 +206,21 @@ describe('GAMES (badminton and table tennis: a tie stops at a majority)', () => 
   const tt = (...sets: [number, number][]) => ({
     sets: sets.map(([a, b]) => t11(a, b)),
   });
-  it('table tennis boys: best of 5 matches, stopping at 3, each best of 3 sets to 11', () => {
-    const cfg = gamesConfigFor('Table Tennis (Men)')!;
+  it('table tennis: best of 3, but best of 5 in the semi-finals and final of the men, and the women final', () => {
+    const count = (s: string, label: string) => gamesConfigFor(s, label)!.count;
+    expect(count('Table Tennis (Men)', 'Match 3 (Pool A): MIET vs CU')).toBe(3);
+    expect(count('Table Tennis (Men)', 'Semifinal 1 (Match 13): A vs B')).toBe(
+      5,
+    );
+    expect(count('Table Tennis (Men)', 'Match 16: A vs B (Final)')).toBe(5);
+    expect(count('Table Tennis (Men)', 'Match 15: A vs B (3rd Place)')).toBe(3);
+    expect(count('Table Tennis (Women)', 'Match 1: A vs B')).toBe(3);
+    expect(
+      count('Table Tennis (Women)', 'Match 4: Rank-1 vs Rank-2 (Final)'),
+    ).toBe(5);
+  });
+  it('table tennis best of 5 matches: stops at 3, each best of 3 sets to 11', () => {
+    const cfg = gamesConfigFor('Table Tennis (Men)', 'Match 16 (Final)')!;
     expect(cfg).toMatchObject({
       count: 5,
       playAll: false,
@@ -242,7 +255,7 @@ describe('GAMES (badminton and table tennis: a tie stops at a majority)', () => 
   it('table tennis girls: best of 3 matches; sets validated to 11 win-by-2', () => {
     const m: FormatContext = {
       ...ctx,
-      games: gamesConfigFor('Table Tennis (Women)')!,
+      games: gamesConfigFor('Table Tennis (Women)', 'Match 1')!,
     };
     const a = tt([11, 7], [12, 10]);
     const b = tt([5, 11], [8, 11]);

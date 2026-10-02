@@ -78,8 +78,13 @@ it('table tennis girls: best of 3 matches, stopping once one team has won 2', as
   expect((bodies[0].scoreDetails as { games: unknown[] }).games).toHaveLength(2);
 });
 
-it('table tennis boys: best of 5, the fourth match only appears while the tie is open', () => {
-  render(<ResultEntryForm match={fixture('Table Tennis (Men)')} onSaved={vi.fn()} />);
+it('table tennis men final: best of 5, the fourth match only appears while the tie is open', () => {
+  render(
+    <ResultEntryForm
+      match={fixture('Table Tennis (Men)', 'Match 16: Winner SF-1 vs Winner SF-2 (Final)')}
+      onSaved={vi.fn()}
+    />,
+  );
   expect(screen.getByLabelText('Match 1 Set 1 team A')).toBeInTheDocument();
   expect(screen.queryByLabelText('Match 2 Set 1 team A')).not.toBeInTheDocument();
   [1, 2, 3].forEach((m, idx) => {

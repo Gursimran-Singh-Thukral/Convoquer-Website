@@ -106,8 +106,8 @@ export type ResultDetails =
 /**
  * Team ties made of individual games, each game best of 3 sets. Mirrors
  * server gamesConfigFor(): Badminton (Men) best of 5 games, (Women) best of 3 —
- * the tie stops at a majority; Table Tennis (Men) 5 matches, (Women) 3 matches —
- * every match is played, each set to 11 points (win by 2).
+ * the tie stops at a majority; Table Tennis best of 3 matches (best of 5 in the Men's
+ * semi-finals and final, and the Women's final), each set to 11 points (win by 2).
  */
 export interface GamesConfig {
   count: number;
@@ -115,12 +115,26 @@ export interface GamesConfig {
   setTo?: number;
   unit: 'Game' | 'Match';
 }
-export function gamesConfigFor(sportName: string | null | undefined): GamesConfig | null {
+export function gamesConfigFor(
+  sportName: string | null | undefined,
+  matchLabel?: string | null,
+): GamesConfig | null {
   const name = (sportName ?? '').toLowerCase();
   const women = /women/.test(name);
   if (/badminton/.test(name)) return { count: women ? 3 : 5, playAll: false, unit: 'Game' };
-  if (/table tennis/.test(name))
-    return { count: women ? 3 : 5, playAll: false, setTo: 11, unit: 'Match' };
+  if (/table tennis/.test(name)) {
+    // Best of 3 matches; best of 5 in the Men's semi-finals and finals and the
+    // Women's final.
+    const fixture = (matchLabel ?? '').toLowerCase();
+    const final = /\bfinal\b/.test(fixture);
+    const semi = /semi-?final/.test(fixture);
+    return {
+      count: final || (semi && !women) ? 5 : 3,
+      playAll: false,
+      setTo: 11,
+      unit: 'Match',
+    };
+  }
   return null;
 }
 

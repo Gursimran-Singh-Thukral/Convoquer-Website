@@ -133,7 +133,9 @@ export class ResultsService {
         teamBId: match.teamBId,
         knockout: !!match.nextMatchId,
         bestOf: /volleyball/i.test(match.tournament?.sport?.name ?? '') ? 5 : 3,
-        games: gamesConfigFor(match.tournament?.sport?.name) ?? undefined,
+        games:
+          gamesConfigFor(match.tournament?.sport?.name, match.matchNumber) ??
+          undefined,
         mustDecide: /valorant/i.test(match.matchNumber ?? ''),
         label: match.matchNumber,
         fieldTeams,
