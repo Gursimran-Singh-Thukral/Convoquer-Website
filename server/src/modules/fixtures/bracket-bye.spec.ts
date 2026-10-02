@@ -84,6 +84,14 @@ describe('a cancelled match gives the next opponent a bye', () => {
     expect(matches.fin.teamAId).toBe('z'); // advanced into the final
   });
 
+  it('also counts a match simply set to CANCELLED, with no result', async () => {
+    const { tx, matches, results } = bracket(cancelled);
+    matches.qf1.result = null; // called off by status only
+    await resolveBye(tx, 'sf1');
+    expect(results[0]).toMatchObject({ matchId: 'sf1', winnerTeamId: 'z' });
+    expect(matches.fin.teamAId).toBe('z');
+  });
+
   it('does nothing while the other feeder is still to be played', async () => {
     const { tx, matches, results } = bracket(null);
     matches.sf1.teamBId = null; // nobody waiting yet: no bye to give

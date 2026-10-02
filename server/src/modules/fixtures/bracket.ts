@@ -39,6 +39,12 @@ export const isCancelledResult = (
     ?.kind === 'FORFEIT' &&
   (result.scoreDetails as { forfeitedBy?: string }).forfeitedBy === 'BOTH';
 
+/** Called off: a "neither team turned up" result, or the match set to CANCELLED. */
+export const isCancelledMatch = (m: {
+  status: string;
+  result?: { status: string; scoreDetails: unknown } | null;
+}) => m.status === 'CANCELLED' || isCancelledResult(m.result);
+
 /**
  * A knockout match whose only possible opponent never played (the match that
  * feeds the other slot was cancelled because neither team turned up) is a BYE:
@@ -63,8 +69,7 @@ export async function resolveBye(
   const feeders = match.previousMatches.filter(
     (m) => m.nextMatchSlot === emptySlot,
   );
-  if (!feeders.length || !feeders.every((m) => isCancelledResult(m.result)))
-    return;
+  if (!feeders.length || !feeders.every((m) => isCancelledMatch(m))) return;
   const winnerId = present[0]!;
   const now = new Date();
   await tx.result.create({
@@ -111,7 +116,11 @@ export async function repairBracket(
   let filled = 0;
   for (const m of matches) {
     const winner =
-      m.result?.status === 'PUBLISHED' ? m.result.winnerTeamId : null;
+      m.result?.status === 'PUBLISHED'
+        ? m.result.winnerTeamId
+        : m.status === 'COMPLETED'
+          ? m.winnerTeamId
+          : null;
     if (!winner || !m.nextMatchId) continue;
     const next = await tx.match.findUnique({
       where: { id: m.nextMatchId },
@@ -129,7 +138,7 @@ export async function repairBracket(
     await resolveBye(tx, next.id);
   }
   for (const m of matches) {
-    if (isCancelledResult(m.result) && m.nextMatchId)
+    if (isCancelledMatch(m) && m.nextMatchId)
       await resolveBye(tx, m.nextMatchId);
   }
   return filled;

@@ -7,6 +7,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
+import { resolveBye } from './bracket.js';
 import { RbacService } from '../rbac/rbac.service.js';
 import {
   CreateMatchDto,
@@ -683,6 +684,10 @@ export class MatchesService {
         winnerTeam: true,
       },
     });
+
+    // Called off: the opponent waiting in the next round gets a bye.
+    if (dto.status === 'CANCELLED' && existing.nextMatchId)
+      await resolveBye(this.prisma, existing.nextMatchId);
 
     await this.prisma.auditLog.create({
       data: {
