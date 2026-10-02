@@ -36,9 +36,9 @@ export type ResultKind =
  * Team ties made of individual games, each game best of 3 sets:
  *  - Badminton (Men): best of 5 games; (Women): best of 3 games — the tie ends
  *    as soon as one side has won a majority.
- *  - Table Tennis: best of 3 matches, but best of 5 in the Men's semi-finals and
- *    final and the Women's final (stops at a majority); each match is best of 3
- *    sets to 11 points (win by 2).
+ *  - Table Tennis (Men): 5 matches; (Women): 3 matches — the tie stops at a
+ *    majority. Each match is best of 3 sets to 11 points (win by 2), but best
+ *    of 5 sets in the Men's semi-finals and final and the Women's final.
  */
 export interface GamesConfig {
   count: number;
@@ -46,6 +46,8 @@ export interface GamesConfig {
   playAll: boolean;
   /** Points a set is played to, validated when set (table tennis: 11). */
   setTo?: number;
+  /** Sets in each game: 3 (default) or 5 (table tennis semi-finals / finals). */
+  setsPerGame?: 3 | 5;
   unit: 'Game' | 'Match';
 }
 
@@ -58,15 +60,17 @@ export function gamesConfigFor(
   if (/badminton/.test(name))
     return { count: women ? 3 : 5, playAll: false, unit: 'Game' };
   if (/table tennis/.test(name)) {
-    // Best of 3 matches; best of 5 in the Men's semi-finals and finals and the
-    // Women's final.
+    // A tie of 5 matches (Men) / 3 matches (Women), stopping at a majority.
+    // Each match is best of 3 sets, but best of 5 sets in the Men's
+    // semi-finals and final and the Women's final.
     const fixture = (matchLabel ?? '').toLowerCase();
     const final = /\bfinal\b/.test(fixture);
     const semi = /semi-?final/.test(fixture);
     return {
-      count: final || (semi && !women) ? 5 : 3,
+      count: women ? 3 : 5,
       playAll: false,
       setTo: 11,
+      setsPerGame: final || (semi && !women) ? 5 : 3,
       unit: 'Match',
     };
   }
@@ -206,6 +210,8 @@ function buildGames(
   const unit = cfg.unit.toLowerCase();
   const plural = unit === 'match' ? 'matches' : 'games';
   const need = (cfg.count + 1) / 2; // majority
+  const spg = cfg.setsPerGame ?? 3; // sets in each game
+  const setWins = (spg + 1) / 2;
   const min = cfg.playAll ? cfg.count : need;
   if (
     !Array.isArray(d.games) ||
@@ -227,10 +233,12 @@ function buildGames(
     if (
       !isObject(g) ||
       !Array.isArray(g.sets) ||
-      g.sets.length < 2 ||
-      g.sets.length > 3
+      g.sets.length < setWins ||
+      g.sets.length > spg
     )
-      bad(`${label}: enter the score of 2 or 3 sets (best of 3)`);
+      bad(
+        `${label}: enter the score of ${setWins} to ${spg} sets (best of ${spg})`,
+      );
     const raw = g as { sets: unknown[]; playerA?: unknown; playerB?: unknown };
     let setsA = 0;
     let setsB = 0;
@@ -245,14 +253,14 @@ function buildGames(
             `${label} set ${si + 1}: a set is played to ${cfg.setTo} and won by 2 clear points (11–9, 12–10 …)`,
           );
       }
-      if (setsA === 2 || setsB === 2)
+      if (setsA === setWins || setsB === setWins)
         bad(`${label} was already decided — remove the extra set`);
       if (score.a > score.b) setsA++;
       else setsB++;
       return score;
     });
-    if (setsA < 2 && setsB < 2)
-      bad(`${label}: one side must win 2 sets — add the deciding set`);
+    if (setsA < setWins && setsB < setWins)
+      bad(`${label}: one side must win ${setWins} sets — add the deciding set`);
     if (setsA > setsB) gamesA++;
     else gamesB++;
     const game: Record<string, unknown> = { sets, setsA, setsB };
@@ -275,6 +283,7 @@ function buildGames(
       bestOf: cfg.count,
       playAll: cfg.playAll,
       unit: cfg.unit,
+      setsPerGame: spg,
       games,
     },
   };

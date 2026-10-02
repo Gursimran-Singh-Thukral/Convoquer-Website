@@ -78,10 +78,10 @@ it('table tennis girls: best of 3 matches, stopping once one team has won 2', as
   expect((bodies[0].scoreDetails as { games: unknown[] }).games).toHaveLength(2);
 });
 
-it('table tennis men final: best of 5, the fourth match only appears while the tie is open', () => {
+it('table tennis men group: best of 5 matches, the fourth match only appears while the tie is open', () => {
   render(
     <ResultEntryForm
-      match={fixture('Table Tennis (Men)', 'Match 16: Winner SF-1 vs Winner SF-2 (Final)')}
+      match={fixture('Table Tennis (Men)', 'Match 3 (Pool A): MIET vs CU')}
       onSaved={vi.fn()}
     />,
   );
@@ -493,4 +493,26 @@ it('shows each lobby position calculated from the points, with no position box t
   type('Kills LPU E-Sports (BGMI)', '30');
   expect(pos('LPU E-Sports (BGMI)')).toContain('Pos 1');
   expect(pos('CU E-Sports (BGMI)')).toContain('Pos 2');
+});
+
+it('table tennis men final: each match is best of 5 sets, so a third set is always asked for', () => {
+  render(
+    <ResultEntryForm
+      match={fixture('Table Tennis (Men)', 'Match 16: Winner SF-1 vs Winner SF-2 (Final)')}
+      onSaved={vi.fn()}
+    />,
+  );
+  expect(screen.getByLabelText('Match 1 Set 3 team A')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Match 1 Set 4 team A')).not.toBeInTheDocument();
+  // 2-0 up is not yet a win in a best-of-5
+  type('Match 1 Set 1 team A', '11');
+  type('Match 1 Set 1 team B', '5');
+  type('Match 1 Set 2 team A', '11');
+  type('Match 1 Set 2 team B', '6');
+  expect(screen.getByLabelText('Match 1 Set 3 team A')).toBeInTheDocument();
+  expect(screen.queryByLabelText('Match 2 Set 1 team A')).not.toBeInTheDocument();
+  type('Match 1 Set 3 team A', '11');
+  type('Match 1 Set 3 team B', '7');
+  // third set win decides the match, the next match opens
+  expect(screen.getByLabelText('Match 2 Set 1 team A')).toBeInTheDocument();
 });

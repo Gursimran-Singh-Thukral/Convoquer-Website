@@ -63,13 +63,16 @@ function detailsFor(
       while (w < need) {
         // The favourite wins most games, but not always.
         const g = l < need - 1 && rnd() < 0.3 ? lose : win;
-        const sets = [set(g, to), set(g, to)];
+        const sets = Array.from(
+          { length: ((cfg.setsPerGame ?? 3) + 1) / 2 },
+          () => set(g, to),
+        );
         if (g === win) w++;
         else l++;
         games.push({
           sets,
-          setsA: g === 'a' ? 2 : 0,
-          setsB: g === 'b' ? 2 : 0,
+          setsA: g === 'a' ? sets.length : 0,
+          setsB: g === 'b' ? sets.length : 0,
         });
       }
       return {

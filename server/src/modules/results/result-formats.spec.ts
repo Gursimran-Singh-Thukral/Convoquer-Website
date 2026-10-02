@@ -206,21 +206,48 @@ describe('GAMES (badminton and table tennis: a tie stops at a majority)', () => 
   const tt = (...sets: [number, number][]) => ({
     sets: sets.map(([a, b]) => t11(a, b)),
   });
-  it('table tennis: best of 3, but best of 5 in the semi-finals and final of the men, and the women final', () => {
-    const count = (s: string, label: string) => gamesConfigFor(s, label)!.count;
-    expect(count('Table Tennis (Men)', 'Match 3 (Pool A): MIET vs CU')).toBe(3);
-    expect(count('Table Tennis (Men)', 'Semifinal 1 (Match 13): A vs B')).toBe(
-      5,
-    );
-    expect(count('Table Tennis (Men)', 'Match 16: A vs B (Final)')).toBe(5);
-    expect(count('Table Tennis (Men)', 'Match 15: A vs B (3rd Place)')).toBe(3);
-    expect(count('Table Tennis (Women)', 'Match 1: A vs B')).toBe(3);
+  it('table tennis: matches are best of 3 sets, best of 5 sets in the men semi-finals/final and the women final', () => {
+    const spg = (sport: string, label: string) =>
+      gamesConfigFor(sport, label)!.setsPerGame;
+    expect(spg('Table Tennis (Men)', 'Match 3 (Pool A): MIET vs CU')).toBe(3);
+    expect(spg('Table Tennis (Men)', 'Semifinal 1 (Match 13): A vs B')).toBe(5);
+    expect(spg('Table Tennis (Men)', 'Match 16: A vs B (Final)')).toBe(5);
+    expect(spg('Table Tennis (Men)', 'Match 15: A vs B (3rd Place)')).toBe(3);
+    expect(spg('Table Tennis (Women)', 'Match 1: A vs B')).toBe(3);
     expect(
-      count('Table Tennis (Women)', 'Match 4: Rank-1 vs Rank-2 (Final)'),
+      spg('Table Tennis (Women)', 'Match 4: Rank-1 vs Rank-2 (Final)'),
     ).toBe(5);
+    // the tie itself is always 5 matches (men) / 3 matches (women)
+    expect(
+      gamesConfigFor('Table Tennis (Men)', 'Match 16 (Final)')!.count,
+    ).toBe(5);
+    expect(
+      gamesConfigFor('Table Tennis (Women)', 'Match 4 (Final)')!.count,
+    ).toBe(3);
   });
-  it('table tennis best of 5 matches: stops at 3, each best of 3 sets to 11', () => {
-    const cfg = gamesConfigFor('Table Tennis (Men)', 'Match 16 (Final)')!;
+  it('a best-of-5-sets match needs 3 set wins', () => {
+    const m: FormatContext = {
+      ...ctx,
+      games: gamesConfigFor('Table Tennis (Men)', 'Match 16 (Final)')!,
+    };
+    const set = (a: number, b: number) => ({ a, b });
+    const w3 = { sets: [set(11, 5), set(9, 11), set(11, 7), set(11, 8)] };
+    const w = { sets: [set(11, 5), set(11, 3), set(11, 7)] };
+    const out = buildResult('GAMES', { games: [w, w, w] }, m);
+    expect(out.scoreDetails).toMatchObject({ setsPerGame: 5 });
+    expect(out.finalScoreA).toBe(3);
+    expect(buildResult('GAMES', { games: [w3, w, w] }, m).finalScoreA).toBe(3);
+    // two set wins is not enough for a best-of-5 match
+    expect(() =>
+      buildResult(
+        'GAMES',
+        { games: [{ sets: [set(11, 5), set(11, 3)] }, w, w] },
+        m,
+      ),
+    ).toThrow(/3 to 5 sets/);
+  });
+  it('table tennis men group match: best of 5 matches, stopping at 3, each best of 3 sets to 11', () => {
+    const cfg = gamesConfigFor('Table Tennis (Men)', 'Match 3 (Pool A)')!;
     expect(cfg).toMatchObject({
       count: 5,
       playAll: false,

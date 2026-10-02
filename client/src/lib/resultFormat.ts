@@ -20,6 +20,7 @@ export interface GamesDetails {
   bestOf?: number;
   playAll?: boolean;
   unit?: 'Game' | 'Match';
+  setsPerGame?: number;
   games: { sets: Pair[]; setsA: number; setsB: number; playerA?: string; playerB?: string }[];
 }
 export interface QuartersDetails {
@@ -106,13 +107,16 @@ export type ResultDetails =
 /**
  * Team ties made of individual games, each game best of 3 sets. Mirrors
  * server gamesConfigFor(): Badminton (Men) best of 5 games, (Women) best of 3 —
- * the tie stops at a majority; Table Tennis best of 3 matches (best of 5 in the Men's
- * semi-finals and final, and the Women's final), each set to 11 points (win by 2).
+ * the tie stops at a majority; Table Tennis (Men) 5 matches, (Women) 3 matches, each match
+ * best of 3 sets (best of 5 sets in the Men's semi-finals and final and the
+ * Women's final), every set to 11 points (win by 2).
  */
 export interface GamesConfig {
   count: number;
   playAll: boolean;
   setTo?: number;
+  /** Sets in each game: 3 (default) or 5 (table tennis semi-finals / finals). */
+  setsPerGame?: 3 | 5;
   unit: 'Game' | 'Match';
 }
 export function gamesConfigFor(
@@ -123,15 +127,17 @@ export function gamesConfigFor(
   const women = /women/.test(name);
   if (/badminton/.test(name)) return { count: women ? 3 : 5, playAll: false, unit: 'Game' };
   if (/table tennis/.test(name)) {
-    // Best of 3 matches; best of 5 in the Men's semi-finals and finals and the
-    // Women's final.
+    // A tie of 5 matches (Men) / 3 matches (Women), stopping at a majority.
+    // Each match is best of 3 sets, but best of 5 sets in the Men's
+    // semi-finals and final and the Women's final.
     const fixture = (matchLabel ?? '').toLowerCase();
     const final = /\bfinal\b/.test(fixture);
     const semi = /semi-?final/.test(fixture);
     return {
-      count: final || (semi && !women) ? 5 : 3,
+      count: women ? 3 : 5,
       playAll: false,
       setTo: 11,
+      setsPerGame: final || (semi && !women) ? 5 : 3,
       unit: 'Match',
     };
   }

@@ -173,24 +173,29 @@ function SetsForm({
 
 // ------------------------------------------------------------------- GAMES
 type SetRow = { a: string; b: string };
-const blankSets = (): SetRow[] => [
-  { a: '', b: '' },
-  { a: '', b: '' },
-  { a: '', b: '' },
-];
+const blankSets = (): SetRow[] => Array.from({ length: 5 }, () => ({ a: '', b: '' }));
 
-/** One game (best of 3 sets): the sets actually played and who has won it. */
-function evalGame(g: SetRow[]) {
-  const diff = (i: number) => (filled(g[i].a) && filled(g[i].b) ? n(g[i].a) - n(g[i].b) : 0);
-  const level = diff(0) * diff(1) < 0; // a set each → a deciding set is needed
-  const played = (level ? g : g.slice(0, 2)).filter((x) => filled(x.a) && filled(x.b));
+/**
+ * One game (best of `spg` sets, 3 or 5): the sets actually played, who has won
+ * it, and how many set rows to show — as many as can still be needed.
+ */
+function evalGame(g: SetRow[], spg = 3) {
+  const wins = (spg + 1) / 2;
   let a = 0;
   let b = 0;
-  for (const x of played) {
-    if (n(x.a) > n(x.b)) a++;
-    else if (n(x.a) < n(x.b)) b++;
+  const played: SetRow[] = [];
+  for (let k = 0; k < spg; k++) {
+    if (a === wins || b === wins) break;
+    if (!(filled(g[k].a) && filled(g[k].b))) break;
+    played.push(g[k]);
+    if (n(g[k].a) > n(g[k].b)) a++;
+    else if (n(g[k].a) < n(g[k].b)) b++;
   }
-  return { level, played, a, b, decided: a === 2 || b === 2 };
+  const decided = a === wins || b === wins;
+  const shown = decided
+    ? played.length
+    : Math.min(spg, played.length + Math.max(1, wins - Math.max(a, b)));
+  return { played, a, b, decided, shown };
 }
 
 function GamesForm({
@@ -205,6 +210,7 @@ function GamesForm({
   const total = cfg.count;
   const need = (total + 1) / 2; // majority
   const unit = cfg.unit;
+  const spg = cfg.setsPerGame ?? 3;
   const plural = unit === 'Match' ? 'matches' : 'games';
   const [games, setGames] = useState<SetRow[][]>(() => Array.from({ length: total }, blankSets));
   const [who, setWho] = useState(() => Array.from({ length: total }, () => ({ a: '', b: '' })));
@@ -218,7 +224,7 @@ function GamesForm({
     for (let i = 0; i < total; i++) {
       if (!cfg.playAll && (gA === need || gB === need)) break;
       rows.push(i);
-      const g = evalGame(all[i]);
+      const g = evalGame(all[i], spg);
       if (g.decided) {
         if (g.a > g.b) gA++;
         else gB++;
@@ -229,7 +235,7 @@ function GamesForm({
   useEffect(() => {
     const out: Payload[] = [];
     for (const i of walk(games).rows) {
-      const g = evalGame(games[i]);
+      const g = evalGame(games[i], spg);
       if (!g.played.length) {
         if (cfg.playAll) continue;
         break;
@@ -253,13 +259,13 @@ function GamesForm({
     <div className="space-y-3">
       <Legend>
         {cfg.playAll
-          ? `${total} ${plural} are played, each best of 3 sets to ${cfg.setTo ?? 21} points (win by 2). Enter every ${unit.toLowerCase()}: the team that wins more ${plural} wins the tie.`
-          : `Best of ${total} ${plural}. Each ${unit.toLowerCase()} is best of 3 sets: enter the set scores. The tie ends as soon as one team wins ${need} ${plural}, so the next ${unit.toLowerCase()} only appears while it is still open.`}
+          ? `${total} ${plural} are played, each best of ${spg} sets to ${cfg.setTo ?? 21} points (win by 2). Enter every ${unit.toLowerCase()}: the team that wins more ${plural} wins the tie.`
+          : `Best of ${total} ${plural}. Each ${unit.toLowerCase()} is best of ${spg} sets: enter the set scores. The tie ends as soon as one team wins ${need} ${plural}, so the next ${unit.toLowerCase()} only appears while it is still open.`}
       </Legend>
       <Heads names={names} />
       {rows.map((i) => {
-        const g = evalGame(games[i]);
-        const shown = g.level ? games[i] : games[i].slice(0, 2);
+        const g = evalGame(games[i], spg);
+        const shown = games[i].slice(0, g.shown);
         return (
           <fieldset key={i} className="space-y-2 rounded border border-white/10 p-3">
             <legend className="px-1 font-bold text-[#FFD700]">
@@ -291,7 +297,7 @@ function GamesForm({
             {shown.map((st, k) => (
               <PairRow
                 key={k}
-                label={k === 2 ? 'Set 3 (decider)' : `Set ${k + 1}`}
+                label={k === spg - 1 ? `Set ${k + 1} (decider)` : `Set ${k + 1}`}
                 a={st.a}
                 b={st.b}
                 max={99}
