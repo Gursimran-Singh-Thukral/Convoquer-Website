@@ -662,6 +662,28 @@ export function ResultScorecard(props: ResultScorecardProps) {
   }
   if (details.kind === 'FORFEIT') {
     const lost = details.forfeitedBy;
+    if (lost === 'BOTH' || lost === 'BYE') {
+      const bye = lost === 'BYE';
+      const rowOf = (side: 'A' | 'B', t?: ScorecardTeam | null) => ({
+        key: side,
+        name: t ? code(t) : '—',
+        sub: t?.name ?? undefined,
+        cells: [],
+        total: bye ? (t ? 'Bye' : '—') : 'Cancelled',
+        winner: bye && !!t,
+        totalLabel: 'Result',
+      });
+      return (
+        <Frame label={bye ? 'Bye' : 'Match cancelled'} stageName={stageName} compact={compact}>
+          <Board compact={compact} columns={[]} rows={[rowOf('A', teamA), rowOf('B', teamB)]} />
+          <ResultLine>
+            {bye
+              ? `${code(teamA ?? teamB)} goes through — the opposing match was cancelled`
+              : 'Neither team turned up — the match was cancelled'}
+          </ResultLine>
+        </Frame>
+      );
+    }
     const row = (side: 'A' | 'B', t?: ScorecardTeam | null) => ({
       key: side,
       name: code(t),

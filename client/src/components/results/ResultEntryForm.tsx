@@ -1265,7 +1265,7 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
   const [winner, setWinner] = useState('');
   const [notes, setNotes] = useState('');
   // A team that did not turn up: the other team is awarded the match.
-  const [forfeit, setForfeit] = useState<'' | 'A' | 'B'>('');
+  const [forfeit, setForfeit] = useState<'' | 'A' | 'B' | 'BOTH'>('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -1354,17 +1354,20 @@ export function ResultEntryForm({ match, onSaved }: { match: Match; onSaved: () 
             aria-label="Forfeit"
             className={`${box} mt-1`}
             value={forfeit}
-            onChange={(e) => setForfeit(e.target.value as '' | 'A' | 'B')}
+            onChange={(e) => setForfeit(e.target.value as '' | 'A' | 'B' | 'BOTH')}
           >
             <option value="">Yes — enter the scorecard</option>
             <option value="A">No — {names.a} did not turn up (forfeit)</option>
             <option value="B">No — {names.b} did not turn up (forfeit)</option>
+            <option value="BOTH">No — neither team turned up (cancel the match)</option>
           </select>
         </label>
       )}
       {forfeit && (
         <p role="note" className="text-amber-300 text-sm">
-          {forfeit === 'A' ? names.b : names.a} will be awarded the match by walkover (W/O).
+          {forfeit === 'BOTH'
+            ? 'The match will be cancelled with no winner. In a knockout, the team waiting in the next round gets a bye.'
+            : `${forfeit === 'A' ? names.b : names.a} will be awarded the match by walkover (W/O).`}
         </p>
       )}
       <div hidden={!!forfeit} className="space-y-4">

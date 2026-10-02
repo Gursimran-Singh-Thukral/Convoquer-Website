@@ -238,6 +238,12 @@ export class StandingsService {
       if (m.result?.status !== 'PUBLISHED') {
         continue;
       }
+      // Neither team turned up: the match was cancelled and counts for nobody.
+      const sd = m.result.scoreDetails as {
+        kind?: string;
+        forfeitedBy?: string;
+      } | null;
+      if (sd?.kind === 'FORFEIT' && sd.forfeitedBy === 'BOTH') continue;
 
       const scoreA = m.result ? m.result.finalScoreA : (m.teamAScore ?? 0);
       const scoreB = m.result ? m.result.finalScoreB : (m.teamBScore ?? 0);

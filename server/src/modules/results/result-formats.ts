@@ -681,20 +681,27 @@ function buildScore(
 }
 
 /**
- * FORFEIT — a team did not turn up (walkover). Valid for every head-to-head
+ * FORFEIT — a team did not turn up (walkover), or neither did (cancelled). Valid for every head-to-head
  * sport: the other team is awarded the match; the score is recorded 0–0 and the
  * scorecard reads "W/O". Ranked events (athletics, lobbies) mark a team DNS
  * instead.
  */
 function buildForfeit(d: Record<string, unknown>, ctx: FormatContext) {
   requireTeams(ctx);
-  if (d.forfeitedBy !== 'A' && d.forfeitedBy !== 'B')
-    bad('Choose which team forfeited');
-  const loser = d.forfeitedBy as 'A' | 'B';
+  if (
+    d.forfeitedBy !== 'A' &&
+    d.forfeitedBy !== 'B' &&
+    d.forfeitedBy !== 'BOTH'
+  )
+    bad('Choose which team forfeited, or cancel the match');
+  const loser = d.forfeitedBy as 'A' | 'B' | 'BOTH';
+  // BOTH: neither team turned up. The match is cancelled and has no winner; in a
+  // knockout the team waiting in the next round gets a bye (see resolveBye).
   const out: BuiltResult = {
     finalScoreA: 0,
     finalScoreB: 0,
-    winnerTeamId: loser === 'A' ? ctx.teamBId : ctx.teamAId,
+    winnerTeamId:
+      loser === 'BOTH' ? null : loser === 'A' ? ctx.teamBId : ctx.teamAId,
     scoreDetails: { kind: 'FORFEIT', forfeitedBy: loser },
   };
   if (typeof d.reason === 'string' && d.reason.trim())

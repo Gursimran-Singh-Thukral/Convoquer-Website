@@ -516,3 +516,43 @@ it('table tennis men final: each match is best of 5 sets, so a third set is alwa
   // third set win decides the match, the next match opens
   expect(screen.getByLabelText('Match 2 Set 1 team A')).toBeInTheDocument();
 });
+
+it.each([
+  'Badminton (Men)',
+  'Badminton (Women)',
+  'Table Tennis (Men)',
+  'Table Tennis (Women)',
+  'Volleyball (Men)',
+  'Volleyball (Women)',
+  'Basketball (Men)',
+  'Basketball (Women)',
+  'Cricket',
+  'Football',
+  'Chess (Men)',
+  'Chess (Women)',
+  'E-Sports',
+])('%s: a forfeit or a cancelled match can be recorded', async (sport) => {
+  for (const [choice, expected] of [
+    ['A', 'A'],
+    ['B', 'B'],
+    ['BOTH', 'BOTH'],
+  ] as const) {
+    const bodies = capture();
+    const { unmount } = render(
+      <ResultEntryForm
+        match={fixture(sport, sport === 'E-Sports' ? 'Valorant - Match 1' : 'Match 1')}
+        onSaved={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('Forfeit'), { target: { value: choice } });
+    fireEvent.submit(screen.getByRole('form', { name: 'Enter final result' }));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0].scoreDetails).toEqual({ kind: 'FORFEIT', forfeitedBy: expected });
+    unmount();
+  }
+});
+
+it('athletics and lobby games have no forfeit (a team is marked DNS instead)', () => {
+  render(<ResultEntryForm match={fixture('Athletics', '100m - Men')} onSaved={vi.fn()} />);
+  expect(screen.queryByLabelText('Forfeit')).not.toBeInTheDocument();
+});

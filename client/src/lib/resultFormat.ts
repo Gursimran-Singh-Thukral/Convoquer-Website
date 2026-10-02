@@ -84,7 +84,9 @@ export interface LobbyDetails {
 /** A team did not turn up; the other team is awarded the match (walkover). */
 export interface ForfeitDetails {
   kind: 'FORFEIT';
-  forfeitedBy: 'A' | 'B';
+  /** A / B: that team did not turn up. BOTH: neither did (cancelled). BYE: the
+   *  opposing match was cancelled, so the team that is here goes through. */
+  forfeitedBy: 'A' | 'B' | 'BOTH' | 'BYE';
   reason?: string;
 }
 export interface ScoreDetails {
@@ -315,6 +317,8 @@ export function resultSummary(
     case 'SCORE':
       return `${details.a}${dash}${details.b}`;
     case 'FORFEIT':
+      if (details.forfeitedBy === 'BOTH') return 'Cancelled — neither team turned up';
+      if (details.forfeitedBy === 'BYE') return 'Bye — through to the next round';
       return `Won by forfeit${side ? ` — ${side === 'A' ? nameB : nameA} did not play` : ''}`;
     case 'TRACK': {
       const first = details.sections[0]?.entries.find((e) => e.rank === 1);

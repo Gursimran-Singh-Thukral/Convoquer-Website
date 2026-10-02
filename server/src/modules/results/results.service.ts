@@ -1,4 +1,8 @@
-import { advanceBracket } from '../fixtures/bracket.js';
+import {
+  advanceBracket,
+  isCancelledResult,
+  resolveBye,
+} from '../fixtures/bracket.js';
 import { seedKnockouts } from './knockout-seeding.js';
 import {
   buildResult,
@@ -400,7 +404,12 @@ export class ResultsService {
       );
     }
 
-    if (result.match.nextMatchId)
+    // Neither team turned up: nobody advances, the next opponent gets a bye.
+    const cancelled = isCancelledResult({
+      status: 'PUBLISHED',
+      scoreDetails: result.scoreDetails,
+    });
+    if (result.match.nextMatchId && !cancelled)
       await advanceBracket(this.prisma, result.matchId, result.winnerTeamId);
     const now = new Date();
     const updated = await this.prisma.result.update({
@@ -431,11 +440,13 @@ export class ResultsService {
         teamAScore: result.finalScoreA,
         teamBScore: result.finalScoreB,
         winnerTeamId: result.winnerTeamId,
-        status: 'COMPLETED',
+        status: cancelled ? 'CANCELLED' : 'COMPLETED',
         // Public pages render the official scorecard straight from the match.
         scoreDetails: (result.scoreDetails ?? undefined) as any,
       },
     });
+    if (cancelled && result.match.nextMatchId)
+      await resolveBye(this.prisma, result.match.nextMatchId);
 
     // Fill "Group A 1st vs Group B 2nd" style knockout slots once the groups
     // are decided. Never blocks the approval itself.
