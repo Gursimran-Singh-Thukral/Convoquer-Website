@@ -226,8 +226,8 @@ function ChessStandings() {
               : ''}
           . Win 2, draw 1, loss 0.{' '}
           {swiss
-            ? 'Ties: Buchholz Cut-1, then Sonneborn–Berger.'
-            : 'Ties: Sonneborn–Berger, then the direct encounter.'}
+            ? 'Ties: game points (total board points), then Sonneborn–Berger, then the direct encounter.'
+            : 'Ties: game points (total board points), then the direct encounter.'}
         </p>
         <div className="overflow-x-auto rounded-lg border border-white/15">
           <table className="w-full text-sm">
@@ -239,15 +239,14 @@ function ChessStandings() {
                 <th className="p-3">W</th>
                 <th className="p-3">D</th>
                 <th className="p-3">L</th>
-                <th className="p-3" title="Board points">
-                  BP
+                <th className="p-3" title="Game points (total board points)">
+                  GP
                 </th>
-                <th className="p-3" title="Sonneborn-Berger">
-                  SB
-                </th>
-                <th className="p-3" title="Buchholz Cut-1">
-                  BC1
-                </th>
+                {swiss && (
+                  <th className="p-3" title="Sonneborn-Berger">
+                    SB
+                  </th>
+                )}
                 <th className="p-3 text-[#FFD700]">Pts</th>
               </tr>
             </thead>
@@ -276,8 +275,7 @@ function ChessStandings() {
                     <td className="p-3">{r.drawn}</td>
                     <td className="p-3">{r.lost}</td>
                     <td className="p-3">{fmt(r.scoreFor)}</td>
-                    <td className="p-3">{fmt(r.sonnebornBerger)}</td>
-                    <td className="p-3">{fmt(r.buchholzCut1)}</td>
+                    {swiss && <td className="p-3">{fmt(r.sonnebornBerger)}</td>}
                     <td className="p-3 font-black text-[#FFD700]">{r.points}</td>
                   </tr>
                 ))

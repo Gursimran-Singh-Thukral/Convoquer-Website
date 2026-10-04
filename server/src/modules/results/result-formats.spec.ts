@@ -212,7 +212,7 @@ describe('GAMES (badminton and table tennis: a tie stops at a majority)', () => 
     expect(spg('Table Tennis (Men)', 'Match 3 (Pool A): MIET vs CU')).toBe(3);
     expect(spg('Table Tennis (Men)', 'Semifinal 1 (Match 13): A vs B')).toBe(5);
     expect(spg('Table Tennis (Men)', 'Match 16: A vs B (Final)')).toBe(5);
-    expect(spg('Table Tennis (Men)', 'Match 15: A vs B (3rd Place)')).toBe(3);
+    expect(spg('Table Tennis (Men)', 'Match 15: A vs B (3rd Place)')).toBe(5);
     expect(spg('Table Tennis (Women)', 'Match 1: A vs B')).toBe(3);
     expect(
       spg('Table Tennis (Women)', 'Match 4: Rank-1 vs Rank-2 (Final)'),

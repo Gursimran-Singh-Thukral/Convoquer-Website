@@ -62,15 +62,16 @@ export function gamesConfigFor(
   if (/table tennis/.test(name)) {
     // A tie of 5 matches (Men) / 3 matches (Women), stopping at a majority.
     // Each match is best of 3 sets, but best of 5 sets in the Men's
-    // semi-finals and final and the Women's final.
+    // semi-finals, 3rd-place match and final and the Women's final.
     const fixture = (matchLabel ?? '').toLowerCase();
     const final = /\bfinal\b/.test(fixture);
     const semi = /semi-?final/.test(fixture);
+    const third = /3rd place|third place/.test(fixture);
     return {
       count: women ? 3 : 5,
       playAll: false,
       setTo: 11,
-      setsPerGame: final || (semi && !women) ? 5 : 3,
+      setsPerGame: final || third || (semi && !women) ? 5 : 3,
       unit: 'Match',
     };
   }

@@ -166,7 +166,7 @@ describe('chess tie-break order', () => {
       .standings;
   };
 
-  it('men (Swiss) expose Buchholz Cut-1 and rank by it before Sonneborn-Berger', async () => {
+  it('men (Swiss) still rank the leader first', async () => {
     // W beat X (so W has 2); Y drew Z (1 each).
     const s = await run('Chess (Men)', [
       game('W', 'X', 'W'),
@@ -176,7 +176,7 @@ describe('chess tie-break order', () => {
     expect(s.every((r) => r.buchholzCut1 !== undefined)).toBe(true);
   });
 
-  it('women (round robin) break a tie on Sonneborn-Berger, then the direct encounter', async () => {
+  it('women (round robin) break a tie on game points, then the direct encounter', async () => {
     // A beat B and C beat A... a three-way cycle: everyone 2 points, equal SB.
     const s = await run('Chess (Women)', [
       game('A', 'B', 'A'),
@@ -185,5 +185,81 @@ describe('chess tie-break order', () => {
     ]);
     expect(s).toHaveLength(3);
     expect(s.every((r) => r.points === 2)).toBe(true);
+  });
+
+  // Board points differ per game here (the shared helper fixes them at 2–2).
+  const board = (
+    a: string,
+    b: string,
+    winner: string | null,
+    pa: number,
+    pb: number,
+  ) => {
+    const g = game(a, b, winner);
+    g.result.finalScoreA = pa;
+    g.result.finalScoreB = pb;
+    return g;
+  };
+
+  it('women: equal match points are split by game points (board points), highest first', async () => {
+    // X and Y both win once and lose once (2 match points). X's wins were
+    // 3½–½ (7 board points in total), Y's were 2½–1½.
+    const s = await run('Chess (Women)', [
+      board('X', 'P', 'X', 3.5, 0.5),
+      board('Q', 'X', 'Q', 2.5, 1.5),
+      board('Y', 'P', 'Y', 2.5, 1.5),
+      board('Q', 'Y', 'Q', 2.5, 1.5),
+    ]);
+    const rank = (id: string) => s.find((r) => r.teamId === id)!.rank;
+    const pts = (id: string) => s.find((r) => r.teamId === id)!.points;
+    expect(pts('X')).toBe(2);
+    expect(pts('Y')).toBe(2);
+    expect(rank('X')).toBeLessThan(rank('Y')); // 5 board points vs 3.5
+  });
+
+  it('women: level on match points AND game points, the direct encounter decides', async () => {
+    // M and N both: 1 win, 1 loss, 4 board points in total.
+    const s = await run('Chess (Women)', [
+      board('M', 'N', 'M', 2.5, 1.5), // M beat N
+      board('R', 'M', 'R', 2.5, 1.5),
+      board('N', 'S', 'N', 2.5, 1.5),
+    ]);
+    const m = s.find((r) => r.teamId === 'M')!;
+    const n = s.find((r) => r.teamId === 'N')!;
+    expect(m.points).toBe(n.points);
+    expect(m.scoreFor).toBe(n.scoreFor);
+    expect(m.rank).toBeLessThan(n.rank);
+  });
+
+  // X and Y: one win, one loss, same board points (4), never met each other.
+  // X's win was over P (a strong team), Y's over R (a weak one): X has the better
+  // Sonneborn-Berger. Y is given a bigger winning margin when asked.
+  const menTie = (yWin: [number, number]) => [
+    board('X', 'P', 'X', 2.5, 1.5),
+    board('Q', 'X', 'Q', 2.5, 1.5),
+    board('Y', 'R', 'Y', yWin[0], yWin[1]),
+    board('Q', 'Y', 'Q', 2.5, 1.5),
+    board('P', 'S', 'P', 2.5, 1.5),
+    board('P', 'T', 'P', 2.5, 1.5),
+  ];
+
+  it('men: equal match points and game points are split by Sonneborn-Berger', async () => {
+    const s = await run('Chess (Men)', menTie([2.5, 1.5]));
+    const x = s.find((r) => r.teamId === 'X')!;
+    const y = s.find((r) => r.teamId === 'Y')!;
+    expect(x.points).toBe(y.points);
+    expect(x.scoreFor).toBe(y.scoreFor);
+    expect(x.sonnebornBerger!).toBeGreaterThan(y.sonnebornBerger!);
+    expect(x.rank).toBeLessThan(y.rank);
+  });
+
+  it('men: game points come before Sonneborn-Berger', async () => {
+    const s = await run('Chess (Men)', menTie([3.5, 0.5]));
+    const x = s.find((r) => r.teamId === 'X')!;
+    const y = s.find((r) => r.teamId === 'Y')!;
+    expect(x.points).toBe(y.points);
+    expect(y.scoreFor).toBeGreaterThan(x.scoreFor);
+    expect(x.sonnebornBerger!).toBeGreaterThan(y.sonnebornBerger!);
+    expect(y.rank).toBeLessThan(x.rank);
   });
 });

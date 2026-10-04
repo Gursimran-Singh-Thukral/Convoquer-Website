@@ -113,8 +113,8 @@ export class StandingsService {
     const ptsDraw = isChess ? 1 : (tournament.pointsForDraw ?? 1);
     const ptsLoss = isChess ? 0 : (tournament.pointsForLoss ?? 0);
     // Tie-breaks after match points (as in the printed chess rules) —
-    // Chess (Men), the Swiss: Buchholz Cut-1, then Sonneborn-Berger.
-    // Chess (Women), the round robin: Sonneborn-Berger, then the direct encounter.
+    // Chess (Men), the Swiss: game points, Sonneborn-Berger, then the direct encounter.
+    // Chess (Women), the round robin: game (board) points, then the direct encounter.
     const swiss =
       isChess &&
       /men/i.test(tournament.sport?.name ?? '') &&
@@ -347,9 +347,13 @@ export class StandingsService {
       if (b.points !== a.points) return b.points - a.points;
       if (isChess) {
         const sb = (b.sonnebornBerger ?? 0) - (a.sonnebornBerger ?? 0);
-        const order = swiss
-          ? [(b.buchholzCut1 ?? 0) - (a.buchholzCut1 ?? 0), sb]
-          : [sb, direct(a, b)];
+        // Match points → game points (total board points, e.g. 2.5, 3) →
+        // [men only: Sonneborn-Berger] → direct encounter.
+        const order = [
+          b.scoreFor - a.scoreFor,
+          ...(swiss ? [sb] : []),
+          direct(a, b),
+        ];
         const hit = order.find((d) => d !== 0);
         if (hit) return hit;
       }

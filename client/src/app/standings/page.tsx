@@ -161,6 +161,9 @@ export default function StandingsPage() {
     ];
   }, [sports]);
   const chessTable = !!sportStandings?.some((r) => r.buchholzCut1 !== undefined);
+  // Women's chess is a round robin: match points, then game (board) points, then
+  // the direct encounter. Men's chess adds Sonneborn-Berger before the direct encounter.
+  const chessRoundRobin = chessTable && /women/i.test(sportStandingsTournament ?? '');
   const lobbyTable = !!sportStandings?.some((r) => r.placementPoints !== undefined);
   const podiumRows = useMemo(() => standings.slice(0, 3), [standings]);
 
@@ -629,23 +632,25 @@ export default function StandingsPage() {
                         <>
                           <th className="py-3.5 px-3 text-center text-[#FF4500]">LOST</th>
                           <th className="py-3.5 px-3 text-center">DRAWN</th>
-                          <th
-                            className="py-3.5 px-3 text-center"
-                            title="Score difference (sets, goals or points)"
-                          >
-                            +/-
-                          </th>
+                          {!chessTable && (
+                            <th
+                              className="py-3.5 px-3 text-center"
+                              title="Score difference (sets, goals or points)"
+                            >
+                              +/-
+                            </th>
+                          )}
                         </>
                       )}
                       {chessTable && (
-                        <>
-                          <th className="py-3.5 px-3 text-center" title="Buchholz Cut-1">
-                            BC1
-                          </th>
-                          <th className="py-3.5 px-3 text-center" title="Sonneborn-Berger">
-                            SB
-                          </th>
-                        </>
+                        <th className="py-3.5 px-3 text-center" title="Game points (board points)">
+                          GP
+                        </th>
+                      )}
+                      {chessTable && !chessRoundRobin && (
+                        <th className="py-3.5 px-3 text-center" title="Sonneborn-Berger">
+                          SB
+                        </th>
                       )}
                       <th className="py-3.5 px-4 text-right text-[#FFD700]">
                         {lobbyTable ? 'TOTAL' : 'POINTS'}
@@ -719,20 +724,22 @@ export default function StandingsPage() {
                               <td className="py-3.5 px-3 text-center font-display font-bold text-base text-white">
                                 {row.drawn}
                               </td>
-                              <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
-                                {row.differential > 0 ? `+${row.differential}` : row.differential}
-                              </td>
+                              {!chessTable && (
+                                <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
+                                  {row.differential > 0 ? `+${row.differential}` : row.differential}
+                                </td>
+                              )}
                             </>
                           )}
                           {chessTable && (
-                            <>
-                              <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
-                                {row.buchholzCut1 ?? 0}
-                              </td>
-                              <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
-                                {row.sonnebornBerger ?? 0}
-                              </td>
-                            </>
+                            <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
+                              {row.scoreFor}
+                            </td>
+                          )}
+                          {chessTable && !chessRoundRobin && (
+                            <td className="py-3.5 px-3 text-center font-mono text-sm text-gray-300">
+                              {row.sonnebornBerger ?? 0}
+                            </td>
                           )}
                           <td className="py-3.5 px-4 text-right font-display text-lg font-black text-[#FFD700]">
                             {row.points}
